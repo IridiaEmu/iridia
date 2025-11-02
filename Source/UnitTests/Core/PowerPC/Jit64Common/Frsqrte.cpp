@@ -38,12 +38,9 @@ public:
     wrapped_frsqrte = reinterpret_cast<u64 (*)(u64, UReg_FPSCR&)>(AlignCode4());
     ABI_PushRegistersAndAdjustStack(ABI_ALL_CALLEE_SAVED, 8, 16);
 
-    // We know the frsqrte implementation only accesses the fpscr. We manufacture a
-    // PPCSTATE pointer so we read/write to our provided fpscr argument instead.
-    XOR(32, R(RPPCSTATE), R(RPPCSTATE));
-    LEA(64, RSCRATCH, PPCSTATE(fpscr));
-    SUB(64, R(ABI_PARAM2), R(RSCRATCH));
-    MOV(64, R(RPPCSTATE), R(ABI_PARAM2));
+    // We know that the only part of PowerPCState that the frsqrte routine accesses is the fpscr.
+    // We manufacture a PPCSTATE pointer so it reads/writes to our provided fpscr instead.
+    LEA(64, RPPCSTATE, MDisp(ABI_PARAM2, -PPCSTATE_OFF(fpscr)));
 
     // Call
     MOVQ_xmm(XMM0, R(ABI_PARAM1));
@@ -76,7 +73,8 @@ TEST(Jit64, Frsqrte)
 
     u64 actual = routines.wrapped_frsqrte(ivalue, fpscr);
 
-    fmt::print("{:016x} -> {:016x} == {:016x}\n", ivalue, actual, expected);
+    if (expected != actual)
+      fmt::print("{:016x} -> {:016x} == {:016x}\n", ivalue, actual, expected);
 
     EXPECT_EQ(expected, actual);
   }

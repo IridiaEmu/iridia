@@ -63,3 +63,10 @@ Notes:
 3. **Naming:** the IAP is "Unlock Full Version." The free tier is called **"free 10-min play sessions"**, never "trial" (so it isn't read as a guideline 3.1.1 "XX-day Trial"). Users can check performance during these sessions, and the FPS overlay stays visible.
 
 ## Phase 2 — Baseline build (started 2026-10-11)
+- Cloned iCube @ b7fdf8aa with 37 submodules into ~/Projects/gc-emu. Remotes: `icube`, `upstream`.
+- Installed tuist 4.211.1 and bartycrouch 4.15.
+- ✅ Core xcframework built from source for the iOS Simulator (`BuildiOSXCFramework.py -p SIMULATORARM64`). Log in build-logs/core-sim.log.
+- ❌ Simulator app build fails under Xcode 27: "package product 'PLzmaSDK-product' cannot be used as a dependency … uses unsafe build flags". iCube CI uses Xcode 26.3.
+  - Try 1: build as-is. Try 2: pin to exact revision 4dbac7ac. Both failed, so I stopped (two-failure rule) and reverted try 2.
+  - PLzmaSDK is only used by `ZipImportHelper.swift` (extracting 7z/zip on import).
+- devkitPro pacman installer (v6.0.2, SHA-256 verified against the GitHub release) is unsigned. The user needs to allow it in Privacy & Security.

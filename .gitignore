@@ -69,7 +69,7 @@ __pycache__/
 # and commit the result. Git will not descend into an ignored directory, so
 # `/[Bb]uild*/` above is written as `/[Bb]uild*/*` — a negation under the
 # directory form would be dead.
-!/build/xcframework/
+# gc-emu: the xcframework is always rebuilt from source and never committed (GPL: ship only what we build).
 /build-*/
 
 # Local release credentials (see Source/iOS/App/.env.sample)

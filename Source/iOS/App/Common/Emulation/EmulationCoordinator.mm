@@ -1880,6 +1880,30 @@ static bool DOLWaitForCoreUninitialized(NSTimeInterval timeoutSeconds)
     }
 #endif  // GCEMU_NO_JIT
 
+    // gc-emu: homebrew (.dol/.elf) often has the CPU draw straight into the XFB in RAM. Three
+    // display shortcuts iCube enables by default then show a black screen: Immediate XFB (only
+    // presents EFB copies, which CPU-drawn frames never make), XFB-to-texture-only (never reads
+    // the XFB back from RAM) and VBI skip. Verified on device with fb-consoletest. Turn them off
+    // for this run for homebrew only; game discs keep the faster defaults.
+    {
+      NSString* ext = bootParameter.path.pathExtension.lowercaseString;
+      const bool isHomebrew = [ext isEqualToString:@"dol"] || [ext isEqualToString:@"elf"];
+      if (isHomebrew)
+      {
+        Config::SetCurrent(Config::GFX_HACK_IMMEDIATE_XFB, false);
+        Config::SetCurrent(Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM, false);
+        Config::SetCurrent(Config::GFX_HACK_VI_SKIP, false);
+        Config::SetCurrent(Config::GFX_HACK_VI_SKIP_MODE, TriState::Off);
+      }
+      else if (Config::GetLayer(Config::LayerType::CurrentRun))
+      {
+        Config::DeleteKey(Config::LayerType::CurrentRun, Config::GFX_HACK_IMMEDIATE_XFB);
+        Config::DeleteKey(Config::LayerType::CurrentRun, Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM);
+        Config::DeleteKey(Config::LayerType::CurrentRun, Config::GFX_HACK_VI_SKIP);
+        Config::DeleteKey(Config::LayerType::CurrentRun, Config::GFX_HACK_VI_SKIP_MODE);
+      }
+    }
+
     [DOLSentryTelemetryBridge
         recordEmulationBootWithJitMode:jitMode
                                cpuCore:(NSInteger)Config::Get(Config::MAIN_CPU_CORE)

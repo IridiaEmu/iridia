@@ -137,3 +137,14 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - Remaining for CHECKPOINT 3: confirm on the device that the test programs boot with no JIT prompt; release-mode check (no get-task-allow) once we have App Store signing (Phase 9).
 - Fix: iCube mounts its programmatic `TouchOverlayView` by default (since its 2026-10-01 change), so our GCEmuTouchPadView never showed. The GameCube pad now always takes the non-hosted path (ours), and iCube skins don't move the game picture. **Verified with a device screenshot** (`devicectl device capture screenshot`): neheGX lesson06 running in the top half, our matte controller in the bottom half.
 - Note for Phase 5: iCube's placeholder library covers contain the "Nintendo GameCube" logo, and the app uses a dolphin icon. Both must go when we replace the UI.
+- **fb-consoletest black screen fixed.**
+  - Cause: three display shortcuts iCube enables by default: Immediate XFB, XFB-to-texture-only (skip XFB copy to RAM) and VBI skip mode 2. They hide frames the CPU draws directly into the XFB.
+  - Diagnosed on device: Dolphin file logging showed the .dol booting normally. Turning the three off globally in GFX.ini made the text appear.
+  - Fix: `EmulationCoordinator.mm` turns them off in the CurrentRun layer for .dol/.elf only; discs keep the faster defaults.
+  - Verified with the original GFX.ini restored: "testing console / Hello World / RTC time" shows.
+  - (A first attempt that only changed XFB-to-texture was not enough.)
+- Tooling learned this session:
+  - `devicectl device capture screenshot` for device screenshots.
+  - `devicectl device process launch --payload-url "dolphinios://play?id=<game ID>"` boots a game remotely.
+  - `devicectl device copy to/from` with `--domain-type appDataContainer` reads and writes the app's config and logs.
+  - `devicectl device orientation set` only works in the Simulator.

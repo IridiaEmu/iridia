@@ -68,7 +68,39 @@ xcrun simctl launch "iPhone 17" com.joemattiello.iCube-debug
 
 ## 5. Build for your iPhone (free Apple ID)
 
-_To be filled in once the first device build is verified._
+One-time setup:
+1. Add your Apple ID in Xcode > Settings > Accounts.
+2. Connect the iPhone by cable, unlock it, and tap **Trust**.
+3. On the iPhone, enable Settings > Privacy & Security > **Developer Mode** (it restarts).
+4. Find your Personal Team ID. Xcode caches it after sign-in:
+   ```sh
+   plutil -convert xml1 -o - ~/Library/Preferences/com.apple.dt.Xcode.plist | grep -A1 '<key>teamID</key>' | grep -oE '>[A-Z0-9]{10}<' | tr -d '<>'
+   ```
+   `-allowProvisioningUpdates` makes xcodebuild create the Apple Development certificate and the profiles automatically.
+
+Free accounts can't use the memory-limit entitlements or iCube's App Group, so generate in **free-team mode**. It uses `Project/Entitlements/FreeTeam.entitlements` and leaves out the thumbnail and Quick Look extensions:
+```sh
+TEAM=YL4F87NWP8                      # your Personal Team ID
+PREFIX=com.yl4f87nwp8.gcemu          # any reverse-DNS prefix unique to you
+cd ~/Projects/gc-emu/Source/iOS/App
+TUIST_GCEMU_FREE_TEAM=1 TUIST_GCEMU_BUNDLE_PREFIX=$PREFIX tuist generate --no-open
+
+UDID=$(xcrun devicectl list devices | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
+env PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" xcodebuild \
+  -workspace iCube.xcworkspace -scheme "iCube (NJB)" \
+  -configuration "Release (Non-Jailbroken)" -destination "id=$UDID" \
+  -derivedDataPath ~/Projects/gc-emu/build-dd \
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=$TEAM CODE_SIGN_STYLE=Automatic build
+
+APP="$HOME/Projects/gc-emu/build-dd/Build/Products/Release (Non-Jailbroken)-iphoneos/iCube.app"
+xcrun devicectl device install app --device "$UDID" "$APP"
+xcrun devicectl device process launch --device "$UDID" $PREFIX.iCube
+```
+The first launch fails with "profile has not been explicitly trusted". On the iPhone, go to Settings > General > **VPN & Device Management**, tap your Apple ID, then **Trust**.
+
+**Free-account limits:** apps expire after **7 days**, so rebuild and reinstall to renew them. There's also a cap of 3 sideloaded apps per device. These limits disappear with the paid Developer Program (Phase 9).
+
+Controls Lab (Apps/ControlsLab) works the same way: `tuist generate`, then build with `GCEMU_TEAM=$TEAM GCEMU_BUNDLE_PREFIX=$PREFIX -allowProvisioningUpdates`.
 
 ## Known issues and fixes
 
@@ -77,4 +109,6 @@ _To be filled in once the first device build is verified._
 | `package product 'PLzmaSDK-product' cannot be used … unsafe build flags` | Xcode 27 rejects unsafeFlags in remote SwiftPM packages. iCube's CI uses Xcode 26.3. | PLzmaSDK removed from `Project.swift` (commit 4661f1d). We lose `.7z`/`.xz` import; `.zip` still works. |
 | `cannot execute tool 'metal' due to missing Metal Toolchain` | Xcode 26+ ships the Metal compiler as a separate download | `xcodebuild -downloadComponent MetalToolchain` |
 | App crashes at launch: `Library not loaded: @rpath/MoltenVK.framework … Trying to load an unsigned library` | Built with `CODE_SIGNING_ALLOWED=NO` | Use ad-hoc signing (see step 4) |
+| `Personal development teams … do not support the Extended Virtual Addressing and Increased Debugging Memory Limit capabilities` | Free accounts can't use these entitlements | Generate with `TUIST_GCEMU_FREE_TEAM=1` (step 5) |
+| `An Application Group with Identifier 'group.com.joemattiello.icube' is not available` | That App Group belongs to iCube's developer | Free-team mode drops it; the app falls back to standard defaults |
 | `building for iOS Simulator, but linking in … built for iOS` | xcframework has no simulator slice | Rebuild the core with `-p SIMULATORARM64` |

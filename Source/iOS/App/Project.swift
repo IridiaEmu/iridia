@@ -74,8 +74,21 @@ let configTable: [AppConfig] = [
     AppConfig(name: "Release (Beta, TrollStore)",     debug: false, bundleId: "com.joemattiello.iCube-ts-patreon-beta", entitlements: dfEnt),
 ]
 
+// gc-emu: free Apple ID ("Personal Team") signing mode for on-device testing.
+//   TUIST_GCEMU_FREE_TEAM=1 TUIST_GCEMU_BUNDLE_PREFIX=com.you.gcemu tuist generate
+// Personal teams can't use the memory-limit entitlements or another developer's App Group,
+// and the thumbnail/Quick Look extensions would need their own profiles, so this mode uses
+// a minimal entitlements file and leaves those extensions out. App behaviour is unchanged
+// (SharedDefaults falls back to standard defaults without the App Group).
+let freeTeam = Environment.gcemuFreeTeam.getBoolean(default: false)
+let freeBundlePrefix = Environment.gcemuBundlePrefix.getString(default: "com.example.gcemu")
+let freeTeamEnt = "Project/Entitlements/FreeTeam.entitlements"
+
 let appConfigs: [Configuration] = configTable.map {
-    appCfg($0.name, debug: $0.debug, bundleId: $0.bundleId, entitlements: $0.entitlements)
+    appCfg(
+        $0.name, debug: $0.debug,
+        bundleId: freeTeam && $0.bundleId.hasPrefix("com.joemattiello") ? freeBundlePrefix + $0.bundleId.dropFirst("com.joemattiello".count) : $0.bundleId,
+        entitlements: freeTeam ? freeTeamEnt : $0.entitlements)
 }
 
 /// Extension bundle ids are `<app id>.<suffix>` so each of the 8 app ids gets its own
@@ -380,8 +393,8 @@ let iCube = Target.target(
         // appex embed intentionally OFF (faithful to original; see APP_EMBEDS_APPEX note above).
     ] + (APP_EMBEDS_APPEX ? [.target(name: "LiveActivityExtension")] : [])
       + [.target(name: "iCubeTopShelf", condition: .when([.tvos]))]
-      + [.target(name: "iCubeThumbnail", condition: .when([.ios, .catalyst]))]
-      + [.target(name: "iCubeQuickLookPreview", condition: .when([.ios, .catalyst]))],
+      + (freeTeam ? [] : [.target(name: "iCubeThumbnail", condition: .when([.ios, .catalyst]))])
+      + (freeTeam ? [] : [.target(name: "iCubeQuickLookPreview", condition: .when([.ios, .catalyst]))]),
     settings: .settings(
         base: projectBase.merging([
             "ARCHS": "arm64",

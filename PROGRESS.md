@@ -94,3 +94,9 @@ Notes:
   - Rumble and DualSense triggers.
   - Whether `buttonA` is positional on Switch controllers. The mapping screen's live highlight will show this.
 - Core integration comes later: the iOS input backend will read `gcpad_read`, replacing the mutex + std::map StateManager on the hot path.
+- ✅ **Device builds** on the user's iPhone 16 Pro (iPhone17,1) with the free Personal Team:
+  - Xcode created the certificate and profiles itself via `-allowProvisioningUpdates`, so the user didn't need to click anything.
+  - Controls Lab is installed and launched; the user trusted the developer profile.
+  - The iCube baseline (Release, NJB) is installed and launched. It uses a new **free-team mode** in `Source/iOS/App/Project.swift` (`TUIST_GCEMU_FREE_TEAM=1`): our bundle prefix, the minimal `FreeTeam.entitlements` (only team ID + `get-task-allow`, no JIT or memory entitlements), and no thumbnail/Quick Look extensions.
+  - Layout checks on the iPhone SE (3rd gen) and 13 mini simulators are fine.
+- Waiting on: the user's touch-feel feedback; the devkitPro install for the homebrew test program.

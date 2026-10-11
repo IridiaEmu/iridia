@@ -663,7 +663,7 @@ if(_M_X86_64)
     PowerPC/Jit64Common/TrampolineCache.h
     PowerPC/Jit64Common/TrampolineInfo.h
   )
-elseif(_M_ARM_64)
+elseif(_M_ARM_64 AND NOT GCEMU_NO_JIT)  # gc-emu: no JIT in App Store builds
   target_sources(core PRIVATE
     PowerPC/JitArm64/Jit.cpp
     PowerPC/JitArm64/Jit.h

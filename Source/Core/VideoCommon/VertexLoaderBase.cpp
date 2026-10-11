@@ -27,7 +27,9 @@
 #ifdef _M_X86_64
 #include "VideoCommon/VertexLoaderX64.h"
 #elif defined(_M_ARM_64)
+#ifndef GCEMU_NO_JIT
 #include "VideoCommon/VertexLoaderARM64.h"
+#endif
 #include "VideoCommon/VertexLoaderNEON.h"
 #endif
 
@@ -298,10 +300,15 @@ std::unique_ptr<VertexLoaderBase> VertexLoaderBase::CreateVertexLoader(const TVt
 #elif defined(_M_ARM_64)
   // iCube (jitless): NEON and Compare both build the NEON loader, so the built-in
   // VertexLoaderTester (Compare) validates NEON bit-for-bit against the Software loader.
+#ifdef GCEMU_NO_JIT
+  // gc-emu: the NEON loader is pure intrinsics (no generated code), so it is the only native loader.
+  native_loader = std::make_unique<VertexLoaderNEON>(vtx_desc, vtx_attr);
+#else
   if (loader_type == VertexLoaderType::NEON || loader_type == VertexLoaderType::Compare)
     native_loader = std::make_unique<VertexLoaderNEON>(vtx_desc, vtx_attr);
   else
     native_loader = std::make_unique<VertexLoaderARM64>(vtx_desc, vtx_attr);
+#endif
 #endif
 
   // Use the software loader as a fallback

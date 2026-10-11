@@ -113,3 +113,25 @@ Notes:
   - Raised the iCube app's iOS deployment target from 17.0 to 26.0 to match our minimum (GCControls requires 26).
   - Built and installed on the iPhone 16 Pro. The test .dol files survived the reinstall.
   - Note: this bridge still goes through iCube's mutex + std::map StateManager. Phase 4 replaces it with the core reading `gcpad_read`.
+
+## Phase 3 — Enforce no-JIT (2026-10-11, started early at the user's request)
+The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with **no JIT at all**.
+- **Core** (`GCEMU_NO_JIT`, CMake option, default ON):
+  - Excludes JitArm64, VertexLoaderARM64 and Arm64Emitter from the build.
+  - Replaces the iOS executable-memory implementations (Legacy/LuckNoTXM/LuckTXM, JITMemoryTracker) with an empty `MemoryUtil_iOS_NoJIT.cpp`, and undeclares the whole executable-memory API in `MemoryUtil.h`.
+  - Adds a `static_assert` in `CodeBlock` against executable blocks.
+  - `JitInterface` never constructs JitArm64. `DefaultCPUCore()` is the Cached Interpreter, and JITARM64 isn't offered. The vertex loader is always NEON.
+  - The `pthread_jit_write_protect_np` lookup is no longer compiled on iOS.
+  - The core compiled all 1,275 files with no errors, so nothing else depended on the JIT.
+- **App**:
+  - `GCEMU_NO_JIT` is defined for C/ObjC/Swift, and `Common/Jit/**` + `JitAcquisitionService.swift` are excluded.
+  - The boot path no longer does JIT detection, TXM handshakes or exec-memory allocation, and any JIT CPU setting falls back to the Cached Interpreter.
+  - Removed: the "Waiting for JIT" prompt, the ptrace child process, the JIT debug API routes, JIT telemetry, and the JIT/debugger/TXM/StikDebug rows in Debug settings (replaced by a "CPU Emulation: No JIT" row).
+  - Removed the bundled `icube.js` StikDebug broker, `dolphin_jit_lldb.py`, `.lldbinit` and the scheme LLDB init hooks.
+  - iCube's DebugRootModelBuilderTests (JIT debug UI) are compiled out.
+- **`scripts/verify_no_jit.sh`**:
+  - Against the old build: FAIL, 7 findings (ptrace/csops, icache flush, JitArm64/Arm64Gen symbols, StikDebug strings, icube.js, no marker).
+  - Against the new build: **PASS**.
+  - `vm_remap` is allowed: MemArenaDarwin uses it for RW views of emulated RAM (fastmem data, not code).
+- Installed the no-JIT build on the iPhone 16 Pro.
+- Remaining for CHECKPOINT 3: confirm on the device that the test programs boot with no JIT prompt; release-mode check (no get-task-allow) once we have App Store signing (Phase 9).

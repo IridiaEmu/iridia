@@ -1,6 +1,8 @@
 // Copyright 2026 DolphiniOS Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+// gc-emu: these tests cover iCube's JIT/StikDebug debug screen, which App Store builds compile out.
+#if !GCEMU_NO_JIT
 import SwiftUI
 import XCTest
 
@@ -333,3 +335,4 @@ final class DebugRootModelBuilderTests: XCTestCase {
     XCTAssertEqual(DebugDefaultsKey.disableArtwork, "library_disable_artwork")
   }
 }
+#endif  // !GCEMU_NO_JIT

@@ -69,7 +69,9 @@ void Reset();
 #import "FastmemManager.h"
 #import "HostNotifications.h"
 #import "HostQueue.h"
+#ifndef GCEMU_NO_JIT
 #import "JitManager.h"
+#endif
 #import "LocalizationUtil.h"
 #import "MainSceneCoordinator.h"
 #import "TVControllerMappingBridge.h"
@@ -1746,6 +1748,23 @@ static bool DOLWaitForCoreUninitialized(NSTimeInterval timeoutSeconds)
 
     auto& system = Core::System::GetInstance();
 
+#ifdef GCEMU_NO_JIT
+    // gc-emu: App Store build. No JIT, no debugger/StikDebug/TXM handshake, no executable
+    // memory. The CPU always runs an interpreter core and vertices use the NEON loader.
+    NSString* jitMode = @"none";
+    Config::SetBase(Config::GFX_VERTEX_LOADER_TYPE, ICubeJitlessVertexLoaderType());
+    if (Config::GetLayer(Config::LayerType::CurrentRun)) {
+      Config::DeleteKey(Config::LayerType::CurrentRun, Config::MAIN_CPU_CORE);
+    }
+    {
+      const PowerPC::CPUCore current_core = Config::Get(Config::MAIN_CPU_CORE);
+      const bool is_interpreter_core = current_core == PowerPC::CPUCore::Interpreter ||
+                                       current_core == PowerPC::CPUCore::CachedInterpreter ||
+                                       current_core == PowerPC::CPUCore::CachedInterpreterIR;
+      if (!is_interpreter_core)
+        Config::SetCurrent(Config::MAIN_CPU_CORE, PowerPC::CPUCore::CachedInterpreter);
+    }
+#else
     // Set up JIT type and allocate executable memory region.
     //
     // txmInterpreterFallback: true when we're on an iOS 26 TXM device but cannot use
@@ -1859,6 +1878,7 @@ static bool DOLWaitForCoreUninitialized(NSTimeInterval timeoutSeconds)
         Config::SetCurrent(Config::MAIN_CPU_CORE, PowerPC::CPUCore::CachedInterpreter);
       }
     }
+#endif  // GCEMU_NO_JIT
 
     [DOLSentryTelemetryBridge
         recordEmulationBootWithJitMode:jitMode

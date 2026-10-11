@@ -102,6 +102,13 @@ set(USE_SYSTEM_LIBS "AUTO" CACHE STRING "Use system libraries instead of bundled
 if(APPROVED_VENDORED_DEPENDENCIES)
   message(WARNING "APPROVED_VENDORED_DEPENDENCIES is deprecated.  Please migrate to setting USE_SYSTEM_LIBS to ON and setting USE_SYSTEM_<dependency> to either AUTO or OFF to allow bundled libs.")
 endif()
+# gc-emu: App Store build. Compiles out every JIT backend, the ARM64 code emitter, and all
+# executable-memory / MAP_JIT / debugger-attach paths. CPU emulation uses the Cached Interpreter.
+option(GCEMU_NO_JIT "Build without any JIT or runtime code generation (App Store)" ON)
+if(GCEMU_NO_JIT)
+  add_compile_definitions(GCEMU_NO_JIT=1)
+endif()
+
 option(USE_UPNP "Enables UPnP port mapping support" ON)
 option(ENABLE_NOGUI "Enable NoGUI frontend" OFF)
 option(ENABLE_QT "Enable Qt (Default)" ON)

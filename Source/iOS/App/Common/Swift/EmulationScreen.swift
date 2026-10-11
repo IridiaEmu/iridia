@@ -91,6 +91,11 @@ private final class EmuContainerViewController: UIViewController {
     // legacy 3 is accepted for backward compat with builds that wrote the old
     // (buggy) CpuEngine raw value. Any interpreter core suppresses the prompt;
     // when JIT is unavailable the core silently falls back to Cached Interpreter.
+    #if GCEMU_NO_JIT
+    // gc-emu: App Store build. There is no JIT, so there is nothing to ask the user about.
+    DebugServerManager.skipJITPromptOnce = false
+    launchCore()
+    #else
     let manager = JitManager.shared()
     manager.recheckIfJitIsAcquired()
     let currentCore = DOLConfigBridge.mainCpuCore()
@@ -143,6 +148,7 @@ private final class EmuContainerViewController: UIViewController {
     } else {
       launchCore()
     }
+    #endif
 
     exitObserver = NotificationCenter.default.addObserver(forName: Notification.Name("DOLEmulationRequestExitToLibrary"), object: nil, queue: .main) { [weak self] _ in
       self?.handleExit()

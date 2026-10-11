@@ -9,10 +9,12 @@
 #import "EmulationCoordinator.h"
 #import "FirstRunInitializationService.h"
 #import "GameFileCacheManager.h"
+#ifndef GCEMU_NO_JIT
 #import "JitManager.h"
 #import "JitManager+AltServer.h"
 #import "JitManager+JitStreamer.h"
 #import "JitManager+PTrace.h"
+#endif
 #import "LegacyInputConfigMigrationService.h"
 #import "MainSceneCoordinator.h"
 #import "UpdateNoticeViewController.h"

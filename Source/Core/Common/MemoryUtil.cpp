@@ -33,13 +33,13 @@
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
-#if defined(__APPLE__) && defined(_M_ARM_64)
+#if defined(__APPLE__) && defined(_M_ARM_64) && !(TARGET_OS_IOS || TARGET_OS_TV)
 #include <dlfcn.h>
 #endif
 
 namespace Common
 {
-#if defined(__APPLE__) && defined(_M_ARM_64)
+#if defined(__APPLE__) && defined(_M_ARM_64) && !(TARGET_OS_IOS || TARGET_OS_TV)
 // iCube TXM port: minimal slice of Joe's MemoryUtil helpers. Detects whether the
 // per-thread W^X toggle (pthread_jit_write_protect_np) is present. Used by
 // WriteProtect/UnWriteProtect below to skip mprotect on macOS-ARM64 desktop (where

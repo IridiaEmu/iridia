@@ -102,6 +102,23 @@ The first launch fails with "profile has not been explicitly trusted". On the iP
 
 Controls Lab (Apps/ControlsLab) works the same way: `tuist generate`, then build with `GCEMU_TEAM=$TEAM GCEMU_BUNDLE_PREFIX=$PREFIX -allowProvisioningUpdates`.
 
+## 6. No-JIT guarantee (always run before shipping)
+
+`GCEMU_NO_JIT` is **ON by default** (root `CMakeLists.txt`) and is also defined for the app (`Project.swift`). It removes:
+- the PowerPC JIT (JitArm64), the vertex-loader JIT (VertexLoaderARM64) and the ARM64 code emitter;
+- every executable-memory, `MAP_JIT`, TXM, LuckNoTXM, Legacy and ptrace path (`MemoryUtil_iOS*.cpp` and JITMemoryTracker are swapped for `MemoryUtil_iOS_NoJIT.cpp`, and the API is undeclared);
+- the app's JIT layer (`Common/Jit/**`, JitAcquisitionService), the "Waiting for JIT" prompt, StikDebug, and the LLDB/broker scripts.
+
+`Common::CodeBlock` refuses to compile an executable block, so a code generator can't be linked back in by accident. The CPU runs the Cached Interpreter, and vertices use the NEON loader.
+
+Verify any build:
+```sh
+scripts/verify_no_jit.sh path/to/App.app          # release: also fails on get-task-allow
+scripts/verify_no_jit.sh --dev path/to/App.app    # development-signed device builds
+scripts/verify_no_jit.sh path/to/App.ipa
+```
+It checks entitlements, imported symbols, defined symbols and strings, the core's `gcemu-no-jit-v1` marker, and bundled files. Exit code 0 means PASS.
+
 ## Known issues and fixes
 
 | Symptom | Cause | Fix |

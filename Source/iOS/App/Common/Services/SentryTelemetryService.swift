@@ -183,6 +183,9 @@ enum SentryTelemetryService {
   /// handshake. That is the one JIT failure the crash handler cannot see (the debugger owns the
   /// exception, and a hang ends in a SIGKILL), so report it directly, once per stuck cookie.
   private static func reportStuckTXMHandshakeIfNeeded() {
+    #if GCEMU_NO_JIT
+    return  // gc-emu: no JIT handshake exists in App Store builds
+    #else
     let defaults = UserDefaults.standard
     let manager = JitManager.shared()
     guard manager.txmHandshakeBlocked else {
@@ -199,6 +202,7 @@ enum SentryTelemetryService {
         value: ["device_has_txm": manager.deviceHasTxm, "debugger_attached_now": manager.debuggerAttached],
         key: "jit")
     }
+    #endif
   }
 
   // MARK: - Emulation lifecycle

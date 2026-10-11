@@ -43,11 +43,16 @@ enum DebugRootModelBuilder {
              h.userFolder.isEmpty
                ? L("Where iCube keeps its settings, saves and game data.")
                : String(format: L("Where iCube keeps its settings, saves and game data: %@"), h.userFolder)),
-      status("jit-status", L("JIT"), L("Whether the emulator can generate native code on this device right now."),
-             badge: h.jitAcquired ? L("Acquired") : L("Not Acquired")),
-      status("debugger-status", L("Debugger"), L("Whether a debugger is attached; iOS 26 needs one to switch JIT on."),
-             badge: h.debuggerAttached ? L("Attached") : L("Not Attached")),
     ]
+    #if GCEMU_NO_JIT
+    // gc-emu: App Store build. No JIT, debugger, TXM or StikDebug rows; the emulator never generates code.
+    items.append(status("jit-status", L("CPU Emulation"), L("This build never generates native code. Games run on the Cached Interpreter."),
+                        badge: L("No JIT")))
+    #else
+    items.append(status("jit-status", L("JIT"), L("Whether the emulator can generate native code on this device right now."),
+                        badge: h.jitAcquired ? L("Acquired") : L("Not Acquired")))
+    items.append(status("debugger-status", L("Debugger"), L("Whether a debugger is attached; iOS 26 needs one to switch JIT on."),
+                        badge: h.debuggerAttached ? L("Attached") : L("Not Attached")))
     if h.deviceHasTxm {
       items.append(status("txm-region", L("TXM JIT Region"), L("Whether this device's JIT memory region has been authorized for iCube."),
                           badge: h.txmAuthorized ? L("Authorized") : L("Not Authorized")))
@@ -75,6 +80,7 @@ enum DebugRootModelBuilder {
     items.append(SettingsRow.destination("jit-guide", L("JIT Setup Guide"),
                                          L("What JIT does, why iOS 26 needs a debugger to switch it on, and what to expect without it."),
                                          view: AnyView(WikiPageView(path: WikiConstants.Paths.jitGuide, title: L("JIT Setup Guide")).padBackNavigation())))
+    #endif
     items.append(status("fastmem-available", L("Fastmem"), L("Whether this device can provide the fast memory-access path."),
                         badge: h.fastmemAvailable ? L("Available") : L("Not Available")))
     return MenuSection(id: "environment", header: L("Environment"), items: items)

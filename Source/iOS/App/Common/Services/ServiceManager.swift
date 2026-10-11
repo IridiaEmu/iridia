@@ -22,7 +22,6 @@ class ServiceManager {
     LegacyInputConfigMigrationService(),
     GameFileCacheService(),
     LibrarySnapshotService(),
-    JitAcquisitionService(),
     URLRouterService(),
     AudioSessionCategoryService(),
 //    UpdateCheckService()
@@ -39,7 +38,6 @@ class ServiceManager {
     LegacyInputConfigMigrationService(),
     GameFileCacheService(),
     LibrarySnapshotService(),
-    JitAcquisitionService(),
     URLRouterService(),
     SpotlightIndexService(),
     AudioSessionCategoryService(),

@@ -264,10 +264,14 @@ if(_M_X86_64)
   )
 elseif(_M_ARM_64)
   target_sources(videocommon PRIVATE
-    VertexLoaderARM64.cpp
-    VertexLoaderARM64.h
     TextureDecoder_arm64.cpp
   )
+  if(NOT GCEMU_NO_JIT)  # gc-emu: VertexLoaderARM64 generates code at runtime; NEON loader replaces it
+    target_sources(videocommon PRIVATE
+      VertexLoaderARM64.cpp
+      VertexLoaderARM64.h
+    )
+  endif()
 else()
   target_sources(videocommon PRIVATE
     TextureDecoder_Generic.cpp

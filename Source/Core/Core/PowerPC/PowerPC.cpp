@@ -258,7 +258,7 @@ std::span<const CPUCore> AvailableCPUCores()
   static constexpr auto cpu_cores = {
 #ifdef _M_X86_64
       CPUCore::JIT64,
-#elif defined(_M_ARM_64)
+#elif defined(_M_ARM_64) && !defined(GCEMU_NO_JIT)
       CPUCore::JITARM64,
 #endif
       CPUCore::CachedInterpreter,
@@ -272,7 +272,9 @@ std::span<const CPUCore> AvailableCPUCores()
 
 CPUCore DefaultCPUCore()
 {
-#ifdef _M_X86_64
+#if defined(GCEMU_NO_JIT)
+  return CPUCore::CachedInterpreter;  // gc-emu: App Store build, no JIT
+#elif defined(_M_X86_64)
   return CPUCore::JIT64;
 #elif defined(_M_ARM_64)
   return CPUCore::JITARM64;

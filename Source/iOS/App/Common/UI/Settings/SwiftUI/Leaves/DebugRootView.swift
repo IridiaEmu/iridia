@@ -19,6 +19,14 @@ struct DebugRootView: View {
   }
 
   private static func readHydratedState() -> DebugHydratedState {
+    #if GCEMU_NO_JIT
+    return DebugHydratedState(
+      userFolder: UserFolderUtil.getUserFolder(),
+      fastmemAvailable: FastmemManager.shared().fastmemAvailable,
+      jitAcquired: false, jitError: "", debuggerAttached: false, txmAuthorized: false,
+      txmHandshakeBlocked: false, deviceHasTxm: false, jitSupported: false, stikDebugInstalled: false,
+      approvedClients: BenchAccessApproval.shared.rememberedAddresses)
+    #else
     let manager = JitManager.shared()
     manager.recheckIfJitIsAcquired()
     return DebugHydratedState(
@@ -33,6 +41,7 @@ struct DebugRootView: View {
       jitSupported: manager.jitSupported,
       stikDebugInstalled: StikDebugLauncher.isStikDebugInstalled,
       approvedClients: BenchAccessApproval.shared.rememberedAddresses)
+    #endif
   }
 
   private func sync() {
@@ -70,16 +79,20 @@ struct DebugRootView: View {
     case .inputDebug(let v): state.inputDebug = v; defaults.set(v, forKey: DebugDefaultsKey.inputDebug)
     case .templateCovers(let v): state.disableArtwork = v; defaults.set(v, forKey: DebugDefaultsKey.disableArtwork)
     case .resetLaunchTimes: state.launchTimes = 0; defaults.set(0, forKey: DebugDefaultsKey.launchTimes)
+    #if !GCEMU_NO_JIT
     case .retryJitAuthorization:
       JitManager.shared().clearTXMHandshakeCookie()
       state.hydrated.txmHandshakeBlocked = false
+    #endif
     case .forgetApprovedDevices:
       BenchAccessApproval.shared.forgetAll()
       state.hydrated.approvedClients = []
+    #if !GCEMU_NO_JIT
     case .enableJitViaStikDebug:
       #if os(iOS)
       StikDebugLauncher.enableJIT()
       #endif
+    #endif
     }
   }
 }

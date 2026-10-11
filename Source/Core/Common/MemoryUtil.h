@@ -13,6 +13,7 @@
 
 namespace Common
 {
+#ifndef GCEMU_NO_JIT  // gc-emu: App Store builds expose no executable-memory API at all
 void* AllocateExecutableMemory(size_t size);
 
 // These two functions control the executable/writable state of the W^X memory
@@ -49,6 +50,7 @@ struct ScopedJITPageWriteAndNoExecute
   void* ptr;
 };
 #endif
+#endif  // !GCEMU_NO_JIT
 void* AllocateMemoryPages(size_t size);
 bool FreeMemoryPages(void* ptr, size_t size);
 void* AllocateAlignedMemory(size_t size, size_t alignment);
@@ -58,7 +60,7 @@ bool WriteProtectMemory(void* ptr, size_t size, bool executable = false);
 bool UnWriteProtectMemory(void* ptr, size_t size, bool allowExecute = false);
 size_t MemPhysical();
 
-#if defined(IPHONEOS) || TARGET_OS_IOS || TARGET_OS_TV
+#if (defined(IPHONEOS) || TARGET_OS_IOS || TARGET_OS_TV) && !defined(GCEMU_NO_JIT)
 
 enum class JitType
 {

@@ -55,10 +55,17 @@ public:
   {
     region_size = size;
     total_region_size = size;
+#ifdef GCEMU_NO_JIT
+    // gc-emu: App Store build. Any attempt to instantiate an executable code block is a
+    // compile error, so no code generator can ever be linked back in by accident.
+    static_assert(!executable, "GCEMU_NO_JIT: executable CodeBlocks (JIT) are not allowed");
+    region = static_cast<u8*>(Common::AllocateMemoryPages(total_region_size));
+#else
     if constexpr (executable)
       region = static_cast<u8*>(Common::AllocateExecutableMemory(total_region_size));
     else
       region = static_cast<u8*>(Common::AllocateMemoryPages(total_region_size));
+#endif
     T::SetCodePtr(region, region + size);
   
 #ifdef IPHONEOS
@@ -68,8 +75,10 @@ public:
     // another, and on non-TXM devices under a debugger (LuckNoTXM) the two were not coherent:
     // freshly emitted records read back as zeros and every new block became "IntCPU: Unknown
     // instruction 00000000" at its first PC.
+#ifndef GCEMU_NO_JIT
     if constexpr (executable)
       writable_region_diff = Common::AllocateWritableRegionAndGetDiff(region, size);
+#endif
 #endif
 
     T::SetWritableRegionDiff(writable_region_diff);
@@ -89,7 +98,7 @@ public:
     ASSERT(!m_is_child);
     if constexpr (executable)
     {
-#ifdef IPHONEOS
+#if defined(IPHONEOS) && !defined(GCEMU_NO_JIT)
       Common::FreeWritableRegion(region, total_region_size, writable_region_diff);
       Common::FreeExecutableMemory(region, total_region_size);
 #else

@@ -249,14 +249,21 @@ elseif(IOS)
   target_sources(common PRIVATE
     CommonFuncsObjC.mm  # 2606: GetMacOSVersion() (NSProcessInfo, works on iOS) used by analytics/DriverDetails
     Logging/ConsoleListenerNix.cpp
-    JITMemoryTracker.h
-    JITMemoryTracker.cpp
     MemArenaDarwin.cpp
-    MemoryUtil_iOS_Legacy.cpp
-    MemoryUtil_iOS_LuckNoTXM.cpp
-    MemoryUtil_iOS_LuckTXM.cpp
-    MemoryUtil_iOS.cpp
   )
+  if(GCEMU_NO_JIT)
+    # gc-emu: no executable memory at all (no MAP_JIT, no TXM/debugger tricks).
+    target_sources(common PRIVATE MemoryUtil_iOS_NoJIT.cpp)
+  else()
+    target_sources(common PRIVATE
+      JITMemoryTracker.h
+      JITMemoryTracker.cpp
+      MemoryUtil_iOS_Legacy.cpp
+      MemoryUtil_iOS_LuckNoTXM.cpp
+      MemoryUtil_iOS_LuckTXM.cpp
+      MemoryUtil_iOS.cpp
+    )
+  endif()
 elseif(APPLE)
   target_sources(common PRIVATE
     CommonFuncsObjC.mm
@@ -271,9 +278,13 @@ else()
 endif()
 
 if(_M_ARM_64)
+  if(NOT GCEMU_NO_JIT)  # gc-emu: the code emitter is only used by the JITs
+    target_sources(common PRIVATE
+      Arm64Emitter.cpp
+      Arm64Emitter.h
+    )
+  endif()
   target_sources(common PRIVATE
-    Arm64Emitter.cpp
-    Arm64Emitter.h
     ArmCommon.h
     ArmCPUDetect.cpp
     ArmFPURoundMode.cpp

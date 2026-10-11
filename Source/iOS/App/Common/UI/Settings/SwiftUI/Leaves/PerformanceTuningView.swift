@@ -17,7 +17,11 @@ struct PerformanceTuningView: View {
   private func sync() {
     let defaults = UserDefaults.standard
     var s = PerformanceTuningState()
+    #if GCEMU_NO_JIT
+    s.jitAvailable = false  // gc-emu: App Store build, no JIT
+    #else
     s.jitAvailable = JitManager.shared().acquiredJit
+    #endif
     s.engine = CpuEngine.from(raw: DOLConfigBridge.mainCpuCore())
     s.mmu = DOLConfigBridge.mainMMU()
     s.adaptiveClock = defaults.bool(forKey: PerformanceTuningDefaultsKey.adaptiveClock)

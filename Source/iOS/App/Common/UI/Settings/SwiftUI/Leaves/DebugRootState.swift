@@ -59,6 +59,7 @@ struct DebugRootState: Equatable {
     verbosityLevels.contains(stored) ? stored : LoggerIniMigration.defaultVerbosity
   }
 
+  #if !GCEMU_NO_JIT  // gc-emu: no StikDebug UI in App Store builds
   /// Shown only when actionable: JIT not acquired, or acquired on a TXM device with no broker attached and no region yet.
   var showsStikDebugEnable: Bool {
     isIOS && hydrated.jitSupported && hydrated.deviceHasTxm && hydrated.stikDebugInstalled
@@ -69,6 +70,7 @@ struct DebugRootState: Equatable {
   var showsStikDebugHelp: Bool {
     showsStikDebugEnable && !hydrated.debuggerAttached && !hydrated.txmAuthorized
   }
+  #endif
 }
 
 /// One user edit. The host applies it to its snapshot AND to Config or UserDefaults; the builder only emits it.
@@ -82,8 +84,10 @@ enum DebugRootChange: Equatable {
   case loggingVerbosity(Int)
   case inputDebug(Bool)
   case templateCovers(Bool)
+  #if !GCEMU_NO_JIT  // gc-emu: JIT-only actions don't exist in App Store builds
   case retryJitAuthorization
   case enableJitViaStikDebug
+  #endif
   case resetLaunchTimes
   case forgetApprovedDevices
 }

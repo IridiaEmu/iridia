@@ -765,6 +765,7 @@ final class DebugAPIRoutes {
       ["ok": true, "data": DOLDebugBridge.buildInfo()]
     }
 
+    #if !GCEMU_NO_JIT
     // GET /api/debug/jit — JitManager state (fresh CS_DEBUGGED / P_TRACED read)
     server.addCustomHandler(forMethod: "GET", path: "/api/debug/jit") { _, _, _, _ in
       // Handlers run on the server queue; canOpenURL (StikDebug probe) is main-thread only.
@@ -791,6 +792,7 @@ final class DebugAPIRoutes {
       DispatchQueue.main.sync { launched = StikDebugLauncher.enableJIT() }
       return ["ok": launched, "data": ["launched": launched]]
     }
+    #endif
 
     // GET /api/debug/render-state
     server.addCustomHandler(forMethod: "GET", path: "/api/debug/render-state") { _, _, _, _ in

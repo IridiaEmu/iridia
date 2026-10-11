@@ -73,11 +73,19 @@ enum CpuEngine: Int, CaseIterable {
     // on device this engine measured ~1.7x faster than the IR one (2026-09-16 A/B).
     case .cachedInterpreter: return L("Cached Interpreter (recommended)")
     case .cachedInterpreterIR: return L("Cached Interpreter IR (experimental, usually slower)")
+    #if GCEMU_NO_JIT
+    case .jit64, .jitARM64: return L("Unavailable")  // gc-emu: never offered in App Store builds
+    #else
     case .jit64: return L("JIT Recompiler for x86-64 (recommended)")
     case .jitARM64: return L("JIT Recompiler for ARM64 (recommended)")
+    #endif
     }
   }
+  #if GCEMU_NO_JIT
+  static func from(raw: Int) -> CpuEngine { CpuEngine(rawValue: raw) ?? .cachedInterpreter }
+  #else
   static func from(raw: Int) -> CpuEngine { CpuEngine(rawValue: raw) ?? .jitARM64 }
+  #endif
 }
 
 // MARK: - General / Interface / Motion

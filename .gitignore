@@ -83,3 +83,16 @@ __pycache__/
 # Ignore CMake user presets
 CMakeUserPresets.json
 /Source/iOS/App/build-Xcode
+
+# gc-emu: never commit games, firmware, or keys
+/roms/
+*.iso
+*.gcm
+*.rvz
+*.ciso
+*.gcz
+*.wbfs
+*.wad
+/Data/Sys/GC/IPL.bin
+**/GC/*/IPL.bin
+keys.txt

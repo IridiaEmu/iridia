@@ -135,3 +135,5 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - `vm_remap` is allowed: MemArenaDarwin uses it for RW views of emulated RAM (fastmem data, not code).
 - Installed the no-JIT build on the iPhone 16 Pro.
 - Remaining for CHECKPOINT 3: confirm on the device that the test programs boot with no JIT prompt; release-mode check (no get-task-allow) once we have App Store signing (Phase 9).
+- Fix: iCube mounts its programmatic `TouchOverlayView` by default (since its 2026-10-01 change), so our GCEmuTouchPadView never showed. The GameCube pad now always takes the non-hosted path (ours), and iCube skins don't move the game picture. **Verified with a device screenshot** (`devicectl device capture screenshot`): neheGX lesson06 running in the top half, our matte controller in the bottom half.
+- Note for Phase 5: iCube's placeholder library covers contain the "Nintendo GameCube" logo, and the app uses a dolphin icon. Both must go when we replace the UI.

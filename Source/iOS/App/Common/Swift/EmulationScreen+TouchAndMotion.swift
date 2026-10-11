@@ -174,12 +174,19 @@ extension EmulationScreen {
       } else {
         choice = .programmatic
       }
+      // gc-emu: the GameCube pad is always our controller (GCEmuTouchPadView, mounted by the
+      // non-hosted path), never iCube's programmatic overlay or its skins.
+      if case .gameCube = kind {
+        return OverlayPlan(padKind: kind, choice: .programmatic, hosted: false)
+      }
       return OverlayPlan(padKind: kind, choice: choice, hosted: SkinMount.usesHostedOverlay(flag: Self.useProgrammaticOverlay, choice: choice))
     }
 
     /// The pad the player's controller setup calls for, skin or not. `nil` when no pad shows.
     /// Used by the screen to place the game picture.
     func activeSkin(orientation: TouchOverlayOrientation) -> InstalledSkin? {
+      // gc-emu: iCube skins never replace our GameCube controller, so they never move the picture.
+      if case .gameCube? = programmaticPadKind() { return nil }
       guard let kind = programmaticPadKind(),
             case .skin(let skin) = SkinMount.overlayChoice(padKind: kind, orientation: orientation, library: .shared) else { return nil }
       return skin

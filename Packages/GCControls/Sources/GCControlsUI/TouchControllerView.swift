@@ -32,6 +32,9 @@ public final class TouchControllerView: UIView {
 
   /// Menu button tapped (play mode).
   public var onMenu: (() -> Void)?
+  /// Called on the main thread with the new packed PadState, only when it changes.
+  /// Lets a host forward input to an existing input path (e.g. the iCube baseline).
+  public var onStateChange: ((UInt64) -> Void)?
 
   /// Edit mode: touches select/move items instead of producing input.
   public var isEditing = false {
@@ -419,6 +422,7 @@ public final class TouchControllerView: UIView {
     let packed = st.packed
     if packed != lastPacked {
       store.publish(packed, player: settings.player, source: .touch)
+      onStateChange?(packed)
       if settings.hapticsEnabled {
         let newlyPressed = !nowPressed.subtracting(pressedItems).isEmpty || !dpadButtons.subtracting(lastDpad).isEmpty
         let clicked = st.buttons.intersection([.l, .r]).subtracting(PadState(packed: lastPacked).buttons) != []

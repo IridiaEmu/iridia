@@ -275,7 +275,7 @@ let iCube = Target.target(
     destinations: [.iPhone, .iPad, .appleTv, .macWithiPadDesign, .macCatalyst, .appleVisionWithiPadDesign],
     product: .app,
     bundleId: "com.joemattiello.iCube", // placeholder; real per-config ids set in appConfigs
-    deploymentTargets: .multiplatform(iOS: "17.0", tvOS: "17.0"),
+    deploymentTargets: .multiplatform(iOS: "26.0", tvOS: "17.0"),  // gc-emu: our minimum is iOS 26
     infoPlist: .file(path: "DolphiniOS/Info.plist"),
     sources: [
         // The legacy ObjC/UIKit settings view controllers under Common/UI/Settings/ are the
@@ -367,6 +367,8 @@ let iCube = Target.target(
         .package(product: "PVSyncRules"),
         .package(product: "PVCloudSync"),
         .package(product: "PVLibrarySnapshot"),
+        .package(product: "GCControlsCore", condition: .when([.ios])),  // gc-emu
+        .package(product: "GCControlsUI", condition: .when([.ios])),  // gc-emu
         .package(product: "Zip"),
         .package(product: "SWCompression"),
         .package(product: "UICollectionViewLeftAlignedLayout"),
@@ -732,6 +734,7 @@ let project = Project(
         .local(path: "../PVSyncRules"),
         .local(path: "../PVHelp"),
         .local(path: "../PVLibrarySnapshot"),
+        .local(path: "../../../Packages/GCControls"),  // gc-emu: our touch controls + smart mapping
         // PVSyncRules is declared once above and shared by PVContinuity (WS-4)
         // and PVCloudSync (WS-5); a duplicate .local(path:) fails tuist generate.
         .local(path: "../PVCloudSync"),

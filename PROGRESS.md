@@ -105,3 +105,11 @@ Notes:
   - Toolchain: devkitPPC 16.2.0 + libogc (cube).
 - Built 5 homebrew test programs from devkitPro's examples into `roms/homebrew/` (gitignored): fb-consoletest, gx-triangle, gx-gxSprites, gx-neheGX-lesson06, modplay. Copied them to iCube's `Documents/Software` on the iPhone with `devicectl device copy to`.
   - ⚠️ Licensing: the devkitPro examples have no LICENSE, and modplay embeds a third-party `technique.mod`. They're **for private testing only** and must not be used in screenshots or shipped. Phase 9 needs our own demo program.
+- **Our controller now runs in the emulator** (user request, after seeing iCube's own pad):
+  - `Source/iOS/App/Common/Swift/GCEmu/GCEmuTouchPadView.swift` hosts `TouchControllerView` (bottom half in portrait, overlay in landscape) and replaces `TCGameCubePad` at both mount sites in `EmulationScreen+TouchAndMotion.swift`.
+  - It sends only changed inputs to iCube's `TCManagerInterface`: button IDs and the stick-axis convention match `TCJoystick`, and L/R send an analog value plus a digital click.
+  - ☰ posts `DOLShowPauseMenu`. Touches that miss our controls pass through to iCube's gestures.
+  - Added an `onStateChange` hook to TouchControllerView.
+  - Raised the iCube app's iOS deployment target from 17.0 to 26.0 to match our minimum (GCControls requires 26).
+  - Built and installed on the iPhone 16 Pro. The test .dol files survived the reinstall.
+  - Note: this bridge still goes through iCube's mutex + std::map StateManager. Phase 4 replaces it with the core reading `gcpad_read`.

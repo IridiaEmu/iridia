@@ -275,16 +275,11 @@ extension EmulationScreen {
         host.addSubview(wiiView)
         configureWiiView(wiiView, in: host)
       } else if shouldShowGameCubePad() {
-        if let v = loadPad(named: "TCGameCubePad") {
-          v.frame = host.bounds
-          v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-          v.alpha = max(0.2, CGFloat(DOLConfigBridge.mainTouchPadOpacity()))
-          host.addSubview(v)
-          applyPort(ControllerManager.shared.touchscreenControllerId(isWii: false), to: v)
-          NSLog("[TOUCH] Added GC pad with alpha=%.2f", v.alpha)
-        } else {
-          NSLog("[TOUCH] Failed to load TCGameCubePad nib")
-        }
+        // gc-emu: our controller replaces iCube's TCGameCubePad (opacity comes from our skin).
+        let v = GCEmuTouchPadView(frame: host.bounds)
+        v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.addSubview(v)
+        v.port = ControllerManager.shared.touchscreenControllerId(isWii: false)
       }
       return host
     }
@@ -355,8 +350,12 @@ extension EmulationScreen {
         return
       }
       if wantGC, mountedWii == nil, let gc = uiView.subviews.first {
-        gc.alpha = max(0.2, CGFloat(DOLConfigBridge.mainTouchPadOpacity()))
         let wantPort = ControllerManager.shared.touchscreenControllerId(isWii: false)
+        if let ours = gc as? GCEmuTouchPadView {
+          if ours.port != wantPort { ours.port = wantPort }
+          return
+        }
+        gc.alpha = max(0.2, CGFloat(DOLConfigBridge.mainTouchPadOpacity()))
         if let tc = gc as? TCView, tc.port != wantPort { tc.port = wantPort }
         return
       }
@@ -368,15 +367,10 @@ extension EmulationScreen {
         uiView.addSubview(v)
         configureWiiView(v, in: uiView)
       } else if shouldShowGameCubePad() {
-        if let v = loadPad(named: "TCGameCubePad") {
-          v.frame = uiView.bounds
-          v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-          v.alpha = max(0.2, CGFloat(DOLConfigBridge.mainTouchPadOpacity()))
-          uiView.addSubview(v)
-          applyPort(ControllerManager.shared.touchscreenControllerId(isWii: false), to: v)
-        } else {
-          NSLog("[TOUCH] Failed to load TCGameCubePad nib (update)")
-        }
+        let v = GCEmuTouchPadView(frame: uiView.bounds)  // gc-emu: our controller
+        v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        uiView.addSubview(v)
+        v.port = ControllerManager.shared.touchscreenControllerId(isWii: false)
       } else {
         for sub in uiView.subviews {
           if let wiiPad = findTCWiiPad(in: sub) {

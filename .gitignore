@@ -96,3 +96,11 @@ CMakeUserPresets.json
 /Data/Sys/GC/IPL.bin
 **/GC/*/IPL.bin
 keys.txt
+# gc-emu: generated projects and local build output
+/Apps/*/*.xcodeproj
+/Apps/*/*.xcworkspace
+/Apps/*/Derived/
+/build-dd*/
+/build-logs/
+/Packages/*/.build/
+/Packages/*/.swiftpm/

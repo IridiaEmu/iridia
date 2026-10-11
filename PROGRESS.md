@@ -70,3 +70,27 @@ Notes:
   - Try 1: build as-is. Try 2: pin to exact revision 4dbac7ac. Both failed, so I stopped (two-failure rule) and reverted try 2.
   - PLzmaSDK is only used by `ZipImportHelper.swift` (extracting 7z/zip on import).
 - devkitPro pacman installer (v6.0.2, SHA-256 verified against the GitHub release) is unsigned. The user needs to allow it in Privacy & Security.
+- Fixed the Simulator launch crash (unsigned MoltenVK): use ad-hoc signing. The baseline iCube app runs in the iOS 27 Simulator.
+- Built the core from source for OS64 + SIMULATORARM64, and stopped tracking iCube's prebuilt xcframework.
+- Downloaded the Metal Toolchain (Xcode 26+ ships it separately).
+
+### Controller work (user request, 2026-10-11): PLAN.md "Touch controls and controllers" + "Smart mapping mode"
+- New package `Packages/GCControls`:
+  - **GCControlsCore** (pure Swift, 23 unit tests passing on macOS):
+    - The pad state is packed into one UInt64 per player, with button bits matching Dolphin's PadButton.
+    - A lock-free `PadStateStore` (Swift `Atomic`, separate touch/physical slots, merged on read) and a C ABI `gcpad_read(player)` for the core.
+    - Analog math (radial dead zone with rescale, 8-way D-pad), the skin format and validation, three built-in skins (Indigo, Midnight, Orchid), and layout overrides.
+    - Smart Mapping: family detection, By position / By label (label letters read at runtime), compiled flat mapping tables, and the profile store (per-game → custom → smart).
+  - **GCControlsUI** (iOS):
+    - `TouchControllerView`: raw UIKit multi-touch, sliding between buttons, analog sticks, slide-pressure L/R with a digital click, haptics. Art is prerendered; only layer contents are swapped.
+    - `PhysicalControllerManager`: a per-controller handler queue, players 1–4, DualSense adaptive triggers, rumble channel, theme light.
+    - `ControllerSession` (auto-hide, pause on disconnect, toasts), the layout editor, the visual mapping screen (our own schematic outline plus system glyphs), and the skin picker/importer.
+- `Apps/ControlsLab`: test harness (Tuist). Verified in the iOS 27 Simulator:
+  - Portrait layout and landscape overlay at 40%.
+  - Connect toast ("MFi controller connected — Smart mapping: By position") with auto-hide.
+- The portrait skin was reworked to matte plastic: top-left light, bevels, AO shadows, recessed wells, grain, debossed labels, a dished and knurled stick cap, and muted palettes. All of it is prerendered (the shell is a single image).
+- Not yet verifiable without hardware:
+  - Real touch feel and haptics.
+  - Rumble and DualSense triggers.
+  - Whether `buttonA` is positional on Switch controllers. The mapping screen's live highlight will show this.
+- Core integration comes later: the iOS input backend will read `gcpad_read`, replacing the mutex + std::map StateManager on the hot path.

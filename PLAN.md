@@ -5,6 +5,7 @@ Running log: [PROGRESS.md](PROGRESS.md) · Research: [RESEARCH.md](RESEARCH.md) 
 
 ## Branding (updated 2026-10-11)
 
+- **Home-screen name: Iridia.** App Store title TBD by the user (something like "Iridia: Retro Emulator"; never a console maker's name).
 - **App name: Iridia.** From the Greek root for "rainbow" (iris/irid-). Replaces all "gc-emu"/placeholder naming in user-facing text. Internal code names (repo folder, `GCEMU_NO_JIT`, package names) may stay.
 - **Name check (2026-10-11):** no App Store app is named exactly "Iridia". Similar names exist in unrelated categories (iRidium control panels, Iridium satellite apps). Final availability is confirmed when the name is reserved in App Store Connect (Phase 9); a trademark search is recommended before launch.
 

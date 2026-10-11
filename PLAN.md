@@ -3,6 +3,21 @@
 The master plan for gc-emu: an App Store–compliant, JIT-less GameCube emulator for iPhone/iPad. The SDK is iOS 27; the minimum is iOS 26.0, with iOS 27 first.
 Running log: [PROGRESS.md](PROGRESS.md) · Research: [RESEARCH.md](RESEARCH.md) · Build steps: [BUILDING.md](BUILDING.md)
 
+## Branding (updated 2026-10-11)
+
+- **App name: Iridia.** From the Greek root for "rainbow" (iris/irid-). Replaces all "gc-emu"/placeholder naming in user-facing text. Internal code names (repo folder, `GCEMU_NO_JIT`, package names) may stay.
+- **Name check (2026-10-11):** no App Store app is named exactly "Iridia". Similar names exist in unrelated categories (iRidium control panels, Iridium satellite apps). Final availability is confirmed when the name is reserved in App Store Connect (Phase 9); a trademark search is recommended before launch.
+
+### Cube motif (replaces the earlier blanket ban on any cube motif)
+- The app icon and logo **may** feature an original cube: a translucent, iridescent glass cube (shimmering purple → blue → teal) with light refracting through it into a small rainbow, reflecting the name Iridia.
+- The cube must be clearly our own design: **no letters or symbols** inside or cut out of it, and **nothing resembling Nintendo's GameCube logo** in shape, construction, color layout, or style.
+  - Specifically avoid: a cube built from a letterform or negative-space "G", nested cubes or a cube-in-a-cube outline, the isometric three-face line-art construction with a hollow center, and Nintendo's purple/indigo flat color blocking.
+  - Ours: a solid, glassy, light-transmitting volume with soft rounded edges, a gradient tint, and an external rainbow refraction.
+- If any version could be mistaken for Nintendo's logo, flag it and propose an alternative.
+- **Show 3 icon concepts before finalizing**, rendered at App Store icon sizes (1024 px, plus home-screen sizes 180/120/87/60 px) on a home-screen mockup.
+- **Risk:** a cube icon on a GameCube-focused emulator raises the odds that App Review or Nintendo sees confusing similarity (guideline 5.2.1), even if the design is original. Keep a non-cube fallback concept (e.g. a prism splitting light) ready.
+- Unchanged: no "G" motif, no Nintendo logos, names, fonts, startup animation, sounds, or original menu layout.
+
 ## Phases
 0. Environment setup ✅
 1. Research and license check ✅ (base: iCube core, GameCube-only, "Unlock Full Version" + "free 10-min play sessions")

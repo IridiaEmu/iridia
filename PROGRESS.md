@@ -100,3 +100,8 @@ Notes:
   - The iCube baseline (Release, NJB) is installed and launched. It uses a new **free-team mode** in `Source/iOS/App/Project.swift` (`TUIST_GCEMU_FREE_TEAM=1`): our bundle prefix, the minimal `FreeTeam.entitlements` (only team ID + `get-task-allow`, no JIT or memory entitlements), and no thumbnail/Quick Look extensions.
   - Layout checks on the iPhone SE (3rd gen) and 13 mini simulators are fine.
 - Waiting on: the user's touch-feel feedback; the devkitPro install for the homebrew test program.
+- devkitPro installed (the user ran the sudo steps).
+  - Fixed "GPGME error: Invalid crypto engine": GPGME finds `gpgconf` only via PATH, so `/opt/devkitpro/pacman/bin` has to be on PATH (`sudo env "PATH=$PATH" pacman …`).
+  - Toolchain: devkitPPC 16.2.0 + libogc (cube).
+- Built 5 homebrew test programs from devkitPro's examples into `roms/homebrew/` (gitignored): fb-consoletest, gx-triangle, gx-gxSprites, gx-neheGX-lesson06, modplay. Copied them to iCube's `Documents/Software` on the iPhone with `devicectl device copy to`.
+  - ⚠️ Licensing: the devkitPro examples have no LICENSE, and modplay embeds a third-party `technique.mod`. They're **for private testing only** and must not be used in screenshots or shipped. Phase 9 needs our own demo program.

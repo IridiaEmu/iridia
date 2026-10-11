@@ -60,7 +60,7 @@ public enum BuiltinSkins {
       SkinItem(id: "start", input: .start, shape: .pill, frame: r(172, 238, 56, 26), color: "neutral", label: "START"),
       SkinItem(id: "dpad", input: .dpad, shape: .dpad, frame: r(36, 262, 112, 112), color: "neutral"),
       SkinItem(id: "cStick", input: .cStick, shape: .stick, frame: r(246, 262, 108, 108), color: "cStick", label: "C"),
-      SkinItem(id: "logo", input: .logo, shape: .logo, frame: r(166, 300, 68, 46), color: "accent"),
+      // No logo item until the real app logo exists (Phase 5); `.logo` stays supported for custom skins.
       SkinItem(id: "menu", input: .menu, shape: .pill, frame: r(176, 380, 48, 26), color: "neutral", label: "☰"),
     ],
     defaultOpacity: 1.0, showsBackground: true)

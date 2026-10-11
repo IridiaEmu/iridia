@@ -28,7 +28,7 @@ _Added 2026-10-11 at the user's request._ Implemented as the Swift package `Pack
 - The game screen is in the top half; an on-screen controller fills the bottom half (like Delta's N64 skin).
 - Every GameCube input: A, B, X, Y, Start, Z, L and R triggers, main analog stick, C-stick, D-pad, plus a Menu button.
 - An original illustrated skin in our own style: indigo/purple glassy background, soft shading, rounded glossy buttons. Button layout, relative sizes and colors match what GameCube games refer to, so in-game prompts make sense (A = large green, B = small red, Z = purple, C-stick = yellow, X/Y/L/R/Start = gray).
-- Don't trace or copy Nintendo's controller artwork or photos, and put no Nintendo logos or trademarks on the skin. Our own app logo goes where Delta puts theirs.
+- Don't trace or copy Nintendo's controller artwork or photos, and put no Nintendo logos or trademarks on the skin. Our own app logo goes where Delta puts theirs, but only once the real logo exists (Phase 5). The temporary sparkle mark was removed because it read as an "AI" button (user feedback, 2026-10-11).
   - **Flag:** X and Y use our own rounded-pill shapes, not the original kidney shapes, and the skin is drawn in code from our own primitives.
 
 ### Landscape

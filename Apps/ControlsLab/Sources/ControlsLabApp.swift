@@ -174,14 +174,14 @@ struct LabMenu: View {
             Slider(value: $session.settings.stick.deadZone, in: 0...0.4)
           }
         }
-        Section("Controllers") {
-          if session.physical.controllers.isEmpty {
-            Text("No controllers connected").foregroundStyle(.secondary)
-          }
-          ForEach(session.physical.controllers) { c in
-            Button { openMapping(c.id) } label: {
-              LabeledContent("P\(c.player + 1): \(c.family.displayName)") {
-                Text(c.style.displayName)
+        // Controller mapping only appears once a controller is connected.
+        if !session.physical.controllers.isEmpty {
+          Section("Controllers") {
+            ForEach(session.physical.controllers) { c in
+              Button { openMapping(c.id) } label: {
+                LabeledContent("P\(c.player + 1): \(c.family.displayName)") {
+                  Text(c.style.displayName)
+                }
               }
             }
           }

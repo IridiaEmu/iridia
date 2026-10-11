@@ -148,3 +148,15 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - `devicectl device process launch --payload-url "dolphinios://play?id=<game ID>"` boots a game remotely.
   - `devicectl device copy to/from` with `--domain-type appDataContainer` reads and writes the app's config and logs.
   - `devicectl device orientation set` only works in the Simulator.
+- ✅ Input verified end to end: in fb-consoletest, the user tapped START on our on-screen controller. The program's `PAD_BUTTON_START` exit ran and iCube returned to the library.
+
+**CHECKPOINT 2 complete (2026-10-11):**
+- The baseline builds for the iOS 27 Simulator and the iPhone 16 Pro (free Apple ID).
+- The 5 homebrew test programs boot on the device: graphics, textures, sprites, audio, framebuffer text.
+- Our controller works in the emulator in portrait and landscape, and touch input reaches the game.
+
+**CHECKPOINT 3 complete (2026-10-11):**
+- The app has no JIT: `GCEMU_NO_JIT` core + app, and `scripts/verify_no_jit.sh` PASSES (development mode).
+- Still to do in later phases:
+  - Release-mode verification (no get-task-allow) once App Store signing exists (Phase 9).
+  - Rebuild the Simulator core slice with GCEMU_NO_JIT before the next Simulator use.

@@ -154,18 +154,6 @@ enum LibraryGameSystem {
       return .gameCube
     }
   }
-
-  var templateImageName: String {
-    switch self {
-    #if APPSTORE
-    case .gameCube: return "GCCoverTemplate-NoLogo"
-    case .wii: return "WiiCoverTemplate-NoLogo"
-    #else
-    case .gameCube: return "GCCoverTemplate"
-    case .wii: return "WiiCoverTemplate"
-    #endif
-    }
-  }
 }
 
 // MARK: - Shared pill/glass chrome

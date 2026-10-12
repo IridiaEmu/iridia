@@ -205,239 +205,81 @@ struct GameGridItem: View {
     return isPlaceholder
   }
 
-  /// Stunning templated cover view with authentic GameCube/Wii theming! 🎮✨
+  /// gc-emu: Iridia placeholder cover for games without artwork: a deep indigo glass card with the
+  /// Iridia cube, the title and the game ID. Deliberately nothing like retail box art (no banner,
+  /// no "only for" tab, no platform logos).
   @ViewBuilder
   private var templatedCoverView: some View {
+    let w = LibraryLayout.cardSize.width, h = LibraryLayout.cardSize.height
     ZStack {
-      // Authentic game case background with system-specific theming
+      // Card: indigo glass with a soft top-left light.
       RoundedRectangle(cornerRadius: 16, style: .continuous)
-        .fill(
-          RadialGradient(
-            colors: gameSystem == .gameCube ?
-              [
-                Color(red: 0.35, green: 0.25, blue: 0.75), // GameCube purple
-                Color(red: 0.25, green: 0.15, blue: 0.65),
-                Color(red: 0.15, green: 0.08, blue: 0.55)
-              ] : [
-                Color(red: 0.25, green: 0.55, blue: 0.95), // Wii blue
-                Color(red: 0.15, green: 0.45, blue: 0.85),
-                Color(red: 0.08, green: 0.35, blue: 0.75)
-              ],
-            center: .topLeading,
-            startRadius: 20,
-            endRadius: 200
-          )
+        .fill(LinearGradient(colors: [Color(red: 0.20, green: 0.14, blue: 0.45),
+                                      Color(red: 0.09, green: 0.06, blue: 0.22)],
+                             startPoint: .top, endPoint: .bottom))
+        .overlay(
+          RadialGradient(colors: [Color(red: 0.55, green: 0.45, blue: 1.0).opacity(0.35), .clear],
+                         center: .init(x: 0.25, y: 0.15), startRadius: 0, endRadius: w * 0.9)
         )
         .overlay(
-          // Enhanced case reflection with depth
-          LinearGradient(
-            colors: [
-              Color.white.opacity(0.4),
-              Color.white.opacity(0.15),
-              Color.clear,
-              Color.black.opacity(0.15),
-              Color.black.opacity(0.25)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-          )
+          // Glass sheen across the upper half.
+          LinearGradient(colors: [Color.white.opacity(0.14), Color.white.opacity(0.02), .clear],
+                         startPoint: .topLeading, endPoint: .center)
         )
-        .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 6)
         .overlay(
           RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(
-              LinearGradient(
-                colors: [Color.white.opacity(0.3), Color.clear, Color.white.opacity(0.1)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-              ),
-              lineWidth: 1.5
-            )
+            .strokeBorder(LinearGradient(colors: [Color(red: 0.80, green: 0.75, blue: 1.0).opacity(0.45),
+                                                  Color.white.opacity(0.05)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing),
+                          lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 6)
 
-      // Authentic GameCube disc case details
-      if gameSystem == .gameCube {
-        VStack {
-          // Top edge highlight
-          HStack {
-            Rectangle()
-              .fill(
-                LinearGradient(
-                  colors: [Color.white.opacity(0.6), Color.clear],
-                  startPoint: .leading,
-                  endPoint: .trailing
-                )
-              )
-              .frame(height: 2)
-              .padding(.horizontal, 16)
-            Spacer()
-          }
-          Spacer()
-        }
-        .padding(.top, 4)
+      VStack(spacing: screenScaledPadding(base: 8)) {
+        // The Iridia cube, with a faint glow under it.
+        Image("IridiaMark")
+          .resizable()
+          .scaledToFit()
+          .frame(width: w * 0.5, height: w * 0.5)
+          .shadow(color: Color(red: 0.55, green: 0.45, blue: 1.0).opacity(0.45), radius: 14)
+          .padding(.top, h * 0.1)
+          .accessibilityHidden(true)
 
-        // Left spine with authentic GameCube styling
-        HStack {
-          VStack(spacing: 2) {
-            Rectangle()
-              .fill(Color.white.opacity(0.5))
-              .frame(width: 6, height: 20)
-            Rectangle()
-              .fill(Color.white.opacity(0.3))
-              .frame(width: 4, height: 40)
-            Rectangle()
-              .fill(Color.white.opacity(0.5))
-              .frame(width: 6, height: 20)
-          }
-          .padding(.leading, 6)
-          Spacer()
-        }
-      }
+        Spacer(minLength: 0)
 
-      // Authentic full-cover template image like real GameCube/Wii box art
-      Image(gameSystem.templateImageName)
-        .resizable()
-        .aspectRatio(contentMode: .fill)
-        .frame(
-          width: LibraryLayout.cardSize.width * 0.95,
-          height: LibraryLayout.cardSize.height * 0.95
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .blendMode(.overlay)
-      //        .offset(y: -5)
-
-      // Authentic Nintendo branding
-      //      VStack {
-      //        HStack {
-      //          Spacer()
-      //          VStack(spacing: 2) {
-      //            Text("NINTENDO")
-      //              .font(.system(
-      //                size: screenScaledFontSize(base: 8),
-      //                weight: .black,
-      //                design: .rounded
-      //              ))
-      //              .foregroundStyle(
-      //                LinearGradient(
-      //                  colors: [Color.white, Color.white.opacity(0.8)],
-      //                  startPoint: .top,
-      //                  endPoint: .bottom
-      //                )
-      //              )
-      //              .modifier(iOS16TrackingModifier(tracking: 2))
-      //              .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
-
-      //            Text(gameSystem == .gameCube ? "GAMECUBE" : "Wii")
-      //              .font(.system(
-      //                size: screenScaledFontSize(base: 7),
-      //                weight: .bold,
-      //                design: .rounded
-      //              ))
-      //              .foregroundColor(.white.opacity(0.9))
-      //              .modifier(iOS16TrackingModifier(tracking: 1.5))
-      //              .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
-      //          }
-      //          .padding(.top, screenScaledPadding(base: 12))
-      //          .padding(.trailing, screenScaledPadding(base: 12))
-      //        }
-      //        Spacer()
-      //      }
-
-      // Enhanced game info with award-winning typography
-      VStack(spacing: screenScaledPadding(base: 10)) {
-        Spacer()
-
-        // Title. tvOS uses the body role (about 21pt) with no gradient or shadow.
-        Text(item.title.isEmpty ? "Unknown Game" : item.title)
+        Text(item.title.isEmpty ? L("Unknown Game") : item.title)
           #if os(tvOS)
           .icubeText(.body)
           .foregroundStyle(ICubeDesign.color(.textPrimary))
-          .multilineTextAlignment(.center)
           .lineLimit(2)
           #else
-          .font(.system(
-            size: screenScaledFontSize(base: 18),
-            weight: .black,
-            design: .rounded
-          ))
-          .foregroundStyle(
-            LinearGradient(
-              colors: [
-                Color.white,
-                Color.white.opacity(0.95),
-                Color.white.opacity(0.9)
-              ],
-              startPoint: .top,
-              endPoint: .bottom
-            )
-          )
-          .multilineTextAlignment(.center)
+          .font(.system(size: screenScaledFontSize(base: 17), weight: .bold, design: .rounded))
+          .foregroundStyle(Color(red: 0.93, green: 0.91, blue: 1.0))
           .lineLimit(3)
           .minimumScaleFactor(0.6)
-          .shadow(color: .black.opacity(0.9), radius: 3, x: 0, y: 2)
-          .shadow(color: gameSystem == .gameCube ? .purple.opacity(0.5) : .blue.opacity(0.5),
-                  radius: 8, x: 0, y: 0)
+          .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
           #endif
+          .multilineTextAlignment(.center)
 
-        // Game ID. tvOS uses the monospaced tag role.
         if !item.gameID.isEmpty && showSubtitles {
           Text(item.gameID)
             #if os(tvOS)
             .icubeText(.tag)
             .foregroundStyle(ICubeDesign.color(.textSecondary))
             #else
-            .font(.system(
-              size: screenScaledFontSize(base: 11),
-              weight: .bold,
-              design: .monospaced
-            ))
-            .foregroundStyle(
-              LinearGradient(
-                colors: [Color.white, Color.white.opacity(0.85)],
-                startPoint: .top,
-                endPoint: .bottom
-              )
-            )
-            .padding(.horizontal, screenScaledPadding(base: 10))
-            .padding(.vertical, screenScaledPadding(base: 5))
-            .background(
-              RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(
-                  LinearGradient(
-                    colors: [
-                      Color.black.opacity(0.4),
-                      Color.black.opacity(0.6)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                  )
-                )
-                .overlay(
-                  RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-            )
+            .font(.system(size: screenScaledFontSize(base: 10), weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(red: 0.80, green: 0.76, blue: 1.0))
+            .padding(.horizontal, screenScaledPadding(base: 8))
+            .padding(.vertical, screenScaledPadding(base: 4))
+            .background(Capsule().fill(Color.black.opacity(0.35)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 1))
             #endif
         }
       }
       .padding(.horizontal, screenScaledPadding(base: 12))
       .padding(.bottom, screenScaledPadding(base: 16))
-
-      // Subtle animated sparkles for magic ✨
-      ForEach(0 ..< 3, id: \.self) { index in
-        Image(systemName: "sparkle")
-          .font(.system(size: screenScaledFontSize(base: 8), weight: .light))
-          .foregroundColor(.white.opacity(0.4))
-          .offset(
-            x: CGFloat([20, -25, 15][index]),
-            y: CGFloat([-30, -45, -35][index])
-          )
-          .opacity(0.6)
-          .scaleEffect(0.8)
-      }
     }
-    .frame(width: LibraryLayout.cardSize.width, height: LibraryLayout.cardSize.height)
+    .frame(width: w, height: h)
     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     #if !os(tvOS)
     // iOS only: tvOS cards take their tilt from icubeCardFocus.

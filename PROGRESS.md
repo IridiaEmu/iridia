@@ -205,3 +205,4 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - 2026-10-12: TP (own dump) profiled live in Ordon: full speed, CPU thread ~37% busy. Audio was ~13% of app CPU; mixer fix cut it ~67% (BENCHMARKS #10).
 - 2026-10-12: Resume-where-left-off on by default (+background save), verified on device with TP: relaunch resumes in ~14 s. Pause menu Performance tile; VBI warning.
 - 2026-10-12: Video settings: simple Picture section (Resolution slider + Aspect Ratio), the rest under Advanced. Resolution sweep 1x–8x on TP: full speed throughout (BENCHMARKS #11). Bench mode can start from a save state.
+- 2026-10-12: Branding: Iridia logo (in-app), app icon, display name "Iridia" (bundle ID unchanged, saves kept). Save backup at ~/Projects/gc-emu-save-backup/.

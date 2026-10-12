@@ -175,3 +175,17 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 | 4 | `CommandProcessor::SetCPStatusFromGPU` | ~1.4% | CPU/GPU sync |
 | 5 | Input expression evaluation (`ControlExpression`, `InputReference`) | ~1.5% | precompute; move to our lock-free pad state |
 | 6 | Interpreter (`CachedInterpreter::LoadStoreFast*`, `frspx`) | small in homebrew | needs real-game workloads |
+
+## #10 Mixer: skip never-used audio fifos (2026-10-12) — adopted
+Workload: Twilight Princess (user's own dump), walking around Ordon, live 30 s Time Profiler capture
+(`benchmarks/profiles/tp-ordon-1412` before, `tp-ordon-mixfix-1426` after). Absolute CPU seconds per
+30 s, because the two captures aren't the exact same spot.
+
+| | Before | After | Change |
+|---|---|---|---|
+| AURemoteIO audio thread | 1.23 s | 0.41 s | −67% |
+| `Mixer::MixerFifo::Mix` | 0.95 s | 0.21 s | −78% |
+
+`Mixer::Mix` resampled all 11 fifos per output sample; 9 never get input in a GC game. Output is
+bit-identical (their granules are all zero). Gain: battery/heat, plus less contention with the CPU
+thread. The emulated CPU thread itself is unchanged.

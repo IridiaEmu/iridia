@@ -482,6 +482,12 @@ struct MenuScreen: View {
           listSection(section)
         }
       }
+      // gc-emu: Iridia look for every list menu (Settings and friends): the indigo stage behind,
+      // translucent glass rows, dark appearance, lavender accents.
+      .scrollContentBackground(.hidden)
+      .background(IridiaGlass.stage)
+      .environment(\.colorScheme, .dark)
+      .tint(Color(red: 0.72, green: 0.66, blue: 1.0))
       .onChange(of: focusedID) { _, id in
         if let id { withAnimation { proxy.scrollTo(id, anchor: .center) } }
       }
@@ -534,7 +540,7 @@ struct MenuScreen: View {
     }
     .disabled(!item.isEnabled)
     .id(item.id)
-    .listRowBackground(focusedID == item.id ? Color.accentColor.opacity(0.22) : nil)
+    .listRowBackground(focusedID == item.id ? Color.accentColor.opacity(0.22) : Color.white.opacity(0.07))
   }
 
   // MARK: iOS — tiles style

@@ -74,7 +74,7 @@ enum SettingsRootModelBuilder {
       ]),
       SettingsRootSection(id: "graphics", header: L("Graphics"), entries: [
         SettingsLeafEntry(id: "graphics-video", title: L("Video"), icon: "display",
-                          description: L("Backend, aspect ratio, V-Sync, auto resolution and shader compilation."),
+                          description: L("Resolution, power mode, Keep Cool, aspect ratio, FPS overlay and advanced options."),
                           hostsMenuScreen: true,
                           makeModel: { GraphicsGeneralModelBuilder.make(state: GraphicsGeneralState(isIOS: isIOS), apply: { _ in }) }) { GraphicsGeneralView() },
         SettingsLeafEntry(id: "graphics-enhancements", title: L("Enhancements"), icon: "sparkles",

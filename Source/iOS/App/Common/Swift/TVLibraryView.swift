@@ -845,7 +845,7 @@ struct TVLibraryView: View {
           selectGame(item)
         },
         onImport: { showImportSoftwarePicker = true },
-        onSettings: { showSettings = true },
+        onSettings: { openLibrarySettings() },   // iOS pushes Settings; `showSettings` is tvOS only
         onSaves: { item in if !item.gameID.isEmpty { navigateToSaveStates = GameIDRoute(id: item.gameID) } },
         onControllers: { showLibraryControllers = true },
         onShowGrid: { withAnimation { libraryStyle = "grid" } },

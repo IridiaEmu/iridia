@@ -139,6 +139,8 @@ struct IridiaShelfView: View {
     .onAppear {
       if centred == nil { centred = ordered.first?.filePath }
       installControllerNavigation()
+      // Test hook for UI checks on device: -gcemuOpenSettings YES opens Settings at launch.
+      if UserDefaults.standard.bool(forKey: "gcemuOpenSettings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onSettings() } }
     }
     .onChange(of: games.count) { _, _ in installControllerNavigation() }
     .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in installControllerNavigation() }

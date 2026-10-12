@@ -127,6 +127,14 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 - Result (interleaved A/B, 3 rounds, iridiabench-x16): 1.270 → 1.279, **+0.8%, within the 1.5–1.7% spread**.
 - **Reverted:** no measurable gain, and staying close to iCube's code keeps merges easy. The register save/restore turned out to be cheap next to the rest of each op.
 
+### 7. Full (monolithic) LTO instead of ThinLTO (tried, not adopted)
+- Experiment: `DOL_FULL_LTO=1 BuildiOSXCFramework.py` (2,001 compile units with `-flto`, CMake IPO off).
+- Result (interleaved A/B, 3 rounds, iridiabench-x16): 1.265 → 1.269, **+0.3%, within noise**.
+- Not adopted: no measurable gain, and the build is much slower. ThinLTO stays the default.
+
+### Memory loads/stores (`CachedInterpreter::LoadStoreFast`, ~17% of the CPU thread): reviewed, no change
+- Already a direct path: one `s_logical_pages[ea >> BAT_INDEX_SHIFT]` table load, an alignment check, a byte swap, and a `musttail` to the cold path. No cheap win without architectural changes (e.g. a fastmem-style host mapping).
+
 ### Profile after #1 and #2 (gxSprites, 15 s)
 - Total iCube CPU: **6.36 s** (was 7.29 s) at the same 100% speed.
 - Signpost and CoreMotion costs are gone.

@@ -7,7 +7,7 @@ import TipKit
 @available(iOS 17, tvOS 17, *)
 struct ImportGameTip: Tip {
   var title: Text { Text(L("Import Game")) }
-  var message: Text { Text(L("Pick a game here, or copy it into Files → On My iPhone → iCube → Games. ISO, RVZ, GCM, CISO, or a ZIP/7Z archive (unpacked automatically).")) }
+  var message: Text { Text(String(format: L("Pick a game here, or move it into %@. ISO, RVZ, GCM, CISO, or a ZIP/7Z archive (unpacked automatically)."), FilesAppNames.gamesPath)) }
   var image: Image? { Image(systemName: "square.and.arrow.down") }
   // Show at most once ever; the persistent datastore remembers this across
   // launches even if the popover is dismissed by navigating away (which does

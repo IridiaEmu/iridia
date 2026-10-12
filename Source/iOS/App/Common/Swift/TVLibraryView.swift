@@ -674,6 +674,7 @@ struct TVLibraryView: View {
   /// iOS document pickers
 #if os(iOS) || targetEnvironment(macCatalyst)
   @State private var showImportSoftwarePicker = false
+  @State private var showFilesAppGuide = false
   @State private var showImportNANDPicker = false
   @State private var showImportSkylanderPicker = false
   /// Navigate to settings as a push on iOS
@@ -1576,6 +1577,15 @@ struct TVLibraryView: View {
           Image(systemName: "doc.badge.plus")
         }
       }
+      // gc-emu: fallback when Apple's picker is stuck on "Loading".
+      Button(action: { libraryMenuAction { showFilesAppGuide = true } }) {
+        Label {
+          Text(L("Add with the Files App"))
+          Text(L("If Import keeps loading"))
+        } icon: {
+          Image(systemName: "folder")
+        }
+      }
       Button(action: { showImportNANDPicker = true }) {
         Label(L("Import BootMii NAND Backup…"), systemImage: "tray.and.arrow.down")
       }
@@ -1972,6 +1982,7 @@ struct TVLibraryView: View {
           }
         }
       }
+      .sheet(isPresented: $showFilesAppGuide) { FilesAppGuideView().claimsController() }
       .sheet(isPresented: $showImportNANDPicker) {
         NavigationStack {
           DocumentPickerView(
@@ -2303,7 +2314,7 @@ struct TVLibraryView: View {
           }
 
           // Subtitle
-          Text(L("Import a game, or copy it into Files → On My iPhone → iCube → Games. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z archives are unpacked automatically."))
+          Text(String(format: L("Import a game, or move it into %@. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z archives are unpacked automatically."), FilesAppNames.gamesPath))
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.85))
             .multilineTextAlignment(.center)
@@ -2341,6 +2352,14 @@ struct TVLibraryView: View {
             .buttonStyle(.borderedProminent)
             .tint(.green)
           }
+
+#if os(iOS)
+          Button(L("Import stuck on \"Loading\"? Use the Files app")) {
+            showFilesAppGuide = true
+          }
+          .font(.footnote.weight(.semibold))
+          .tint(.white)
+#endif
 
           // Secondary action
           Button(L("Maybe Later")) {

@@ -182,3 +182,8 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - iCube's off-by-default CIR FP/PSQ flags were A/B tested (`scripts/cir_ab*.sh`): no gain, kept off.
 - The phone hit "serious" thermal state during sustained benchmarking, so testing was paused to let it cool.
 - **Opt #5:** Force25Bit/ClassifyFloat/ClassifyDouble now branch on the common case (asm barrier against if-conversion). Proven bit-identical (all 2^32 floats). **+4.3%** on IridiaBench x16 (interleaved build A/B via `scripts/build_ab.sh`). The phone now runs build B.
+- **PGO blocked (stopped after 2 attempts, per the ground rules):**
+  - Attempt 1: the app build's "Build Dolphin Core" phase replaced the instrumented core with a normal one. Fix: pass `DOL_PGO=generate` to xcodebuild, as `Tools/pgo/pgo.sh` does.
+  - Attempt 2: the core was instrumented, but `___llvm_profile_write_file` / `___llvm_profile_set_filename` are linked "non-external (was a private external)", not exported. So `ICubePGOAvailable()` (dlsym) returns 0, no profile path is set, and nothing is written.
+  - Proposed fix: export those two symbols in DOL_PGO=generate builds (`-Wl,-exported_symbol,…` in BuildiOSXCFramework.py, next to the existing `-u` flags). Awaiting the user's OK.
+  - Build B was reinstalled on the phone.

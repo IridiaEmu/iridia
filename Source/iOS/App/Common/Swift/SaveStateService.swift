@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 /// Facade over the save-state bridge that writes a metadata sidecar alongside
 /// every save, so saves are self-describing (title, timestamp, game).
@@ -95,8 +98,20 @@ public enum SaveStateService {
   /// never reads it, so a Config key would be flagged dangling by icube_config_lint.
   public static let resumeDefaultsKey = "resume_where_left_off"
 
+  /// gc-emu: on by default (registered in AppDelegate), so a game opens where you left it instead
+  /// of at the title screen. Never during scripted benchmarks (-gcemuBench): those must start cold.
   public static var resumeEnabled: Bool {
-    UserDefaults.standard.bool(forKey: resumeDefaultsKey)
+    UserDefaults.standard.bool(forKey: resumeDefaultsKey) && !isBenchmarkRun
+  }
+
+  static var isBenchmarkRun: Bool { UserDefaults.standard.double(forKey: "gcemuBench") > 0 }
+
+  /// gc-emu: write the running game's resume state now. Used when the app goes to the background,
+  /// because iOS may end a backgrounded app (or the user swipes it away) without +stop ever running.
+  static func saveAutoStateNow() {
+    guard resumeEnabled, TVEmulationBridge.isStateOperationAllowed(), let url = autoStateURL else { return }
+    TVEmulationBridge.saveState(toPath: url.path, wait: true)
+    NSLog("[Resume] saved %@ (app backgrounded)", url.lastPathComponent)
   }
 
   /// Path to the running title's dedicated auto-state, or nil if nothing is running.
@@ -225,6 +240,7 @@ public enum SaveStateService {
       return false
 
     case .loadAuto(let path):
+      NSLog("[Resume] loading %@", (path as NSString).lastPathComponent)
       BootWatchdog.armBeforeBoot()
       TVEmulationBridge.loadState(fromPath: path)
       BootWatchdog.clearAfterLivenessWindow()
@@ -254,9 +270,28 @@ public enum SaveStateService {
     }
   }()
 
+  #if os(iOS)
+  private static let didEnterBackgroundObserverToken: NSObjectProtocol = {
+    NotificationCenter.default.addObserver(
+      forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+    ) { _ in
+      // Ask for time to finish: a state is ~30 MB and iOS may suspend the app right away.
+      var task = UIBackgroundTaskIdentifier.invalid
+      task = UIApplication.shared.beginBackgroundTask(withName: "resume-state") {
+        UIApplication.shared.endBackgroundTask(task)
+      }
+      saveAutoStateNow()
+      UIApplication.shared.endBackgroundTask(task)
+    }
+  }()
+  #endif
+
   /// Call once at app startup. Idempotent: repeat calls just re-touch the
   /// already-initialized `static let` and register nothing further.
   public static func installDidStartObserver() {
     _ = didStartObserverToken
+    #if os(iOS)
+    _ = didEnterBackgroundObserverToken
+    #endif
   }
 }

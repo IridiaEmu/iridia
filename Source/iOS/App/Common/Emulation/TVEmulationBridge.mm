@@ -96,7 +96,9 @@ static bool StateOperationAllowed(Core::System& system, const char* operation)
   // CPU thread is torn down, so the next launch can continue from here. Gated on
   // the user toggle; default off means this is a no-op. The auto-state lives in its
   // own "{GameID}.auto" file and never touches numbered save slots.
-  if ([[NSUserDefaults standardUserDefaults] boolForKey:@"resume_where_left_off"]) {
+  // gc-emu: never during scripted benchmarks (-gcemuBench); they must start cold every run.
+  if ([[NSUserDefaults standardUserDefaults] boolForKey:@"resume_where_left_off"] &&
+      [[NSUserDefaults standardUserDefaults] doubleForKey:@"gcemuBench"] <= 0) {
     NSString* autoPath = [self autoStateFilePath];
     if (autoPath.length > 0 && StateOperationAllowed(Core::System::GetInstance(), "auto-state save")) {
       State::SaveAs(Core::System::GetInstance(), std::string(autoPath.UTF8String));  // 2603: no wait flag

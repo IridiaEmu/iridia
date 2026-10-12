@@ -485,6 +485,10 @@ struct EmulationScreen: View {
             .disabled(vbiOverride != .none)
             autoBadge(vbiOverride)
           }
+          Text(L("Heads up: raising the refresh rate can make some games run faster than normal, not just smoother."))
+            .font(.caption)
+            .foregroundColor(.orange.opacity(0.9))
+            .fixedSize(horizontal: false, vertical: true)
           HStack {
             Text("\(vbiPercentQuick)%").foregroundColor(.white.opacity(0.8))
             Spacer()
@@ -893,6 +897,10 @@ struct EmulationScreen: View {
                       .disabled(vbiOverride != .none)
                       autoBadge(vbiOverride)
                     }
+                    Text(L("Heads up: raising the refresh rate can make some games run faster than normal, not just smoother."))
+                      .font(.caption)
+                      .foregroundColor(.orange.opacity(0.9))
+                      .fixedSize(horizontal: false, vertical: true)
                     HStack {
                       Slider(value: $vbiPercentQuick.onSet { DOLConfigBridge.setMainViOverclockPercent($0) }.asDouble, in: 1 ... 400)
                         .disabled(!vbiEnabledQuick || vbiOverride != .none)
@@ -975,6 +983,10 @@ struct EmulationScreen: View {
                   .disabled(vbiOverride != .none)
                   autoBadge(vbiOverride)
                 }
+                Text(L("Heads up: raising the refresh rate can make some games run faster than normal, not just smoother."))
+                  .font(.caption)
+                  .foregroundColor(.orange.opacity(0.9))
+                  .fixedSize(horizontal: false, vertical: true)
                 HStack {
                   Slider(value: $vbiPercentQuick.onSet { DOLConfigBridge.setMainViOverclockPercent($0) }.asDouble, in: 1 ... 400)
                     .disabled(!vbiEnabledQuick || vbiOverride != .none)

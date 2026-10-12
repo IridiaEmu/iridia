@@ -562,7 +562,7 @@ struct TVLibraryView: View {
 #if os(tvOS)
       .toolbar(.hidden, for: .navigationBar)
 #else
-      .navigationTitle(storeForBanner.isScanning ? "" : "iCube Library")
+      .navigationTitle(storeForBanner.isScanning ? "" : L("Iridia Library"))
       .toolbar { libraryToolbar }
       .navigationBarTitleDisplayMode(.large)
 #endif
@@ -1509,7 +1509,7 @@ struct TVLibraryView: View {
   @ViewBuilder
   private var aboutDolphinToolbarButton: some View {
     Button(action: { showAbout = true }) {
-      Image("DolphinLogo")
+      Image("IridiaMark")
         .resizable()
         .scaledToFit()
         .frame(width: 28, height: 28)
@@ -1517,7 +1517,7 @@ struct TVLibraryView: View {
     }
     .buttonStyle(.plain)
     .background { aboutDolphinToolbarBackground }
-    .accessibilityLabel(L("About iCube"))
+    .accessibilityLabel(L("About Iridia"))
   }
 
   @ViewBuilder
@@ -2300,15 +2300,13 @@ struct TVLibraryView: View {
         VStack(spacing: 20) {
           // Header icon and title
           VStack(spacing: 10) {
-            ZStack {
-              Circle()
-                .fill(.white.opacity(0.12))
-                .frame(width: 64, height: 64)
-              Image(systemName: "gamecontroller.fill")
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.white)
-            }
-            Text(L("Welcome to iCube"))
+            // gc-emu: Iridia's glass-cube mark.
+            Image("IridiaMark")
+              .resizable()
+              .scaledToFit()
+              .frame(width: 88, height: 88)
+              .accessibilityHidden(true)
+            Text(L("Welcome to Iridia"))
               .font(.title2).fontWeight(.bold)
               .foregroundStyle(.white)
           }

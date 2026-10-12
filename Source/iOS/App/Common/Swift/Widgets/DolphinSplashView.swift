@@ -50,7 +50,7 @@ struct DolphinSplashView: View {
         // Multiple jumping dolphins
         ZStack {
           ForEach(0 ..< 5, id: \.self) { index in
-            Image("DolphinLogo")
+            Image("IridiaMark")
               .resizable()
               .scaledToFit()
               .frame(width: dolphinSize(for: index), height: dolphinSize(for: index))
@@ -150,7 +150,7 @@ struct DolphinSplashView: View {
 
             VStack(spacing: 4) {
               HStack(spacing: 4) {
-                Image("DolphinLogo")
+                Image("IridiaMark")
                   .resizable()
                   .scaledToFit()
                   .frame(width: 12, height: 12)

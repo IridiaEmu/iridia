@@ -130,7 +130,7 @@ struct MotionDebugView: View {
               ))
               .frame(height: 100)
 
-            Image("DolphinLogo")
+            Image("IridiaMark")
               .resizable()
               .scaledToFit()
               .frame(width: 36, height: 36)

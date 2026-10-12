@@ -51,7 +51,7 @@ struct AboutView: View {
           }
 
           // Main logo — center pulse or right-biased orbit, chosen at random.
-          Image("iCube-Logo-Square-NoText")
+          Image("IridiaMark")
             .resizable()
             .scaledToFit()
             .frame(height: 128)
@@ -67,9 +67,9 @@ struct AboutView: View {
           startAboutAnimation()
         }
 
-        Text("iCube")
+        Text("Iridia")
           .font(.system(size: 28, weight: .semibold))
-          .foregroundColor(.blue)
+          .foregroundColor(Color(red: 0.86, green: 0.83, blue: 1.0))
 
         // App version / build + Dolphin core version.
         VStack(spacing: 2) {

@@ -7,6 +7,7 @@
 // the host (TVLibraryView), which already owns those flows.
 
 #if os(iOS)
+import GameController
 import SwiftUI
 import UIKit
 
@@ -72,6 +73,7 @@ struct IridiaShelfView: View {
   let onDelete: (TVGameItem) -> Void
 
   @State private var centred: String?
+  @State private var controllerScope = UUID()
 
   /// Every launch from the shelf goes through here: sparkle, then hand over.
   private func play(_ item: TVGameItem, fresh: Bool) {
@@ -112,7 +114,57 @@ struct IridiaShelfView: View {
       }
     }
     .toolbar(.hidden, for: .navigationBar)
-    .onAppear { if centred == nil { centred = ordered.first?.filePath } }
+    .onAppear {
+      if centred == nil { centred = ordered.first?.filePath }
+      installControllerNavigation()
+    }
+    .onChange(of: games.count) { _, _ in installControllerNavigation() }
+    .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in installControllerNavigation() }
+    .controllerScope(controllerScope)
+  }
+
+  // MARK: Controller navigation
+
+  /// Left/right (d-pad or stick) move along the shelf, A plays (Continue), Y starts at the title
+  /// screen, B returns to the first game. Self-gated on this screen's controller scope, so a sheet
+  /// or the game on top takes the controller over.
+  private func installControllerNavigation() {
+    let scope = controllerScope
+    var lastMove = Date.distantPast
+    for controller in GCController.controllers() {
+      guard let pad = controller.extendedGamepad else { continue }
+      pad.valueChangedHandler = { gamepad, element in
+        // Never while a game runs: the core reads the controller itself.
+        guard ControllerFocusCoordinator.isActiveScope(scope), !TVEmulationBridge.isRunning() else { return }
+        func step(_ delta: Int) {
+          guard Date().timeIntervalSince(lastMove) > 0.22 else { return }
+          lastMove = Date()
+          DispatchQueue.main.async { move(by: delta) }
+        }
+        if element == gamepad.dpad || element == gamepad.leftThumbstick {
+          let x = (element == gamepad.dpad ? gamepad.dpad.xAxis.value : gamepad.leftThumbstick.xAxis.value)
+          if x > 0.6 { step(1) } else if x < -0.6 { step(-1) }
+        }
+        if element == gamepad.buttonA, gamepad.buttonA.isPressed {
+          DispatchQueue.main.async { if let item = current { play(item, fresh: false) } }
+        }
+        if element == gamepad.buttonY, gamepad.buttonY.isPressed {
+          DispatchQueue.main.async { if let item = current { play(item, fresh: true) } }
+        }
+        if element == gamepad.buttonB, gamepad.buttonB.isPressed {
+          DispatchQueue.main.async { withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = ordered.first?.filePath } }
+        }
+      }
+    }
+  }
+
+  private func move(by delta: Int) {
+    let list = ordered
+    guard !list.isEmpty else { return }
+    let index = list.firstIndex { $0.filePath == current?.filePath } ?? 0
+    let next = max(0, min(list.count - 1, index + delta))
+    guard next != index else { IridiaSound.error.play(); return }
+    withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = list[next].filePath }
   }
 
   // MARK: Header

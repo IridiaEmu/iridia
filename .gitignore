@@ -108,3 +108,4 @@ keys.txt
 # gc-emu: build output of our homebrew tools
 /Tools/homebrew/*/build-*/
 /Tools/homebrew/*/*.dol
+/build-pgo/

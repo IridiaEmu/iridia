@@ -27,7 +27,7 @@ void ICubePGOSetPath(const char* path)
   if (!path)
     return;
   icube_llvm_set_filename_fn set_filename =
-      (icube_llvm_set_filename_fn)dlsym(RTLD_DEFAULT, "__llvm_profile_set_filename");
+      (icube_llvm_set_filename_fn)dlsym(RTLD_DEFAULT, "gcemu_pgo_set_filename");
   if (set_filename)
     set_filename(path);
 }
@@ -35,7 +35,7 @@ void ICubePGOSetPath(const char* path)
 int ICubePGOFlush(void)
 {
   icube_llvm_write_file_fn write_file =
-      (icube_llvm_write_file_fn)dlsym(RTLD_DEFAULT, "__llvm_profile_write_file");
+      (icube_llvm_write_file_fn)dlsym(RTLD_DEFAULT, "gcemu_pgo_write_file");
   if (!write_file)
     return -1;  // not an instrumented build
   return write_file();
@@ -43,5 +43,7 @@ int ICubePGOFlush(void)
 
 int ICubePGOAvailable(void)
 {
-  return dlsym(RTLD_DEFAULT, "__llvm_profile_write_file") != 0;
+  // gc-emu: the runtime's own symbols are hidden; the core exports these wrappers in instrumented
+  // builds only (Source/Core/Common/PGOExports.cpp).
+  return dlsym(RTLD_DEFAULT, "gcemu_pgo_write_file") != 0;
 }

@@ -410,7 +410,9 @@ class DolphinBuilder:
         pgo_cflags = ""
         pgo_ldflags = ""
         if pgo_mode == "generate":
-            pgo_cflags = "-fprofile-generate"
+            pgo_cflags = "-fprofile-generate -DGCEMU_PGO_GENERATE=1"
+            # gc-emu: the runtime's functions are hidden (compiler-rt visibility), so they can't be
+            # exported; Common/PGOExports.cpp provides exported gcemu_pgo_* wrappers instead.
             pgo_ldflags = ("-fprofile-generate "
                            "-Wl,-u,___llvm_profile_write_file "
                            "-Wl,-u,___llvm_profile_set_filename")

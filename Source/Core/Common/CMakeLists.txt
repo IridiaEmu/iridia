@@ -112,6 +112,7 @@ add_library(common
   MemArena.h
   MemoryUtil.cpp
   MemoryUtil.h
+  PGOExports.cpp  # gc-emu: exported PGO runtime wrappers (empty unless GCEMU_PGO_GENERATE)
   MinizipUtil.h
   MsgHandler.cpp
   MsgHandler.h

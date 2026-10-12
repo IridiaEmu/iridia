@@ -89,6 +89,7 @@ for bname, path in sym_paths.items():
     for a, line in zip(addrs, out):
         # "Func(args) (in Binary) (File.cpp:123)" -> "Func(args)"
         n = re.sub(r" \(in [^)]+\)( \(.*\))?$", "", line.strip())
+        n = re.sub(r" \+ \d+$", "", n)  # group by function, not by instruction offset
         names[a] = re.sub(r"\(.*\)", "()", n) if n else a
     for _, _, fs in rows:
         for f in fs:

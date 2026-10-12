@@ -104,3 +104,7 @@ keys.txt
 /build-logs/
 /Packages/*/.build/
 /Packages/*/.swiftpm/
+
+# gc-emu: build output of our homebrew tools
+/Tools/homebrew/*/build-*/
+/Tools/homebrew/*/*.dol

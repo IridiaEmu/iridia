@@ -84,6 +84,26 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 
 - **No measurable change** on homebrew (all within noise). These programs barely execute interpreter code, which is where newer instructions help. Kept (no regression; correct baseline); re-measure with real-game workloads.
 
+### New workload: IridiaBench (our own CPU benchmark, `Tools/homebrew/iridiabench`)
+- An original GPL program we own. Each frame does a fixed, game-like CPU workload (libogc paired-single matrix/vector math, a bytecode VM, strided array, linked-list and memcpy traffic), then draws 16 quads and waits for vsync. `SCALE` multiplies the work.
+- Probe (1 run each): x1 2.38, x2 3.17, x4 2.54 (not CPU-bound; per-frame GPU sync dominates); **x16 1.24** (1% low 40 ms); **x32 1.03, speed 0.95** (CPU-bound). x16/x32 are the interpreter workloads from here on.
+- **CPU-thread profile at x32:** FP and paired-single handlers ≈50% (`fmulsx` 9%, `ps_madd` 8.7%, `ps_muls0` 5.4%, `ps_mul` 4.6%, `ps_sum0` 4.1%, `NI_madd_msub` 4%, `fnmsubsx`, `fmaddsx`, `faddsx`…). `CachedInterpreter::LoadStoreFast` 16.6%, then micro-op pairs, block linking and branches.
+
+### 4. iCube's off-by-default Cached Interpreter options (A/B, not adopted)
+- iCube ships these opt-in flags marked "default OFF pending on-device A/B": DeadFprfElim, SpecializedFpArith, SpecializedFpLs, SpecializedPsq, PsqFastPath (and others).
+- Tested by editing `Dolphin.ini [Core]` on device (`scripts/cir_ab.sh`, `scripts/cir_ab_interleaved.sh`).
+
+| Variant (iridiabench-x16) | maxSpeed | vs baseline | note |
+|---|---|---|---|
+| baseline (sequential) | 1.105 | | thermal fair |
+| CIRDeadFprfElim | 1.101 | −0.4% | fair/serious |
+| CIRSpecializedFpArith | 1.095 | −0.9% | serious |
+| baseline (interleaved, 45 s cool-down) | 1.175 | | serious |
+| all five FP/PSQ flags together (interleaved) | 1.167 | −0.7% | serious |
+
+- **No measurable gain**, so they stay off. Caveat: the phone reached "serious" thermal state during these runs (CPU throttled). The interleaved method keeps the comparison fair, but absolute numbers are lower than cool-device runs (x16 probe 1.24).
+- Method note: sustained heavy runs heat the phone within ~5 minutes. Run A/B interleaved, with cool-downs, and record thermal state.
+
 ### Profile after #1 and #2 (gxSprites, 15 s)
 - Total iCube CPU: **6.36 s** (was 7.29 s) at the same 100% speed.
 - Signpost and CoreMotion costs are gone.

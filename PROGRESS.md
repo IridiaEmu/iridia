@@ -178,3 +178,6 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
     - Audio mixer cost (battery).
     - Real-game workloads once the user adds their own dumps (Files → On My iPhone → iCube → Software).
   - Free-team app installs expire around 2026-10-18; reinstall via BUILDING.md step 5.
+- Added **IridiaBench** (`Tools/homebrew/iridiabench`, original GPL program; `make SCALE=n`). x16/x32 are CPU-bound on the iPhone 16 Pro.
+- iCube's off-by-default CIR FP/PSQ flags were A/B tested (`scripts/cir_ab*.sh`): no gain, kept off.
+- The phone hit "serious" thermal state during sustained benchmarking, so testing was paused to let it cool.

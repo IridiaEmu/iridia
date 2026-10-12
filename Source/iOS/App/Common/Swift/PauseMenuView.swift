@@ -27,6 +27,7 @@ internal struct PauseMenuView: View {
   private enum Pane { case main, saves, cheats, controllers }
   @State private var pane: Pane = .main
   @State private var showExitDialog: Bool = false
+  @State private var showAllOptions: Bool = false
   @State private var showResetDialog: Bool = false
   @State private var showShaders: Bool = false
   @State private var showSettingsSheet: Bool = false
@@ -272,6 +273,11 @@ internal struct PauseMenuView: View {
           .padding(.horizontal, 90)
           .padding(.top, 70)
           .padding(.bottom, 44)
+        } else if !showAllOptions {
+          // gc-emu: Iridia's glass pause sheet (direction A). "More" opens the full tile grid.
+          IridiaPauseSheet(game: game, actions: pauseActions, isLandscape: compactHeight,
+                           onShowAll: { withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { showAllOptions = true } },
+                           onExit: { showExitDialog = true })
         } else {
           VStack(alignment: .leading, spacing: 8) {
             compactHeader(isCompactHeight: compactHeight).padding(compactHeight ? 12 : 16)
@@ -734,14 +740,9 @@ internal struct PauseMenuView: View {
       mru: UserDefaults.standard.stringArray(forKey: ShaderQuickApply.mruKey) ?? [], current: ShaderQuickApply.currentPath)
   }
 
-  private var pauseMenuModel: MenuModel {
-    let state = PauseMenuState(
-      quickSlot: selectedSlot,
-      isMuted: isMuted,
-      activeCheatCount: activeCheatCount,
-      shaderOptions: shaderOptions,
-      showsRecenterPointer: Self.showsRecenterPointer)
-    let actions = PauseMenuActions(
+  /// Every pause action, shared by the tile grid and Iridia's glass sheet.
+  private var pauseActions: PauseMenuActions {
+    PauseMenuActions(
       resume: { PauseArbiter.shared.userResume(); onClose() },
       quickSave: { _ = QuickSlot.save(slot: selectedSlot) },
       quickLoad: { QuickSlot.load(slot: selectedSlot) },
@@ -780,6 +781,16 @@ internal struct PauseMenuView: View {
         #endif
       },
       openPerformance: onShowPerformance.map { show in { PauseArbiter.shared.userResume(); onClose(); show() } })
+  }
+
+  private var pauseMenuModel: MenuModel {
+    let state = PauseMenuState(
+      quickSlot: selectedSlot,
+      isMuted: isMuted,
+      activeCheatCount: activeCheatCount,
+      shaderOptions: shaderOptions,
+      showsRecenterPointer: Self.showsRecenterPointer)
+    let actions = pauseActions
     return PauseMenuModelBuilder.make(state: state, bindings: pauseMenuBindings, actions: actions)
   }
 

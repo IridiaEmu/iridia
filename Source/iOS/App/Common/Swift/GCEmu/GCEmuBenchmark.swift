@@ -67,8 +67,25 @@ enum GCEmuBenchmark {
   private static var observer: NSObjectProtocol?
   private static var timer: DispatchSourceTimer?
 
+  private static var pauseObserver: NSObjectProtocol?
+
+  /// Test hook for UI checks on device: -gcemuShowPauseAfter <seconds> opens the pause menu that long
+  /// after a game starts. Does nothing unless passed.
+  static func armPauseMenuIfRequested() {
+    let delay = UserDefaults.standard.double(forKey: "gcemuShowPauseAfter")
+    guard delay > 0, pauseObserver == nil else { return }
+    pauseObserver = NotificationCenter.default.addObserver(
+      forName: Notification.Name("DOLEmulationDidStartNotification"), object: nil, queue: .main
+    ) { _ in
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        NotificationCenter.default.post(name: Notification.Name("DOLShowPauseMenu"), object: nil)
+      }
+    }
+  }
+
   /// Call once at launch. Does nothing unless -gcemuBench is set.
   static func armIfRequested() {
+    armPauseMenuIfRequested()
     let d = UserDefaults.standard
     let duration = d.double(forKey: "gcemuBench")
     guard duration > 0, observer == nil else { return }

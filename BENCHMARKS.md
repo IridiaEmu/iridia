@@ -121,6 +121,12 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 | A (before) | 1.208 | 1.3% | | fair/nominal |
 | B (after) | **1.260** | 1.7% | **+4.3%** | fair/nominal |
 
+### 6. Call-free NEON fast path for the 11 paired-single handlers (tried, reverted)
+- Finding: `Interpreter::ps_madd` (and its siblings) saved and restored six register pairs on every call, because the NEON fast path shared a function with the scalar, validate and profiler code, which make calls.
+- Experiment: a templated, call-free `PsNeonFast<Kind>` (the same guards and NEON math) and each original body moved, unchanged, into a `noinline ..._Full` that the handler tail-calls on a guard failure. The disassembly confirmed the prologue was gone.
+- Result (interleaved A/B, 3 rounds, iridiabench-x16): 1.270 → 1.279, **+0.8%, within the 1.5–1.7% spread**.
+- **Reverted:** no measurable gain, and staying close to iCube's code keeps merges easy. The register save/restore turned out to be cheap next to the rest of each op.
+
 ### Profile after #1 and #2 (gxSprites, 15 s)
 - Total iCube CPU: **6.36 s** (was 7.29 s) at the same 100% speed.
 - Signpost and CoreMotion costs are gone.

@@ -28,7 +28,7 @@ CONFIG = {
     "platforms": {
         "OS64": {  # iOS device (arm64)
             "deployment_target": "17.0",
-            "arch_flags": "-mcpu=apple-a10 -mtune=apple-a15 -march=armv8-a+simd+crc+crypto",
+            "arch_flags": "-mcpu=apple-a13 -mtune=apple-a18",  # gc-emu: iOS 26 minimum = A13+
             "suffix": "-ios",
             "xcode_platform": "iphoneos",
         },
@@ -40,7 +40,7 @@ CONFIG = {
         },
         "TVOS": {  # tvOS device (arm64)
             "deployment_target": "17.0",
-            "arch_flags": "-mcpu=apple-a10 -mtune=apple-a15 -march=armv8-a+simd+crc+crypto",
+            "arch_flags": "-mcpu=apple-a13 -mtune=apple-a18",  # gc-emu: iOS 26 minimum = A13+
             "suffix": "-tvos",
             "xcode_platform": "appletvos",
         },
@@ -463,7 +463,9 @@ class DolphinBuilder:
 
         # Explicit ARM device tuning (mirror BuildCore.sh)
         if platform in ["OS64", "TVOS"]:
-            tune_flags = "-mcpu=apple-a10 -mtune=apple-a14 -march=armv8-a+simd+crc+crypto"
+            # gc-emu: iOS 26 (our minimum) runs only on A13 and newer, so ARMv8.4 is the baseline
+            # (LSE atomics, RCPC, dot-product, FP16). Tuned for the A18 class.
+            tune_flags = "-mcpu=apple-a13 -mtune=apple-a18"
             c_flags += f" {tune_flags}"
             cxx_flags += f" {tune_flags}"
 

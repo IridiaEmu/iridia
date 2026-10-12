@@ -168,3 +168,13 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - **Opt #1** (stall signposts compiled out; StallMetrics default off): maxSpeed **+158% to +198%** (4.57–5.66×).
 - **Opt #2** (no CoreMotion polling for GameCube): no speed change (within noise); ≈3% less CPU, for battery.
 - Next: real-game workloads from the user's own dumps (the homebrew barely loads the interpreter); texture-hash sampling; audio mixer cost; input path to our lock-free pad state.
+- **Paused 2026-10-11 (user break).** In flight:
+  - Opt #3: `BuildiOSXCFramework.py` now targets `-mcpu=apple-a13 -mtune=apple-a18` (was apple-a10), since iOS 26 = A13+. The core rebuild was started in the background; it still needs benchmarking (labels `opt3-*`) against opt2.
+  - Next candidates:
+    - Keep frame pointers (drop `-fomit-frame-pointer`) for readable profiles; measure the cost.
+    - Full LTO A/B (`DOL_FULL_LTO=1`).
+    - PGO (the script has env-driven support).
+    - Route touch input through lock-free `gcpad_read` instead of iCube's StateManager + expression parsing.
+    - Audio mixer cost (battery).
+    - Real-game workloads once the user adds their own dumps (Files → On My iPhone → iCube → Software).
+  - Free-team app installs expire around 2026-10-18; reinstall via BUILDING.md step 5.

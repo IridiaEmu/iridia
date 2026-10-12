@@ -26,6 +26,7 @@ ap.add_argument("--process", default="iCube")
 ap.add_argument("--top", type=int, default=25)
 ap.add_argument("--sym", action="append", default=[], help="binary-name=path (repeatable)")
 ap.add_argument("--thread", default=None, help="only samples whose thread name contains this")
+ap.add_argument("--callers-of", default=None, help="show the caller chains of frames whose name contains this")
 args = ap.parse_args()
 
 sym_paths = dict(s.split("=", 1) for s in args.sym)
@@ -114,6 +115,20 @@ for w, t, fs in rows:
     if owner is not None:
         via = "" if owner is fs[0] else f"  (via {fs[0][1]})"
         attr[f"{owner[0]}  [{owner[1]}]{via}"] += w
+
+if args.callers_of:
+    chains = Counter()
+    for w, t, fs in rows:
+        for i, (n, b, _) in enumerate(fs):
+            if args.callers_of in n:
+                chain = " <- ".join(f[0].split("(")[0] for f in fs[i:i + 5])
+                chains[chain] += w
+                break
+    tot = sum(chains.values())
+    print(f"== callers of {args.callers_of!r}: {tot/1e9:.2f} s ==")
+    for k, v in chains.most_common(args.top):
+        print(f"  {100*v/tot if tot else 0:5.1f}%  {k[:220]}")
+    raise SystemExit(0)
 
 print(f"process {args.process!r}" + (f" thread~{args.thread!r}" if args.thread else "") + f": {total/1e9:.2f} s CPU sampled")
 for title, c, n in [("CPU by thread", threads, 12), ("self time by binary", bins, 10),

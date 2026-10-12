@@ -200,3 +200,5 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - `UserFolderUtil.migrateLegacyLayoutIfNeeded()` runs first in AppDelegate. The Wi-Fi upload server now targets Games, and the benchmark/PGO/debug-snapshot folders are hidden. Scripts use `$UDIR`.
   - Verified on device: Files shows only "Games", the library lists all 12 programs, and neheGX boots.
   - The hint text now tells users where to put games.
+
+- 2026-10-12: Import picker Recents spun on "Loading". Cause: Recents is a query of iOS's Spotlight file index (stale/rebuilding index on iOS 26/27), not app code. Fix: GameFilePicker presents UIDocumentPickerViewController with directoryURL so it opens on Browse.

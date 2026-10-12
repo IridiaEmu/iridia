@@ -283,6 +283,7 @@ struct EmulationScreen: View {
   @State private var controllerSettingsToken: PauseArbiter.Token?
   // gc-emu: "Continue where you left off?" prompt (see SaveStateService.answerResumePrompt).
   @State private var showResumePrompt = false
+  @AppStorage(GCEmuStatsOverlay.defaultsKey) private var showStatsOverlay = false
   @State private var resumePromptToken: PauseArbiter.Token?
   var showTopBar: Bool { topBar.isVisible }
   @State private var fastForwardEnabled = false
@@ -851,6 +852,15 @@ struct EmulationScreen: View {
       EmulationToastOverlay(barHeight: topBarHeight, barVisible: showTopBar)
         .zIndex(6)
 
+      // gc-emu: "30 FPS · 100%" pill (Settings > Video or the Performance panel; forced in free play).
+      VStack {
+        HStack { GCEmuStatsOverlay(); Spacer() }
+        Spacer()
+      }
+      .padding(.top, 8)
+      .padding(.leading, 12)
+      .zIndex(3)
+
       // Semi-transparent overlay with quick performance controls (iOS)
       if showPerfOverlay {
         Color.black.opacity(0.35).ignoresSafeArea().zIndex(4)
@@ -867,6 +877,9 @@ struct EmulationScreen: View {
                     .buttonStyle(.plain)
                 }
                 Divider().background(.white.opacity(0.2))
+                Toggle(L("Show FPS & Speed"), isOn: $showStatsOverlay)
+                  .tint(.blue)
+                  .foregroundColor(.white)
 
                 HStack(alignment: .top, spacing: 20) {
                   // Left column
@@ -958,6 +971,9 @@ struct EmulationScreen: View {
                     .buttonStyle(.plain)
                 }
                 Divider().background(.white.opacity(0.2))
+                Toggle(L("Show FPS & Speed"), isOn: $showStatsOverlay)
+                  .tint(.blue)
+                  .foregroundColor(.white)
                 HStack {
                   Toggle("CPU Clock Override", isOn: Binding(get: { ocEnabled }, set: { v in
                     ocEnabled = v

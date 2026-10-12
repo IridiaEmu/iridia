@@ -52,3 +52,12 @@ struct ResolutionSliderRow: View {
     "\(scale)x · \(640 * scale)×\(528 * scale)"
   }
 }
+
+/// gc-emu: Settings > Video toggle for the in-game "30 FPS · 100%" pill.
+struct StatsOverlayToggleRow: View {
+  @AppStorage(GCEmuStatsOverlay.defaultsKey) private var enabled = false
+
+  var body: some View {
+    Toggle(L("Show FPS & Speed"), isOn: $enabled)
+  }
+}

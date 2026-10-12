@@ -54,6 +54,8 @@ enum GraphicsGeneralModelBuilder {
       SettingsRow.cycle("aspect-ratio", L("Aspect Ratio"), AspectRatio.allCases.map { ($0.label, $0) }, state.aspect,
             L("Shape of the picture. Auto matches the game's native ratio; 4:3 and 16:9 force a fixed shape; Stretch fills the screen and may distort."),
             set: { apply(.aspect($0)) }),
+      SettingsRow.custom("show-stats", L("Show FPS & Speed"), AnyView(StatsOverlayToggleRow()),
+             L("A small frame-rate and speed readout in the corner while you play. 100% means full speed.")),
     ])
     var sections = [picture, MenuSection(id: "general", header: L("Advanced"), items: general)]
 

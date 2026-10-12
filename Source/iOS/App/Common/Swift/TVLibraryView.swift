@@ -1953,17 +1953,12 @@ struct TVLibraryView: View {
 #endif
 #if os(iOS) || targetEnvironment(macCatalyst)
     // iOS Document Pickers
-      // gc-emu: Apple's picker presented natively by .fileImporter (it was wrapped in a NavigationStack
-      // inside a sheet) and open to every file, not a filter of custom game UTTypes. Both made the
-      // picker's Recents spin forever and hide games. The type is checked after picking instead.
-      // On its own background view because this view already has a .fileImporter (Skylanders).
-      .background {
-        Color.clear.fileImporter(
-          isPresented: $showImportSoftwarePicker,
-          allowedContentTypes: [.data],
-          allowsMultipleSelection: true
-        ) { result in
-          guard case .success(let urls) = result, !urls.isEmpty else { return }
+      // gc-emu: GameFilePicker opens Apple's picker on Browse (its Recents tab depends on iOS's
+      // search index and can spin forever). Every file is allowed; the type is checked here.
+      .onChange(of: showImportSoftwarePicker) { _, show in
+        guard show else { return }
+        showImportSoftwarePicker = false
+        GameFilePicker.present { urls in
           let supported = urls.filter { ImportableFileTypes.isImportableFile($0) }
           let rejected = urls.filter { !ImportableFileTypes.isImportableFile($0) }
           if !rejected.isEmpty {

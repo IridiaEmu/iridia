@@ -1568,7 +1568,13 @@ struct TVLibraryView: View {
 #if os(iOS) || targetEnvironment(macCatalyst)
       // Document pickers: iOS/Catalyst only, there is no Files picker on tvOS.
       Button(action: { showImportSoftwarePicker = true }) {
-        Label(L("Import Game"), systemImage: "doc.badge.plus")
+        // gc-emu: the second Text shows as the menu item's subtitle.
+        Label {
+          Text(L("Import Game"))
+          Text(L("ISO, RVZ, GCM, CISO, or a ZIP/7Z (unpacked automatically)"))
+        } icon: {
+          Image(systemName: "doc.badge.plus")
+        }
       }
       Button(action: { showImportNANDPicker = true }) {
         Label(L("Import BootMii NAND Backup…"), systemImage: "tray.and.arrow.down")
@@ -2291,7 +2297,7 @@ struct TVLibraryView: View {
           }
 
           // Subtitle
-          Text(L("Get started by importing a game or adding a remote source."))
+          Text(L("Get started by importing a game or adding a remote source. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z archives are unpacked automatically."))
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.85))
             .multilineTextAlignment(.center)

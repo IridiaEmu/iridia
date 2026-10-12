@@ -1034,7 +1034,9 @@ struct EmulationScreen: View {
           .allowsHitTesting(!isEditingLayout)
           .transition(.opacity)
           .onAppear {
-            // Ensure touch input is always a valid IR source
+            // Ensure touch input is always a valid IR source (Wii only: the IR pointer and IMU
+            // are Wii Remote features; gc-emu skips 200 Hz motion polling for GameCube games).
+            guard isWiiSystem else { return }
             TCDeviceMotion.shared.setMotionEnabled(true)
             syncMotionPortToTouchscreen()
             TCDeviceMotion.shared.statusBarOrientationChanged()
@@ -1118,7 +1120,8 @@ struct EmulationScreen: View {
       if let imuTouchSlot = controllerManager.touchscreenSlot(system: .wii) {
         TVEmulationBridge.setWiiIMUPointEnabled(false, forWiimote: imuTouchSlot)
       }
-      let wantsMotion = (isTouchControlsActive && useIMU) || wantsMotionForShake
+      // gc-emu: motion is a Wii Remote feature; never poll the IMU for GameCube games.
+      let wantsMotion = isWiiSystem && ((isTouchControlsActive && useIMU) || wantsMotionForShake)
       TCDeviceMotion.shared.setMotionEnabled(wantsMotion)
       if wantsMotion {
         syncMotionPortToTouchscreen()

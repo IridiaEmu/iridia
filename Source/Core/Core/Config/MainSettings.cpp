@@ -1399,6 +1399,6 @@ const Info<bool> MAIN_CIR_PS_NEON_VALIDATE{{System::Main, "Core", "CIRPsNeonVali
 // accumulators and the windowed report. Default TRUE — the cost is one relaxed atomic load per
 // CPU-thread wait when on, and the data drives the "CPU under-utilized, where's the wasted time"
 // investigation, so it ships enabled and is only flipped off for a clean A/B against the overhead.
-const Info<bool> MAIN_STALL_METRICS{{System::Main, "Core", "StallMetrics"}, true};
+const Info<bool> MAIN_STALL_METRICS{{System::Main, "Core", "StallMetrics"}, false};  // gc-emu: debug-only, off by default
 
 }  // namespace Config

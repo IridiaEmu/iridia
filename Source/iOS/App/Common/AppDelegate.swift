@@ -32,6 +32,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     SaveStateService.installDidStartObserver()
     PauseArbiter.shared.installObservers()
 
+    #if os(iOS)
+    GCEmuBenchmark.armIfRequested()  // gc-emu: scripted benchmark mode (-gcemuBench <seconds>)
+    #endif
     return ServiceManager.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

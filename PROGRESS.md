@@ -160,3 +160,11 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - Still to do in later phases:
   - Release-mode verification (no get-task-allow) once App Store signing exists (Phase 9).
   - Rebuild the Simulator core slice with GCEMU_NO_JIT before the next Simulator use.
+
+## Phase 4 — Performance (started 2026-10-11)
+- Benchmark mode built: `-gcemuBench` writes JSON to Documents/Benchmarks. It's scripted with devicectl (`--payload-url dolphinios://play?id=…`, app args after `--`). Tools: `scripts/bench_compare.py`, `scripts/profile_summary.py`.
+  - Profiling: `xctrace record --all-processes` with the hardware UDID. Attaching to a pid fails; the developer disk image was already mounted.
+- Baseline maxSpeed on iPhone 16 Pro: 1.78–1.90×.
+- **Opt #1** (stall signposts compiled out; StallMetrics default off): maxSpeed **+158% to +198%** (4.57–5.66×).
+- **Opt #2** (no CoreMotion polling for GameCube): no speed change (within noise); ≈3% less CPU, for battery.
+- Next: real-game workloads from the user's own dumps (the homebrew barely loads the interpreter); texture-hash sampling; audio mixer cost; input path to our lock-free pad state.

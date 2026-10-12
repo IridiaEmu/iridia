@@ -17,7 +17,10 @@
 
 #include <cstdint>
 
-#ifdef __APPLE__
+// gc-emu: opt-in only (-DGCEMU_STALL_SIGNPOSTS=1). Instruments enables these while it records, and
+// on device they cost ~20% of the process's sampled CPU in os_signpost/libsystem_trace, which both
+// slowed play under capture and distorted every profile. Normal builds compile them to no-ops.
+#if defined(__APPLE__) && defined(GCEMU_STALL_SIGNPOSTS)
 // os/signpost.h is a C API; including it from C++ is supported and intended.
 #include <os/log.h>
 #include <os/signpost.h>
@@ -94,7 +97,7 @@ inline void Point(const char* name, uint64_t value)
   ::Common::StallSignpost::IntervalGuard ICUBE_STALL_SP_CAT(_icube_stall_sp_, __LINE__)(name)
 #define ICUBE_STALL_POINT(name, v) ::Common::StallSignpost::Point((name), (v))
 
-#else  // !__APPLE__ — hard no-ops, byte-neutral on non-Apple builds.
+#else  // !__APPLE__ or signposts not requested: hard no-ops, byte-neutral.
 
 #define ICUBE_STALL_INTERVAL(name)                                                                 \
   do                                                                                               \

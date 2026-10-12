@@ -17,32 +17,10 @@ struct IridiaPauseSheet: View {
 
   @State private var appeared = false
 
-  @State private var backdropImage: UIImage?
-
-  /// The frame captured as this menu opened (SaveStateService.capturePausePreview). The capture lands a
-  /// moment after the menu appears, so only a file written in the last few seconds counts (an older one
-  /// is from a previous game) and it's read again shortly after appearing.
-  private func loadBackdrop() {
-    let url = SaveStateService.pausePreviewURL
-    guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-          let modified = attrs[.modificationDate] as? Date, Date().timeIntervalSince(modified) < 5,
-          let data = try? Data(contentsOf: url), let img = UIImage(data: data) else { return }
-    backdropImage = img
-  }
-
   var body: some View {
     ZStack {
-      Color(red: 0.03, green: 0.02, blue: 0.10).ignoresSafeArea()
-      if let backdropImage {
-        Image(uiImage: backdropImage)
-          .resizable().scaledToFit()
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isLandscape ? .center : .top)
-          .padding(.top, isLandscape ? 0 : 60)
-          .opacity(0.45)
-          .ignoresSafeArea()
-          .transition(.opacity)
-      }
-      LinearGradient(colors: [Color(red: 0.03, green: 0.02, blue: 0.10).opacity(0.25), Color(red: 0.03, green: 0.02, blue: 0.10).opacity(0.85)],
+      // The game itself shows through (the cover is see-through); this only dims it.
+      LinearGradient(colors: [Color(red: 0.03, green: 0.02, blue: 0.10).opacity(0.35), Color(red: 0.03, green: 0.02, blue: 0.10).opacity(0.75)],
                      startPoint: .top, endPoint: .bottom)
         .ignoresSafeArea()
         .onTapGesture { actions.resume() }
@@ -57,11 +35,6 @@ struct IridiaPauseSheet: View {
     }
     .onAppear {
       withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { appeared = true }
-      loadBackdrop()
-      // The PNG is written on the next presented frame and encoded off-thread: look a few times.
-      for delay in [0.3, 0.7, 1.2, 1.8] {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { if backdropImage == nil { withAnimation { loadBackdrop() } } }
-      }
     }
   }
 

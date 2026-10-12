@@ -1120,6 +1120,8 @@ struct EmulationScreen: View {
           showPerfOverlay = true
         }
       )
+      // gc-emu: see-through, so the paused game stays visible behind Iridia's glass sheet.
+      .presentationBackground(.clear)
     }
     .fileImporter(isPresented: $showSkyImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
       if case .success(let urls) = result {

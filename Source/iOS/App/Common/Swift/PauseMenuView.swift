@@ -104,9 +104,12 @@ internal struct PauseMenuView: View {
 
   var body: some View {
     ZStack {
-      // Full screen black background
-      Color.black
-        .ignoresSafeArea()
+      // Full screen black background, except behind Iridia's glass sheet (iOS), which lets the
+      // paused game show through.
+      if !(platform == .ios && pane == .main && !showAllOptions) {
+        Color.black
+          .ignoresSafeArea()
+      }
 
       switch pane {
       case .main:
@@ -301,7 +304,7 @@ internal struct PauseMenuView: View {
       // A background, not a ZStack sibling: the scaledToFill backdrop would otherwise widen the ZStack to the
       // image's fill size and push the tile grid several windows wide.
       .frame(width: proxy.size.width, height: proxy.size.height)
-      .background { if isTV { tvBackdrop } else { backdrop } }
+      .background { if isTV { tvBackdrop } else if showAllOptions { backdrop } }
     }
     // `MenuScreen` row text takes no explicit color; pin the dark-mode values so titles stay legible over the
     // always-dark backdrop whatever the system appearance. `.environment`, not `.preferredColorScheme`, so the

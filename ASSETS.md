@@ -14,11 +14,8 @@ Acknowledgements.
 - History: the earlier cube images (`applogo.jpg`, `LogoIridia.jpg`, provided by the owner) were
   generated art; they were replaced by the model and removed from the app on 2026-10-12.
 
-## Interface sounds
-- Synthesised from scratch by `Tools/branding/make_sounds.swift` (sine partials with inharmonic,
-  struck-glass ratios, exponential decays, a tiny noise transient). Files:
-  `Source/iOS/App/Common/Resources/Sounds/iridia_{tick,press,open,close,launch,error}.wav`.
-- Licence: GPL-2.0-or-later with the rest of the project (the generator is the source).
+## Sounds
+- None. Interface sounds were tried and removed at the owner's request (2026-10-12); buttons keep a light haptic tap.
 
 ## Music
 - None, by the owner's decision (2026-10-12).

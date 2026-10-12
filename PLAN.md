@@ -107,4 +107,4 @@ _Added 2026-10-11 at the user's request, as part of the controller work._
 
 ## Phase 5 decisions (2026-10-12)
 - Direction **A · Glass Shelf** (glassier, more 3D). The cube is a real 3D model (no generated art).
-- **No music.** Interface sounds only (original, synthesised; on/off in Settings → Audio; follow the silent switch).
+- **No music and no interface sounds** (sounds were tried and removed: the owner found them annoying). Haptics stay.

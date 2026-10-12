@@ -45,7 +45,7 @@ struct IridiaPauseSheet: View {
       LinearGradient(colors: [Color(red: 0.03, green: 0.02, blue: 0.10).opacity(0.25), Color(red: 0.03, green: 0.02, blue: 0.10).opacity(0.85)],
                      startPoint: .top, endPoint: .bottom)
         .ignoresSafeArea()
-        .onTapGesture { IridiaSound.close.play(); actions.resume() }
+        .onTapGesture { actions.resume() }
         .accessibilityHidden(true)
 
       if isLandscape {
@@ -57,7 +57,6 @@ struct IridiaPauseSheet: View {
     }
     .onAppear {
       withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { appeared = true }
-      IridiaSound.open.play()
       loadBackdrop()
       // The PNG is written on the next presented frame and encoded off-thread: look a few times.
       for delay in [0.3, 0.7, 1.2, 1.8] {
@@ -86,7 +85,7 @@ struct IridiaPauseSheet: View {
           .buttonStyle(SpringPressStyle())
       }
 
-      Button(action: { IridiaSound.close.play(); actions.resume() }) {
+      Button(action: actions.resume) {
         Label(L("Resume"), systemImage: "play.fill")
           .font(.system(size: 19, weight: .bold))
           .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))

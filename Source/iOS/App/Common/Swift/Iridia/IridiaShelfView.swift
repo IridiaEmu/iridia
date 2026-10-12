@@ -84,9 +84,8 @@ struct IridiaShelfView: View {
     return horizontalSizeClass == .regular ? 1.35 : 1
   }
 
-  /// Every launch from the shelf goes through here: sparkle, then hand over.
+  /// Every launch from the shelf goes through here.
   private func play(_ item: TVGameItem, fresh: Bool) {
-    IridiaSound.launch.play()
     onPlay(item, fresh)
   }
 
@@ -196,7 +195,7 @@ struct IridiaShelfView: View {
     guard !list.isEmpty else { return }
     let index = list.firstIndex { $0.filePath == current?.filePath } ?? 0
     let next = max(0, min(list.count - 1, index + delta))
-    guard next != index else { IridiaSound.error.play(); return }
+    guard next != index else { return }
     withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = list[next].filePath }
   }
 
@@ -270,7 +269,6 @@ struct IridiaShelfView: View {
     .scrollPosition(id: $centred, anchor: .center)
     .safeAreaPadding(.horizontal, isLandscapePhone ? 60 : (horizontalSizeClass == .regular ? 200 : 88))
     .sensoryFeedback(.selection, trigger: centred)
-    .onChange(of: centred) { old, new in if old != nil, new != nil { IridiaSound.tick.play() } }
   }
 
   // MARK: Details + actions
@@ -427,13 +425,12 @@ private struct GlassCase: View {
   }
 }
 
-/// Springy press: squish a little and spring back, like a toy button.
+/// Springy press: squish a little and spring back, like a toy button, with a light haptic tap.
 struct SpringPressStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .scaleEffect(configuration.isPressed ? 0.94 : 1)
       .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
-      .onChange(of: configuration.isPressed) { _, pressed in if pressed { IridiaSound.press.play() } }
       .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in pressed }
   }
 }

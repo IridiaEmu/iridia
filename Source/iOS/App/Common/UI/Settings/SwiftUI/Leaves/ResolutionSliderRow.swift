@@ -85,3 +85,9 @@ struct PowerModeRow: View {
   }
 }
 #endif
+
+/// gc-emu: Settings > Video > Keep Cool (ThermalManager). On by default.
+struct KeepCoolToggleRow: View {
+  @AppStorage("thermal_auto_enable") private var enabled = true
+  var body: some View { Toggle(L("Keep Cool"), isOn: $enabled) }
+}

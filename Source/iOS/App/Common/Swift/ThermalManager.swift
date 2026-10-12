@@ -15,12 +15,16 @@ final class ThermalManager {
   private var baselineShaderEnabled: Bool = false
   private var baselineHDREnabled: Bool = false
   private var lastNotified: ProcessInfo.ThermalState = .nominal
+  private var throttled = false
 
   /// Start observing thermal changes
   func start() {
     guard !observing else { return }
     observing = true
     NotificationCenter.default.addObserver(self, selector: #selector(onThermalChange), name: ProcessInfo.thermalStateDidChangeNotification, object: nil)
+    // gc-emu: re-read the player's settings each game, so a later change is what gets restored.
+    baselineCaptured = false
+    throttled = false
     captureBaselineIfNeeded()
     applyForState(ProcessInfo.processInfo.thermalState)
   }
@@ -77,23 +81,26 @@ final class ThermalManager {
   private func applyForState(_ state: ProcessInfo.ThermalState) {
     notify(state)
     guard UserDefaults.standard.bool(forKey: "thermal_auto_enable") else { return }
+    // gc-emu: "fair" is normal for gaming (sustained play sits there), so nothing changes until
+    // "serious"; one step down there, the full power-saving set only at "critical".
     switch state {
-    case .nominal:
+    case .nominal, .fair:
+      guard throttled else { break }
+      throttled = false
       restoreBaseline()
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Thermal: Restored quality")])
-    case .fair:
+      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Cooled down: full quality restored")])
+    case .serious:
       captureBaselineIfNeeded()
+      throttled = true
       let efb = max(1, min(baselineEfbScale, DOLConfigBridge.gfxEfbScale()) - 1)
-      let aniso = max(1, baselineAnisotropy / 2)
       // AUTO throttle → CurrentRun layer (resolver step #3): shadows the user's manual Base value.
       DOLConfigBridge.setGfxEfbScaleAuto(efb)
-      DOLConfigBridge.setGfxEnhanceAnisotropySamples(aniso)
-      UserDefaults.standard.set(false, forKey: "gfx_edr_enabled")
+      DOLConfigBridge.setGfxEnhanceAnisotropySamples(max(1, baselineAnisotropy / 2))
       TVEmulationBridge.resizeSurfaceNow()
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Thermal: Reduced resolution/AF")])
-    case .serious, .critical:
+      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Your iPhone is warm: lowering resolution a little")])
+    case .critical:
       captureBaselineIfNeeded()
-      // AUTO throttle → CurrentRun layer (resolver step #3): shadows the user's manual Base value.
+      throttled = true
       DOLConfigBridge.setGfxEfbScaleAuto(1)
       DOLConfigBridge.setGfxEnhanceAnisotropySamples(1)
       UserDefaults.standard.set(false, forKey: "gfx_edr_enabled")
@@ -102,7 +109,7 @@ final class ThermalManager {
         NotificationCenter.default.post(name: Notification.Name("DOLShaderSettingsDidChange"), object: nil)
       }
       TVEmulationBridge.resizeSurfaceNow()
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Thermal: Aggressive power saving")])
+      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Your iPhone is hot: power saving on")])
     @unknown default:
       break
     }

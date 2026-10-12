@@ -19,7 +19,7 @@ final class GraphicsGeneralModelBuilderTests: XCTestCase {
 
   private let iosOnlyRows = ["frame-cap", "instant-replay", "save-clips-photos", "save-only-photos", "clip-length"]
   private let allRows = [
-    "power-mode", "resolution", "aspect-ratio", "show-stats", "backend", "vsync", "auto-ir-osd", "triple-buffering", "force-scale-one", "overscan-fullscreen",
+    "power-mode", "keep-cool", "resolution", "aspect-ratio", "show-stats", "backend", "vsync", "auto-ir-osd", "triple-buffering", "force-scale-one", "overscan-fullscreen",
     "async-present", "auto-ir", "target-fps", "min-scale", "max-scale", "frame-cap",
     "instant-replay", "save-clips-photos", "save-only-photos", "clip-length",
     "shader-compile-type", "compile-before-start",

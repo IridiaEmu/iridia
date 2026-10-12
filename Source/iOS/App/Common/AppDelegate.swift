@@ -16,7 +16,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     IridiaPresets.noteLaunch()  // gc-emu: before the core writes its config
     #endif
     // gc-emu: games reopen where you left off (an automatic save state) instead of at the title screen.
-    UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true])
+    UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true,
+                                              "thermal_auto_enable": true])  // gc-emu: Keep Cool on by default
     MotionSettings.registerDefaults()
     DSUSettings.registerDefaults()
 

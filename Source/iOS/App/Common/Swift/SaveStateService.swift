@@ -240,11 +240,17 @@ public enum SaveStateService {
       return false
 
     case .loadAuto(let path):
-      NSLog("[Resume] loading %@", (path as NSString).lastPathComponent)
-      BootWatchdog.armBeforeBoot()
-      TVEmulationBridge.loadState(fromPath: path)
-      BootWatchdog.clearAfterLivenessWindow()
+      #if os(iOS)
+      // gc-emu: ask first. The game is already booting normally, so "Title Screen" just lets it
+      // carry on (to load an in-game save); "Continue" loads the resume state. EmulationScreen
+      // shows the prompt and calls answerResumePrompt(continue:).
+      pendingResumePromptPath = path
+      NotificationCenter.default.post(name: resumePromptNotification, object: nil)
       return true
+      #else
+      loadResumeState(path)
+      return true
+      #endif
 
     case .none:
       // Matches the old behavior of clearing a requested-but-missing state
@@ -252,6 +258,27 @@ public enum SaveStateService {
       pendingBootStatePath = nil
       return false
     }
+  }
+
+  // MARK: - Resume prompt (gc-emu)
+
+  static let resumePromptNotification = Notification.Name("GCEmuResumePrompt")
+
+  /// The resume state waiting on the player's choice, or nil when there's nothing to ask.
+  static var pendingResumePromptPath: String?
+
+  /// Continue = load the resume state; Title Screen = leave the fresh boot running.
+  static func answerResumePrompt(continue shouldContinue: Bool) {
+    guard let path = pendingResumePromptPath else { return }
+    pendingResumePromptPath = nil
+    if shouldContinue { loadResumeState(path) }
+  }
+
+  private static func loadResumeState(_ path: String) {
+    NSLog("[Resume] loading %@", (path as NSString).lastPathComponent)
+    BootWatchdog.armBeforeBoot()
+    TVEmulationBridge.loadState(fromPath: path)
+    BootWatchdog.clearAfterLivenessWindow()
   }
 
   // MARK: - App-lifetime resume observer

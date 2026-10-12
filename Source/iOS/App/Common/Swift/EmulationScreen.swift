@@ -281,6 +281,9 @@ struct EmulationScreen: View {
   /// The arbiter claim held while the controller-settings sheet is up; released when it is dismissed. A
   /// pause the user made from the bar is a separate claim and stays.
   @State private var controllerSettingsToken: PauseArbiter.Token?
+  // gc-emu: "Continue where you left off?" prompt (see SaveStateService.answerResumePrompt).
+  @State private var showResumePrompt = false
+  @State private var resumePromptToken: PauseArbiter.Token?
   var showTopBar: Bool { topBar.isVisible }
   @State private var fastForwardEnabled = false
   // iOS observer tokens to avoid leaks. Defect #10: these three used to be
@@ -1079,6 +1082,16 @@ struct EmulationScreen: View {
       TVEmulationBridge.setWiiIMUPointEnabled(false, forWiimote: touchSlot)
     }
     .modifier(SettingsNavigationFallback(showSettings: $showSettings))
+    .onReceive(NotificationCenter.default.publisher(for: SaveStateService.resumePromptNotification)) { _ in
+      presentResumePromptIfPending()
+    }
+    .onAppear { presentResumePromptIfPending() }
+    .alert(L("Continue where you left off?"), isPresented: $showResumePrompt) {
+      Button(L("Continue")) { answerResumePrompt(true) }
+      Button(L("Title Screen")) { answerResumePrompt(false) }
+    } message: {
+      Text(L("Continue picks up exactly where you stopped. Title Screen starts the game normally so you can load your in-game save."))
+    }
     .fullScreenCover(isPresented: $showPauseMenu) {
       PauseMenuView(
         selectedSlot: $selectedSlot,
@@ -1552,6 +1565,21 @@ struct EmulationScreen: View {
     isPaused = TVEmulationBridge.isPaused()
   }
   #endif
+
+  /// gc-emu: the game stays paused while the player chooses.
+  private func presentResumePromptIfPending() {
+    guard SaveStateService.pendingResumePromptPath != nil, !showResumePrompt else { return }
+    if resumePromptToken == nil { resumePromptToken = PauseArbiter.shared.claim("resume-prompt") }
+    showResumePrompt = true
+  }
+
+  private func answerResumePrompt(_ shouldContinue: Bool) {
+    SaveStateService.answerResumePrompt(continue: shouldContinue)
+    if let token = resumePromptToken {
+      PauseArbiter.shared.release(token)
+      resumePromptToken = nil
+    }
+  }
 
   /// gc-emu: "3x · 1920×1584" — GameCube native EFB is 640×528.
   static func irLabel(_ scale: Int) -> String {

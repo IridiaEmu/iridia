@@ -51,10 +51,8 @@ struct AboutView: View {
           }
 
           // Main logo — center pulse or right-biased orbit, chosen at random.
-          Image("IridiaMark")
-            .resizable()
-            .scaledToFit()
-            .frame(height: 128)
+          IridiaCubeView()
+            .frame(width: 140, height: 140)
             .scaleEffect(logoScale)
             .offset(
               x: animationStyle == .orbitRight ? 8 + 14 * cos(orbitAngle) : 0,

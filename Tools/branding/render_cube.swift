@@ -57,38 +57,130 @@ scene.background.contents = NSColor.clear
 let box = SCNBox(width: 1, height: 1, length: 1, chamferRadius: 0.11)
 box.chamferSegmentCount = 16
 
+let envImage = studioEnvironment()
 let glass = SCNMaterial()
-glass.lightingModel = .physicallyBased
-// Clear glass: almost no diffuse, mirror-smooth, so what you see is reflections of the studio.
-glass.diffuse.contents = NSColor(srgbRed: 0.05, green: 0.04, blue: 0.12, alpha: 1)
-glass.metalness.contents = 0.0
-glass.roughness.contents = 0.02
-glass.isDoubleSided = true          // back faces show the inside edges through the front: depth
-glass.transparencyMode = .dualLayer
-glass.blendMode = .alpha
-glass.writesToDepthBuffer = false
-// Alpha follows what a real pane does: nearly clear face-on, more reflective/opaque at grazing
-// angles (Fresnel) and wherever a reflection is bright. Plus a thin-film iridescent sheen.
+glass.lightingModel = .constant          // all shading is ours: refraction + reflection + film
+glass.diffuse.contents = NSColor.black
+glass.isDoubleSided = false
+// Real-time glass: refract the view ray through the surface and sample the studio panorama,
+// once per colour channel with a slightly different IOR (dispersion), mix with the mirror
+// reflection by Fresnel, and add a thin-film sheen at grazing angles. Opaque output, so no
+// blending artifacts; a cube is ~2k triangles, so this costs nothing on any iPhone.
+glass.setValue(SCNMaterialProperty(contents: envImage), forKey: "envMap")
 glass.shaderModifiers = [.fragment: """
-float3 n = normalize(_surface.normal);
-float3 v = normalize(_surface.view);
-float ndv = clamp(abs(dot(n, v)), 0.0, 1.0);
+#pragma arguments
+texture2d<float> envMap;
+#pragma declaration
+inline float3 iridiaPano(texture2d<float> t, float3 d) {
+  constexpr sampler smp(filter::linear, address::repeat);
+  float2 uv = float2(atan2(d.z, d.x) / 6.28318 + 0.5, acos(clamp(d.y, -1.0, 1.0)) / 3.14159);
+  return t.sample(smp, uv).rgb;
+}
+#pragma body
+float4x4 inv = scn_frame.inverseViewTransform;
+float3 n = normalize((inv * float4(normalize(_surface.normal), 0.0)).xyz);
+float3 v = normalize((inv * float4(normalize(_surface.view), 0.0)).xyz);
+float ndv = clamp(dot(n, v), 0.0, 1.0);
 float f = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
-float3 film = 0.5 + 0.5 * cos(6.2831 * (float3(0.0, 0.33, 0.67) + 2.2 * (1.0 - ndv) + 0.1));
-float3 tint = float3(0.30, 0.24, 0.80);
-float3 refl = _output.color.rgb;
-float lum = dot(refl, float3(0.299, 0.587, 0.114));
-float edge = pow(1.0 - ndv, 1.6);
-float3 c = refl * (0.9 + 1.4 * f) + film * edge * 1.1 + tint * (0.18 + 0.25 * edge);
-float a = clamp(0.10 + f * 0.9 + lum * 0.8 + edge * 0.45, 0.0, 1.0);
-// SceneKit blends premultiplied colour: straight colour with a small alpha blows out to white.
-_output.color = float4(c * a, a);
+// Trace through the solid block in object space (a unit cube centred at 0): refract in, find
+// the exit face analytically, refract out (or reflect on total internal reflection).
+float4x4 toObj = scn_node.inverseModelViewTransform;
+float3 pO = (toObj * float4(_surface.position, 1.0)).xyz;
+float3 nO = normalize((toObj * float4(normalize(_surface.normal), 0.0)).xyz);
+float3 vO = normalize((toObj * float4(normalize(_surface.view), 0.0)).xyz);
+float3 col = float3(0.0);
+float inner = 0.0;
+float iors[3] = {1.47, 1.51, 1.56};
+for (int k = 0; k < 3; k++) {
+  float3 d = refract(-vO, nO, 1.0 / iors[k]);
+  float3 sd = sign(d);
+  float3 tm = (sd * 0.5 - pO) / select(d, float3(1e-5) * sd, abs(d) < float3(1e-5));
+  float t = min(tm.x, min(tm.y, tm.z));
+  float3 pe = pO + d * max(t, 0.0);
+  float3 ne = (t == tm.x) ? float3(sd.x, 0, 0) : ((t == tm.y) ? float3(0, sd.y, 0) : float3(0, 0, sd.z));
+  float3 dOut = refract(d, -ne, iors[k]);
+  if (dot(dOut, dOut) < 1e-6) dOut = reflect(d, -ne);
+  float3 dW = normalize((scn_node.modelTransform * float4(dOut, 0.0)).xyz);
+  col[k] = iridiaPano(envMap, dW)[k];
+  if (k == 1) {
+    // Exit point near an edge of the far faces: that's the cube's inner frame catching light.
+    float3 ap = abs(pe);
+    float mx = max(ap.x, max(ap.y, ap.z)), mn = min(ap.x, min(ap.y, ap.z));
+    float second = ap.x + ap.y + ap.z - mx - mn;
+    inner = smoothstep(0.36, 0.47, second);
+  }
+}
+float3 refl = iridiaPano(envMap, reflect(-v, n));
+float3 tint = float3(0.74, 0.68, 1.0);
+float3 film = 0.5 + 0.5 * cos(6.2831 * (float3(0.0, 0.33, 0.67) + 2.0 * (1.0 - ndv) + 0.1));
+float edge = pow(1.0 - ndv, 2.0);
+float3 c = col * tint * (1.0 - f) + refl * f * 1.6 + film * edge * 0.35
+         + inner * (float3(0.55, 0.50, 1.0) * 0.30 + film * 0.12);
+_output.color = float4(c, 1.0);
 """]
 box.materials = [glass]
 
 let cube = SCNNode(geometry: box)
-cube.eulerAngles = SCNVector3(0, 0, 0)
+cube.eulerAngles = SCNVector3(0, 0.14, 0)   // a slight turn so the faces catch different light
+cube.renderingOrder = 2
 scene.rootNode.addChildNode(cube)
+
+// The rainbow the glass throws on the floor, and a soft contact shadow.
+func floorImage(_ draw: (CGContext, Int) -> Void) -> NSImage {
+  let n = 1024
+  let img = NSImage(size: NSSize(width: n, height: n))
+  img.lockFocus()
+  draw(NSGraphicsContext.current!.cgContext, n)
+  img.unlockFocus()
+  return img
+}
+let shadowImg = floorImage { ctx, n in
+  let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                     colors: [CGColor(red: 0, green: 0, blue: 0, alpha: 0.75), CGColor(red: 0, green: 0, blue: 0, alpha: 0)] as CFArray,
+                     locations: [0, 1])!
+  let c = CGPoint(x: n / 2, y: n / 2)
+  ctx.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: CGFloat(n) * 0.42, options: [])
+}
+let rainbowImg = floorImage { ctx, n in
+  // A fan of spectrum bands spreading away from the cube's base (toward +x), fading out.
+  let bands: [(CGFloat, CGFloat, CGFloat)] = [(1, 0.25, 0.3), (1, 0.6, 0.2), (1, 0.95, 0.3), (0.3, 1, 0.5), (0.2, 0.75, 1), (0.55, 0.35, 1)]
+  let origin = CGPoint(x: CGFloat(n) * 0.5, y: CGFloat(n) * 0.5)
+  for (i, b) in bands.enumerated() {
+    let a0 = -0.30 + CGFloat(i) * 0.09, a1 = a0 + 0.09
+    let path = CGMutablePath()
+    path.move(to: origin)
+    path.addArc(center: origin, radius: CGFloat(n) * 0.5, startAngle: a0, endAngle: a1, clockwise: false)
+    path.closeSubpath()
+    ctx.saveGState()
+    ctx.addPath(path); ctx.clip()
+    let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                       colors: [CGColor(red: b.0, green: b.1, blue: b.2, alpha: 0), CGColor(red: b.0, green: b.1, blue: b.2, alpha: 0.9),
+                                CGColor(red: b.0, green: b.1, blue: b.2, alpha: 0)] as CFArray,
+                       locations: [0.0, 0.55, 1.0])!
+    ctx.drawRadialGradient(g, startCenter: origin, startRadius: CGFloat(n) * 0.12, endCenter: origin, endRadius: CGFloat(n) * 0.5, options: [])
+    ctx.restoreGState()
+  }
+}
+func floorPlane(_ image: NSImage, size: CGFloat, blend: SCNBlendMode) -> SCNNode {
+  let plane = SCNPlane(width: size, height: size)
+  let m = SCNMaterial()
+  m.lightingModel = .constant
+  m.diffuse.contents = image
+  m.blendMode = blend
+  m.writesToDepthBuffer = false
+  m.isDoubleSided = true
+  plane.materials = [m]
+  let node = SCNNode(geometry: plane)
+  node.eulerAngles = SCNVector3(-Float.pi / 2, 0, 0)
+  node.position = SCNVector3(0, -0.501, 0)
+  node.renderingOrder = 0
+  return node
+}
+scene.rootNode.addChildNode(floorPlane(shadowImg, size: 1.9, blend: .alpha))
+let rainbow = floorPlane(rainbowImg, size: 2.6, blend: .add)
+rainbow.position = SCNVector3(0.45, -0.5, 0.35)
+rainbow.eulerAngles = SCNVector3(-Float.pi / 2, -0.55, 0)
+scene.rootNode.addChildNode(rainbow)
 
 
 

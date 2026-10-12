@@ -59,7 +59,7 @@ struct DolphinProgressView: View {
         HStack {
           if direction == .rightToLeft { Spacer() }
 
-          Image("IridiaMark")
+          IridiaCube.mark
             .resizable()
             .scaledToFit()
             .frame(width: 20, height: 20)
@@ -121,7 +121,7 @@ struct CompactDolphinProgress: View {
   var body: some View {
     HStack(spacing: 6) {
       // Mini swimming dolphin
-      Image("IridiaMark")
+      IridiaCube.mark
         .resizable()
         .scaledToFit()
         .frame(width: 16, height: 16)
@@ -256,7 +256,7 @@ struct DolphinCircularSpinner: View {
           .frame(width: size, height: size)
           .rotationEffect(.degrees(-90))
       }
-      Image("IridiaMark")
+      IridiaCube.mark
         .resizable()
         .scaledToFit()
         .frame(width: dolphinSize, height: dolphinSize)
@@ -323,7 +323,7 @@ struct DolphinCircularSpinner: View {
       }
 
       // Swimming dolphin
-      Image("IridiaMark")
+      IridiaCube.mark
         .resizable()
         .scaledToFit()
         .frame(width: dolphinSize, height: dolphinSize)

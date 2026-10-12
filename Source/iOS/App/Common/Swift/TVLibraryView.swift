@@ -1509,7 +1509,7 @@ struct TVLibraryView: View {
   @ViewBuilder
   private var aboutDolphinToolbarButton: some View {
     Button(action: { showAbout = true }) {
-      Image("IridiaMark")
+      IridiaCube.mark
         .resizable()
         .scaledToFit()
         .frame(width: 28, height: 28)
@@ -2300,11 +2300,9 @@ struct TVLibraryView: View {
         VStack(spacing: 20) {
           // Header icon and title
           VStack(spacing: 10) {
-            // gc-emu: Iridia's glass-cube mark.
-            Image("IridiaMark")
-              .resizable()
-              .scaledToFit()
-              .frame(width: 88, height: 88)
+            // gc-emu: Iridia's glass cube, live in 3D (turns slowly).
+            IridiaCubeView()
+              .frame(width: 104, height: 104)
               .accessibilityHidden(true)
             Text(L("Welcome to Iridia"))
               .font(.title2).fontWeight(.bold)

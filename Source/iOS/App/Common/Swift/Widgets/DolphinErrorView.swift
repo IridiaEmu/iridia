@@ -28,7 +28,7 @@ struct DolphinErrorView: View {
 //          .frame(width: 120, height: 80)
 //
 //        // Dolphin with sad expression (using rotation to suggest sadness)
-//        Image("IridiaMark")
+//        IridiaCube.mark
 //          .resizable()
 //          .scaledToFit()
 //          .frame(width: 48, height: 48)
@@ -87,7 +87,7 @@ struct CompactDolphinError: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Image("IridiaMark")
+      IridiaCube.mark
         .resizable()
         .scaledToFit()
         .frame(width: 24, height: 24)

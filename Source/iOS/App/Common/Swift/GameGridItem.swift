@@ -237,7 +237,7 @@ struct GameGridItem: View {
 
       VStack(spacing: screenScaledPadding(base: 8)) {
         // The Iridia cube, with a faint glow under it.
-        Image("IridiaMark")
+        IridiaCube.mark
           .resizable()
           .scaledToFit()
           .frame(width: w * 0.5, height: w * 0.5)

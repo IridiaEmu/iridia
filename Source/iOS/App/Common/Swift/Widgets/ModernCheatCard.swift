@@ -100,7 +100,7 @@ internal struct ModernEmptyState: View {
 
   var body: some View {
     VStack(spacing: 20) {
-      Image("IridiaMark")
+      IridiaCube.mark
         .resizable()
         .scaledToFit()
         .frame(width: 64, height: 64)

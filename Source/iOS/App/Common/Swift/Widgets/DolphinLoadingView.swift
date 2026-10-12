@@ -28,7 +28,7 @@ struct DolphinLoadingView: View {
           .frame(width: 200, height: 80)
 
         // Swimming dolphin
-        Image("IridiaMark")
+        IridiaCube.mark
           .resizable()
           .scaledToFit()
           .frame(width: 40, height: 40)
@@ -86,7 +86,7 @@ struct CompactDolphinLoader: View {
   @State private var isRotating = false
 
   var body: some View {
-    Image("IridiaMark")
+    IridiaCube.mark
       .resizable()
       .scaledToFit()
       .frame(width: 24, height: 24)

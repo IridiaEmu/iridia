@@ -209,3 +209,4 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - 2026-10-12: Phase 4 finished. FPS & speed overlay (2 Hz SwiftUI pill, forced-on hook for free play), QoS reviewed (already right), memory measured (TP 0.6–1.4 GB), PGO retrained on TP (no gain, old profile kept). CHECKPOINT 4 presented.
 - 2026-10-12: Phase 5 started. Direction A chosen. Glass cube is a real 3D model (SceneKit refraction shader; Blender script for stills). Icon + launch screen rendered from the model; AI art removed. Glass Shelf library home built and on device.
 - 2026-10-12: Glass pause sheet, interface sounds (no music), shelf controller navigation, landscape/iPad shelf layouts. Pause backdrop capture does not land (dark backdrop for now).
+- 2026-10-12: Pause sheet see-through (game visible), Acknowledgements, per-device presets + Power Mode, Keep Cool on by default (gentler), Settings restyled, shelf Settings button fixed.

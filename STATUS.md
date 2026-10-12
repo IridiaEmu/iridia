@@ -97,11 +97,14 @@ Docs: PLAN.md, PROGRESS.md, RESEARCH.md, BUILDING.md, BENCHMARKS.md, PERFORMANCE
 
 ## Not done (blocks release)
 1. **Phase 5 remainder:**
-   - Settings and the other screens are still iCube-styled.
-   - The paused game frame behind the pause sheet doesn't appear.
-   - In-app Acknowledgements (Dolphin, iCube, DolphiniOS, PLzmaSDK, LZMA SDK…) and a source-code link.
-   - The device presets and thermal governor need wiring in.
    - Landscape, iPad and controller navigation are built but not yet tested on device.
+   - Secondary screens (save-state browser, controller hub, game properties) keep iCube's layout,
+     in dark mode.
+   - The source-code link (`IridiaLinks.sourceCode`) is unset until the public repo exists (Phase 7).
+   - Since this status was first written: Acknowledgements page added, device presets and Power
+     Mode wired in, Keep Cool heat manager on by default, Settings restyled, the paused game now
+     shows behind the pause sheet, and the shelf's Settings button (which did nothing on iPhone)
+     fixed.
 2. **Phase 6, StoreKit 2 (not started):**
    - The $2.99 non-consumable in-app purchase.
    - The 10-minute session timer, with auto-save and the unlock screen.

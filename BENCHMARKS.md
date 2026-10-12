@@ -189,3 +189,18 @@ Workload: Twilight Princess (user's own dump), walking around Ordon, live 30 s T
 `Mixer::Mix` resampled all 11 fifos per output sample; 9 never get input in a GC game. Output is
 bit-identical (their granules are all zero). Gain: battery/heat, plus less contention with the CPU
 thread. The emulated CPU thread itself is unchanged.
+
+## #11 Internal resolution sweep — Twilight Princess, Ordon (2026-10-12)
+Start from the user's own save state (`-gcemuBenchState GZ2E01.s01`), 15 s warmup + 20 s measured,
+30 s cool-down between runs. `speed` = 1.000 means full speed; `maxSpeed` = how fast it could run
+unthrottled (headroom).
+
+| Resolution | Pixels | FPS (p50) | Speed | Headroom (maxSpeed p50) | 1% low |
+|---|---|---|---|---|---|
+| 1x | 640×528 | 30.0 | 1.000 | 2.42× | 35.6 ms |
+| 3x | 1920×1584 | 30.0 | 1.000 | 2.02× | 34.5 ms |
+| 5x | 3200×2640 | 30.0 | 1.000 | 1.75× | 36.6 ms |
+| 8x | 5120×4224 | 30.0 | 1.000 | 1.58× | 35.0 ms |
+
+iPhone 16 Pro holds full speed even at 8x in Ordon; each step up costs GPU headroom (−35% from 1x to
+8x). Thermal state "fair" throughout. Screenshots confirm the image gets sharper.

@@ -67,6 +67,14 @@ enum GCEmuBenchmark {
     let warmup = d.object(forKey: "gcemuBenchWarmup") != nil ? d.double(forKey: "gcemuBenchWarmup") : 5
     let label = d.string(forKey: "gcemuBenchLabel") ?? "bench"
     NSLog("[GCEmuBench] armed: %.0fs after %.0fs warmup, label=%@", duration, warmup, label)
+    // -gcemuBenchState GZ2E01.s01: start from that save state (in StateSaves) so a real 3D scene is
+    // measured the same way every run, instead of the boot logos.
+    if let stateFile = d.string(forKey: "gcemuBenchState"), !stateFile.isEmpty {
+      let path = (UserFolderUtil.getUserFolder() as NSString)
+        .appendingPathComponent("StateSaves").appending("/" + stateFile)
+      SaveStateService.pendingBootStatePath = path
+      NSLog("[GCEmuBench] will load state %@", stateFile)
+    }
     observer = NotificationCenter.default.addObserver(
       forName: Notification.Name("DOLEmulationDidStartNotification"), object: nil, queue: .main
     ) { note in

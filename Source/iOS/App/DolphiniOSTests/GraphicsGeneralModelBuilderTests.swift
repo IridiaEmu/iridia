@@ -19,7 +19,7 @@ final class GraphicsGeneralModelBuilderTests: XCTestCase {
 
   private let iosOnlyRows = ["frame-cap", "instant-replay", "save-clips-photos", "save-only-photos", "clip-length"]
   private let allRows = [
-    "backend", "aspect-ratio", "vsync", "auto-ir-osd", "triple-buffering", "force-scale-one", "overscan-fullscreen",
+    "resolution", "aspect-ratio", "backend", "vsync", "auto-ir-osd", "triple-buffering", "force-scale-one", "overscan-fullscreen",
     "async-present", "auto-ir", "target-fps", "min-scale", "max-scale", "frame-cap",
     "instant-replay", "save-clips-photos", "save-only-photos", "clip-length",
     "shader-compile-type", "compile-before-start",
@@ -27,14 +27,14 @@ final class GraphicsGeneralModelBuilderTests: XCTestCase {
 
   func test_rowOrder_isIOS() {
     XCTAssertEqual(model().allItems.map(\.id), allRows)
-    XCTAssertEqual(model().sections.map(\.header), [nil, "Recording", "Shader Compilation"])
+    XCTAssertEqual(model().sections.map(\.header), ["Picture", "Advanced", "Recording", "Shader Compilation"])
   }
 
   func test_rowOrder_notIOS() {
     let m = model(state { $0.isIOS = false })
     XCTAssertEqual(m.allItems.map(\.id), allRows.filter { !iosOnlyRows.contains($0) })
-    XCTAssertEqual(m.sections.map(\.header), [nil, "Shader Compilation"])
-    XCTAssertEqual(m.sections.map(\.id), ["general", "shader-compilation"])
+    XCTAssertEqual(m.sections.map(\.header), ["Picture", "Advanced", "Shader Compilation"])
+    XCTAssertEqual(m.sections.map(\.id), ["picture", "general", "shader-compilation"])
   }
 
   func test_everyRow_hasADescription() {

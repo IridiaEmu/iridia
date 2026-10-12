@@ -10,9 +10,6 @@ enum GraphicsGeneralModelBuilder {
       SettingsRow.cycle("backend", L("Backend"), GraphicsBackend.allCases.map { ($0.label, $0) }, state.backend,
             L("Renderer used to draw frames. Metal is the native, fastest path on this device; Vulkan runs via MoltenVK; OpenGL is the slow legacy fallback. Leave on Metal."),
             set: { apply(.backend($0)) }),
-      SettingsRow.cycle("aspect-ratio", L("Aspect Ratio"), AspectRatio.allCases.map { ($0.label, $0) }, state.aspect,
-            L("Shape of the picture. Auto matches the game's native ratio; 4:3 and 16:9 force a fixed shape; Stretch fills the screen and may distort."),
-            set: { apply(.aspect($0)) }),
       SettingsRow.toggle("vsync", L("V-Sync"), state.vSync,
              L("Syncs presentation to the display refresh to remove tearing. On iOS the compositor already syncs, so this has little effect; leave ON."),
              set: { apply(.vSync($0)) }),
@@ -50,7 +47,15 @@ enum GraphicsGeneralModelBuilder {
               L("Caps the display refresh the app requests. System Default lets the OS decide; lower caps can save power on the CPU-bound path."),
               set: { apply(.frameCap($0)) }))
     }
-    var sections = [MenuSection(id: "general", items: general)]
+    // gc-emu: the two settings most people want, up top; everything else is under Advanced.
+    let picture = MenuSection(id: "picture", header: L("Picture"), items: [
+      SettingsRow.custom("resolution", L("Resolution"), AnyView(ResolutionSliderRow()),
+             L("1x is the original GameCube picture. Higher is sharper but uses more battery and heat.")),
+      SettingsRow.cycle("aspect-ratio", L("Aspect Ratio"), AspectRatio.allCases.map { ($0.label, $0) }, state.aspect,
+            L("Shape of the picture. Auto matches the game's native ratio; 4:3 and 16:9 force a fixed shape; Stretch fills the screen and may distort."),
+            set: { apply(.aspect($0)) }),
+    ])
+    var sections = [picture, MenuSection(id: "general", header: L("Advanced"), items: general)]
 
     if state.isIOS {
       sections.append(MenuSection(id: "recording", header: L("Recording"), items: [

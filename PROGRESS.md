@@ -203,3 +203,4 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 
 - 2026-10-12: Import picker Recents spun on "Loading". Cause: Recents is a query of iOS's Spotlight file index (stale/rebuilding index on iOS 26/27), not app code. Fix: GameFilePicker presents UIDocumentPickerViewController with directoryURL so it opens on Browse.
 - 2026-10-12: TP (own dump) profiled live in Ordon: full speed, CPU thread ~37% busy. Audio was ~13% of app CPU; mixer fix cut it ~67% (BENCHMARKS #10).
+- 2026-10-12: Resume-where-left-off on by default (+background save), verified on device with TP: relaunch resumes in ~14 s. Pause menu Performance tile; VBI warning.

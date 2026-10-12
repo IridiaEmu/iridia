@@ -204,3 +204,39 @@ unthrottled (headroom).
 
 iPhone 16 Pro holds full speed even at 8x in Ordon; each step up costs GPU headroom (−35% from 1x to
 8x). Thermal state "fair" throughout. Screenshots confirm the image gets sharper.
+
+## Threading / QoS (reviewed 2026-10-12, no change)
+`Common/Thread.cpp` (iCube) tags threads by name with a QoS class, the only P/E-core steering
+knob on Apple silicon: CPU thread, Video/GPU (dual-core FIFO worker) and AsyncShaderCompiler →
+USER_INTERACTIVE (P-core eligible, no priority inversion when the CPU thread waits on the GPU
+thread); DSP/Audio → USER_INITIATED; DVD/memcard/asset I/O → UTILITY. Dual-core mode is on.
+Nothing to gain here.
+
+## #12 Memory — Twilight Princess, Ordon save state (2026-10-12)
+Benchmark reports now record `phys_footprint` (what jetsam counts), its lifetime peak, and
+`os_proc_available_memory`.
+
+| Resolution | Footprint | Peak | Available | ≈ limit |
+|---|---|---|---|---|
+| 1x | 580 MB | 768 MB | 2,796 MB | ~3.4 GB |
+| 8x | 1,246 MB | 1,441 MB | 2,130 MB | ~3.4 GB |
+
+Comfortable on an 8 GB iPhone 16 Pro without the increased-memory-limit entitlement. On 4 GB
+phones (limit roughly 2 GB) 8x would be risky: keep the per-device presets' low default
+resolutions there and cap the slider by available memory (Phase 5).
+
+## #13 PGO retrained on Twilight Princess (tried, not adopted)
+- Training (instrumented core + app, `DOL_PGO=generate`): TP from the Ordon save state (60 s), TP
+  fresh boot through the intro (90 s), plus the original homebrew set (IridiaBench x4/x16/x32,
+  gxSprites, neheGX lesson06, triangle). One 6.9 MB .profraw; real-game hot paths present
+  (paired-single accessors, EFB→texture copies, Zelda DSP HLE).
+- Interleaved A/B, 40 s cool-downs, `scripts/build_ab.sh` (now takes `PLAY_ID` / `BENCH_EXTRA`):
+
+| Workload | old profile | TP-trained | change | spread |
+|---|---|---|---|---|
+| TP, Ordon state (2 runs each*) | 2.149 | 2.100 | −2.2% | 8.4% / 1.2% |
+| IridiaBench x16 (3 runs each) | 1.331 | 1.320 | −0.8% | 1.5% / 1.7% |
+
+  *Round 1 of the TP pair produced no report for either build.
+- **No measurable gain**, so the original profile stays. The interpreter's hot code is the same
+  handlers whatever the game, and the homebrew/IridiaBench profile already covers them.

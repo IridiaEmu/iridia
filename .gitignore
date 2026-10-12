@@ -109,3 +109,5 @@ keys.txt
 /Tools/homebrew/*/build-*/
 /Tools/homebrew/*/*.dol
 /build-pgo/
+ab/
+benchmarks/profiles/

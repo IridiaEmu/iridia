@@ -10,6 +10,11 @@ A_APP="$1"; A_LABEL="$2"; B_APP="$3"; B_LABEL="$4"; PROG="$5"; ROUNDS="$6"; COOL
 BUNDLE="${GCEMU_BUNDLE:-com.yl4f87nwp8.gcemu.iCube}"
 # App user folder inside the container (hidden from Files; see UserFolderUtil.swift).
 UDIR="${GCEMU_USERDIR:-Library/Application Support/Iridia}"
+# Optional: PLAY_ID=GZ2E01 (a disc's game ID instead of ID-<program>), BENCH_EXTRA="-gcemuBenchState GZ2E01.s01",
+# BENCH_SECS / BENCH_WARMUP (default 15 / 5).
+PLAY_ID="${PLAY_ID:-ID-$PROG}"
+BENCH_SECS="${BENCH_SECS:-15}"; BENCH_WARMUP="${BENCH_WARMUP:-5}"
+read -r -a EXTRA <<< "${BENCH_EXTRA:-}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
 [[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
@@ -22,9 +27,9 @@ run() {  # $1 app, $2 label, $3 round
   xcrun devicectl device install app --device "$UDID" "$1" >/dev/null 2>&1 || { echo "install failed: $1" >&2; exit 1; }
   sleep "$COOL"
   xcrun devicectl device process launch --device "$UDID" --terminate-existing \
-    --payload-url "dolphinios://play?id=ID-$PROG" "$BUNDLE" \
-    -- -gcemuBench 15 -gcemuBenchWarmup 5 -gcemuBenchLabel "$2-$PROG-$3" >/dev/null 2>&1
-  sleep 28
+    --payload-url "dolphinios://play?id=$PLAY_ID" "$BUNDLE" \
+    -- -gcemuBench "$BENCH_SECS" -gcemuBenchWarmup "$BENCH_WARMUP" -gcemuBenchLabel "$2-$PROG-$3" ${EXTRA[@]+"${EXTRA[@]}"} >/dev/null 2>&1
+  sleep $(( BENCH_SECS + BENCH_WARMUP + 10 ))
   echo "round $3: $2"
 }
 

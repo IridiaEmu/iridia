@@ -127,10 +127,12 @@ struct AboutView: View {
         Text("This software should not be used to play games you do not legally own.")
           .multilineTextAlignment(.center)
 
-        Button(L("Source Code")) {
-          if let url = URL(string: "https://github.com/provenance-Emu/icube") {
-            openURL(url)
-          }
+        // gc-emu: Iridia's own source (GPL) once published, and the full credits.
+        if let url = IridiaLinks.sourceCode {
+          Button(L("Source Code")) { openURL(url) }
+        }
+        NavigationLink(destination: AcknowledgementsView().padBackNavigation()) {
+          Label(L("Acknowledgements"), systemImage: "heart.text.square")
         }
 
         NavigationLink(destination: DolphinBlogView().padBackNavigation()) { Label(L("Dolphin Blog"), systemImage: "newspaper") }

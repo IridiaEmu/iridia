@@ -65,6 +65,10 @@ void Mixer::DoState(PointerWrap& p)
 // Executed from sound stream thread
 void Mixer::MixerFifo::Mix(s16* samples, std::size_t num_samples)
 {
+  // gc-emu: a fifo that has never received audio contributes exactly 0; skip all the work.
+  if (!m_has_input.load(std::memory_order_acquire))
+    return;
+
   constexpr u32 INDEX_HALF = 0x80000000;
   constexpr DT_s FADE_IN_RC = DT_s(0.008);
   constexpr DT_s FADE_OUT_RC = DT_s(0.064);
@@ -548,6 +552,8 @@ void Mixer::MixerFifo::Enqueue()
     m_queue[head][i] = m_next_buffer[(i + start_index) & GRANULE_MASK] * GRANULE_WINDOW[i];
 
   m_queue_head.store(next_head, std::memory_order_release);
+  if (!m_has_input.load(std::memory_order_relaxed))
+    m_has_input.store(true, std::memory_order_release);
   m_queue_fading.store(false, std::memory_order_relaxed);
   m_queue_looping.store(false, std::memory_order_relaxed);
 }

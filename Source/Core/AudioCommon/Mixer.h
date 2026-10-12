@@ -155,6 +155,10 @@ private:
     std::atomic<std::size_t> m_queue_tail{0};
     std::atomic<bool> m_queue_fading{false};
     std::atomic<bool> m_queue_looping{false};
+    // gc-emu: false until the first granule is enqueued. A fifo that never got a sample has
+    // all-zero granules and adds exactly 0 to the output, so Mix() skips it. In a GameCube game
+    // that's the 4 Wii Remote speakers, the Skylanders portal and the 4 GBA links (9 of 11).
+    std::atomic<bool> m_has_input{false};
     float m_fade_volume = 1.0;
 
     void Enqueue();

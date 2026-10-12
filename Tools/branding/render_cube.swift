@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Iridia's glass cube, modelled and rendered from scratch (no downloaded or generated art).
-//   swift Tools/branding/render_cube.swift <out.png> [size] [--bg]
+//   swift Tools/branding/render_cube.swift <out.png> [size] [--bg | --icon]
 // A chamfered cube with a clear physically-based glass material, an iridescent thin-film sheen
 // at grazing angles, and a procedural studio environment (soft light strips) for reflections.
-// Without --bg the PNG has a transparent background; with --bg it sits on the Iridia indigo.
+// Without --bg the PNG has a transparent background; with --bg it sits on the Iridia indigo;
+// --icon makes the App Store icon: cube centred with margin on an indigo glow, no alpha channel.
 // The same scene description is what the app's live 3D menu uses (SceneKit).
 
 import AppKit
@@ -16,6 +17,7 @@ let args = CommandLine.arguments
 guard args.count >= 2 else { fputs("usage: render_cube.swift <out.png> [size] [--bg]\n", stderr); exit(1) }
 let outPath = args[1]
 let size = args.count >= 3 ? Int(args[2]) ?? 1024 : 1024
+let asIcon = args.contains("--icon")
 let withBackground = args.contains("--bg")
 
 // MARK: Environment: a dark room with three soft light strips, drawn into an equirect image.
@@ -220,6 +222,30 @@ if withBackground {
   ctx.setFillColor(CGColor(srgbRed: 0.078, green: 0.051, blue: 0.196, alpha: 1))
   ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
   ctx.draw(cg, in: CGRect(x: 0, y: 0, width: size, height: size))
+  cg = ctx.makeImage()!
+}
+if asIcon {
+  // App icons must be opaque (no alpha channel). iOS rounds the corners itself.
+  let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+  let s = CGFloat(size)
+  let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                        colors: [CGColor(srgbRed: 0.24, green: 0.16, blue: 0.55, alpha: 1),
+                                 CGColor(srgbRed: 0.10, green: 0.065, blue: 0.27, alpha: 1),
+                                 CGColor(srgbRed: 0.045, green: 0.03, blue: 0.13, alpha: 1)] as CFArray,
+                        locations: [0, 0.55, 1])!
+  ctx.drawRadialGradient(glow, startCenter: CGPoint(x: s * 0.5, y: s * 0.56), startRadius: 0,
+                         endCenter: CGPoint(x: s * 0.5, y: s * 0.5), endRadius: s * 0.75, options: [.drawsAfterEndLocation])
+  // Soft violet pool under the cube (CG's origin is bottom-left).
+  let pool = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                        colors: [CGColor(srgbRed: 0.55, green: 0.42, blue: 1.0, alpha: 0.35), CGColor(srgbRed: 0.55, green: 0.42, blue: 1.0, alpha: 0)] as CFArray,
+                        locations: [0, 1])!
+  ctx.saveGState()
+  ctx.translateBy(x: s * 0.5, y: s * 0.2); ctx.scaleBy(x: 1, y: 0.28)
+  ctx.drawRadialGradient(pool, startCenter: .zero, startRadius: 0, endCenter: .zero, endRadius: s * 0.42, options: [])
+  ctx.restoreGState()
+  let k: CGFloat = 0.74   // cube ≈ 62% of the icon, clear of the rounded corners
+  ctx.draw(cg, in: CGRect(x: s * (1 - k) / 2, y: s * (1 - k) / 2 + s * 0.015, width: s * k, height: s * k))
   cg = ctx.makeImage()!
 }
 let rep = NSBitmapImageRep(cgImage: cg)

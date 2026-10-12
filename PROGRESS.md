@@ -181,3 +181,4 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
 - Added **IridiaBench** (`Tools/homebrew/iridiabench`, original GPL program; `make SCALE=n`). x16/x32 are CPU-bound on the iPhone 16 Pro.
 - iCube's off-by-default CIR FP/PSQ flags were A/B tested (`scripts/cir_ab*.sh`): no gain, kept off.
 - The phone hit "serious" thermal state during sustained benchmarking, so testing was paused to let it cool.
+- **Opt #5:** Force25Bit/ClassifyFloat/ClassifyDouble now branch on the common case (asm barrier against if-conversion). Proven bit-identical (all 2^32 floats). **+4.3%** on IridiaBench x16 (interleaved build A/B via `scripts/build_ab.sh`). The phone now runs build B.

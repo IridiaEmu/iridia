@@ -88,6 +88,11 @@ inline double ForceDouble(const UReg_FPSCR& fpscr, double d)
   return d;
 }
 
+// gc-emu: subnormal inputs are rare, so keep them behind a real branch. Without the empty asm
+// barrier clang if-converts both paths, and every float multiply (fmuls, fmadds, ps_mul*,
+// ps_madd*, …) pays for the clz/shift subnormal math. The barrier only stops that speculation;
+// it emits no instruction. Same arithmetic as before, bit-identical results (verified over edge
+// cases and 10^8 random bit patterns against the original).
 inline double Force25Bit(double d)
 {
   u64 integral = std::bit_cast<u64>(d);
@@ -95,8 +100,10 @@ inline double Force25Bit(double d)
   u64 exponent = integral & Common::DOUBLE_EXP;
   u64 fraction = integral & Common::DOUBLE_FRAC;
 
-  if (exponent == 0 && fraction != 0)
+  if (exponent == 0 && fraction != 0) [[unlikely]]
   {
+    asm volatile("");  // keep a real branch (see above)
+
     // Subnormals get "normalized" before they're rounded
     // In the end, this practically just means that the rounding is
     // at a different bit

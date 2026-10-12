@@ -104,6 +104,23 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 - **No measurable gain**, so they stay off. Caveat: the phone reached "serious" thermal state during these runs (CPU throttled). The interleaved method keeps the comparison fair, but absolute numbers are lower than cool-device runs (x16 probe 1.24).
 - Method note: sustained heavy runs heat the phone within ~5 minutes. Run A/B interleaved, with cool-downs, and record thermal state.
 
+### 5. Branchy fast paths for the float rounding and classification helpers
+- Finding (disassembly of `Interpreter::fmulsx`): clang if-converted `Force25Bit` (multiply-operand rounding, used by 13 FP/PS handlers) and `ClassifyFloat`/`ClassifyDouble` (FPRF after nearly every FP op). Every op computed the rare subnormal/NaN/inf paths too and then picked a result with `csel`.
+- Change:
+  - Common case first, with the rare cases behind a real branch. An empty `asm volatile("")` in the rare path stops the if-conversion and emits no instruction. `[[unlikely]]` alone was ignored, and a cold out-of-line helper made the handlers non-leaf (register save/restore), which gave back part of the gain.
+  - `Interpreter_FPUtils.h` (Force25Bit), `Common/FloatUtils.cpp` (Classify*).
+  - The `Force25Bit` hot path is now 6 instructions (was ~20 with the clz/shift subnormal math), and `fmulsx` stays a leaf.
+- Correctness: bit-identical by construction, verified on the Mac against the original code:
+  - Force25Bit: edge cases + 10^8 random patterns, 112,503,180 checked, 0 mismatches.
+  - ClassifyFloat: **all 2^32 values**, 0 mismatches.
+  - ClassifyDouble: 300,000,040 patterns, 0 mismatches.
+- Result (`scripts/build_ab.sh`, interleaved A/B, 3 rounds, 45 s cool-down, iridiabench-x16):
+
+| Build | maxSpeed | spread | change | thermal |
+|---|---|---|---|---|
+| A (before) | 1.208 | 1.3% | | fair/nominal |
+| B (after) | **1.260** | 1.7% | **+4.3%** | fair/nominal |
+
 ### Profile after #1 and #2 (gxSprites, 15 s)
 - Total iCube CPU: **6.36 s** (was 7.29 s) at the same 100% speed.
 - Signpost and CoreMotion costs are gone.

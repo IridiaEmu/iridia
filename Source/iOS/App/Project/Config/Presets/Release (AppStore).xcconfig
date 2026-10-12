@@ -11,5 +11,5 @@
 #include "Project/Config/PreprocessorCombine.xcconfig"
 
 // Branding (leaf overrides Common defaults): App Store = clean name + blue icon.
-DOL_APP_DISPLAY_NAME = iCube
+DOL_APP_DISPLAY_NAME = Iridia
 DOL_APP_ICON_ASSET_NAME = AppIcon

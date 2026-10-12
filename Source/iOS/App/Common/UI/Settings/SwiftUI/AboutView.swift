@@ -99,12 +99,12 @@ struct AboutView: View {
           }
         }
 
-        Text("iCube is an unofficial and separately maintained port of Dolphin to iOS. The iCube Project has no relation to Dolphin Team.")
+        Text("Iridia is an unofficial port of Dolphin to iOS, based on iCube. Neither Iridia nor the iCube Project is affiliated with Dolphin Team or Nintendo.")
           .multilineTextAlignment(.center)
 
         // Fork lineage with tappable source links.
         VStack(spacing: 8) {
-          Text(L("iCube is a fork of OatmealDome's DolphiniOS, based on the Dolphin emulator."))
+          Text(L("Iridia is based on iCube, a fork of OatmealDome's DolphiniOS, built on the Dolphin emulator."))
             .multilineTextAlignment(.center)
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -123,7 +123,7 @@ struct AboutView: View {
         }
         .padding(.vertical, 4)
 
-        Text("\"GameCube\" and \"Wii\" are trademarks of Nintendo. iCube is not affiliated with Nintendo in any way.")
+        Text("\"GameCube\" and \"Wii\" are trademarks of Nintendo. Iridia is not affiliated with Nintendo in any way.")
           .multilineTextAlignment(.center)
 
         Text("This software should not be used to play games you do not legally own.")
@@ -144,7 +144,7 @@ struct AboutView: View {
       .padding(.horizontal, 20)
       .frame(maxWidth: .infinity)
     }
-    .navigationTitle(L("About iCube"))
+    .navigationTitle(L("About Iridia"))
   }
 
   private func startAboutAnimation() {

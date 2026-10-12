@@ -34,7 +34,7 @@ struct ContinuityBrowseView: View {
 
             Section(header: Text(L("Nearby Devices"))) {
                 if manager.discoveredPeers.isEmpty {
-                    Text(L("Looking for other devices running iCube on this network…"))
+                    Text(L("Looking for other devices running Iridia on this network…"))
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(manager.discoveredPeers) { peer in
@@ -114,7 +114,7 @@ private struct ContinuityPeerRow: View {
 
     private var subtitle: String {
         guard let advertisement = peer.advertisement else {
-            return L("Not compatible with this version of iCube")
+            return L("Not compatible with this version of Iridia")
         }
         if let game = advertisement.game {
             return String(format: L("Playing %@"), game.displayName)

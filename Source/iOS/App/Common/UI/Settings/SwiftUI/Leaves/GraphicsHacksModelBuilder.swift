@@ -18,7 +18,7 @@ enum GraphicsHacksModelBuilder {
                   : L("The current graphics backend does not support bounding box emulation on this device."),
              enabled: bbox, set: { apply(.bboxEnabled($0)) }),
       SettingsRow.cycle("bbox-sync", L("Bounding Box Sync"), [(L("Latched"), BboxSyncMode.latched.rawValue), (L("Force Sync"), BboxSyncMode.forceSync.rawValue)], state.bboxSyncMode,
-            L("How iCube delivers bounding-box values. Latched serves a 1-frame-stale snapshot with no CPU stall (faster). Force Sync blocks for exact same-frame values — try it if a game's bbox-driven effects (some 2D/UI culling) look wrong."),
+            L("How Iridia delivers bounding-box values. Latched serves a 1-frame-stale snapshot with no CPU stall (faster). Force Sync blocks for exact same-frame values — try it if a game's bbox-driven effects (some 2D/UI culling) look wrong."),
             enabled: state.bboxEnabled && bbox, set: { apply(.bboxSyncMode($0)) }),
       SettingsRow.toggle("efb-access", L("Enable EFB Access"), state.efbAccess,
              L("Lets the CPU read back the framebuffer. Required by some effects but costly; many games run fine and faster with it off."), set: { apply(.efbAccess($0)) }),

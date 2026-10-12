@@ -42,7 +42,7 @@ enum GraphicsEnhancementsModelBuilder {
              L("Outputs in HDR on capable displays. Most games are SDR, so the effect is subtle; harmless to leave off."),
              set: { apply(.hdrOutput($0)) }),
       SettingsRow.toggle("gpu-texture-decoding", L("GPU Texture Decoding"), state.gpuTextureDecoding,
-             L("Decodes textures on the GPU instead of the CPU. Moves work off the bottleneck thread, so it can help CPU-bound titles that stream many textures. iCube already ships a NEON CPU decoder (Config ▸ Advanced) as the default fast path."),
+             L("Decodes textures on the GPU instead of the CPU. Moves work off the bottleneck thread, so it can help CPU-bound titles that stream many textures. Iridia already ships a NEON CPU decoder (Config ▸ Advanced) as the default fast path."),
              set: { apply(.gpuTextureDecoding($0)) }),
     ])
 

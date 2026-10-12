@@ -74,7 +74,7 @@ final class BenchAccessApproval {
 
     let alert = UIAlertController(
       title: L("Allow Debug Access?"),
-      message: String(format: L("%1$@ wants to control iCube over Wi-Fi. It can change settings, start games and load save states. Only allow devices you recognise."), address),
+      message: String(format: L("%1$@ wants to control Iridia over Wi-Fi. It can change settings, start games and load save states. Only allow devices you recognise."), address),
       preferredStyle: .alert)
 
     alert.addAction(UIAlertAction(title: L("Deny"), style: .cancel) { [weak self] _ in

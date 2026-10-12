@@ -56,7 +56,7 @@ enum ConfigWiiModelBuilder {
 
     let remotes = MenuSection(id: "wii-remotes", header: L("Wii Remotes"), items: [
       SettingsRow.cycle("sensor-bar-position", L("Sensor Bar Position"), sensorBarPositionOptions, displayedSensorBarPosition(state.sensorBarPosition),
-                        L("Must match where the game thinks the sensor bar sits (Top/Bottom) or the pointer inverts. On iCube the pointer is touch-driven, so set it to the game's expectation."),
+                        L("Must match where the game thinks the sensor bar sits (Top/Bottom) or the pointer inverts. On Iridia the pointer is touch-driven, so set it to the game's expectation."),
                         set: { apply(.sensorBarPosition($0)) }),
       SettingsRow.stepper("sensor-bar-sensitivity", L("Sensor Bar Sensitivity"), Double(state.sensorBarSensitivity),
                           range: ConfigWiiLimits.sensorBarSensitivity, step: 1, format: number,

@@ -10,5 +10,5 @@
 #include "Project/Config/PreprocessorCombine.xcconfig"
 
 // Branding (leaf overrides Common defaults): jailbroken build.
-DOL_APP_DISPLAY_NAME = iCube JB
+DOL_APP_DISPLAY_NAME = Iridia JB
 DOL_APP_ICON_ASSET_NAME = AppIconJB

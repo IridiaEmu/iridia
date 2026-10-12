@@ -11,5 +11,5 @@
 #include "Project/Config/PreprocessorCombine.xcconfig"
 
 // Branding (leaf overrides Common defaults): TrollStore build.
-DOL_APP_DISPLAY_NAME = iCube TS
+DOL_APP_DISPLAY_NAME = Iridia TS
 DOL_APP_ICON_ASSET_NAME = AppIconTrollStore

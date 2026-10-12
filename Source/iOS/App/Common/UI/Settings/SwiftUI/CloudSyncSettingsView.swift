@@ -153,7 +153,7 @@ struct CloudSyncSettingsView: View {
             }
             .disabled(coordinator.isSyncing)
             .confirmationDialog(
-                L("Remove all iCube data from iCloud?"),
+                L("Remove all Iridia data from iCloud?"),
                 isPresented: $showClearConfirmation,
                 titleVisibility: .visible
             ) {

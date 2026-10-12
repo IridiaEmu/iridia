@@ -1196,7 +1196,7 @@ struct TVLibraryView: View {
       VStack(spacing: 20) {
         DolphinErrorView(
           title: L("Library Empty"),
-          message: L("No games found. Add GameCube & Wii ROMs to your library to get started with iCube! 🎮")
+          message: L("No games found. Add GameCube & Wii ROMs to your library to get started with Iridia! 🎮")
         )
         emptyLibraryUploadAddress
         emptyLibraryActions
@@ -2369,7 +2369,7 @@ struct TVLibraryView: View {
 
           // Lineage / credits — iCube is a downstream fork; credit the projects it builds on.
           VStack(spacing: 4) {
-            Text(L("iCube is a fork of DolphiniOS, based on the Dolphin emulator."))
+            Text(L("Iridia is based on iCube, a fork of DolphiniOS, built on the Dolphin emulator."))
               .font(.caption2)
               .foregroundStyle(.white.opacity(0.6))
               .multilineTextAlignment(.center)

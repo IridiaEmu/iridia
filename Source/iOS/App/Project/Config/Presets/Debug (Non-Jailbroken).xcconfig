@@ -11,5 +11,5 @@
 #include "Project/Config/PreprocessorCombine.xcconfig"
 
 // Branding (leaf overrides Common defaults): dev build.
-DOL_APP_DISPLAY_NAME = iCube DEV
+DOL_APP_DISPLAY_NAME = Iridia DEV
 DOL_APP_ICON_ASSET_NAME = AppIconDebug

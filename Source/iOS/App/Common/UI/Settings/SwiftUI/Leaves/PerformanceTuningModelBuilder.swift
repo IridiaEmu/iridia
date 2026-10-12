@@ -52,8 +52,8 @@ enum PerformanceTuningModelBuilder {
     return MenuSection(
       id: "cpu-options", header: L("CPU Options"),
       footer: state.jitAvailable
-        ? L("These options control the PowerPC CPU emulation. On iCube the emulated CPU is almost always the performance bottleneck, so the CPU options below matter far more than any graphics setting.")
-        : L("This build runs without JIT, so games always use the Cached Interpreter (the JIT engine choices are hidden). The emulated CPU is the performance bottleneck on iCube — these options matter far more than any graphics setting."),
+        ? L("These options control the PowerPC CPU emulation. On Iridia the emulated CPU is almost always the performance bottleneck, so the CPU options below matter far more than any graphics setting.")
+        : L("This build runs without JIT, so games always use the Cached Interpreter (the JIT engine choices are hidden). The emulated CPU is the performance bottleneck on Iridia — these options matter far more than any graphics setting."),
       items: [
         SettingsRow.cycle("cpu-engine", L("CPU Emulation Engine"), engines.map { ($0.label, $0) }, state.effectiveEngine,
               state.jitAvailable
@@ -63,7 +63,7 @@ enum PerformanceTuningModelBuilder {
         flagRow("mmu", L("Enable MMU"), .mmu, state, apply,
                 L("Emulates the PowerPC memory management unit. Required by a small number of games (e.g. some Star Wars titles) but adds CPU overhead on every memory access, so it hurts the framerate on this already CPU-bound build. Leave OFF unless a specific game needs it.")),
         flagRow("adaptive-clock", L("Adaptive Clock (auto VI/CPU)"), .adaptiveClock, state, apply,
-                L("Lets iCube auto-tune the emulated CPU/VI clock to trade accuracy for speed when frames run long. Experimental iCube option. Applies on next game launch.")),
+                L("Lets Iridia auto-tune the emulated CPU/VI clock to trade accuracy for speed when frames run long. Experimental Iridia option. Applies on next game launch.")),
         SettingsRow.cycle("vertex-loader", L("Vertex Loader"), VertexLoaderMode.allCases.map { ($0.label, $0.rawValue) }, state.vertexLoaderMode,
               L("How vertex data is decoded on the CPU. NEON SIMD is the fast default on Apple Silicon; Software is the slow reference path; Compare runs both and asserts they match (debug only — slowest). Leave on NEON SIMD. Applies on next game launch."),
               set: { apply(.vertexLoaderMode($0)) }),
@@ -82,7 +82,7 @@ enum PerformanceTuningModelBuilder {
         flagRow("relaxed-idle", L("Relaxed Idle Loop Detection"), .relaxedIdleDetection, state, apply,
                 L("Detects more idle loops so the CPU can skip busy-waiting. ON helps reclaim CPU time on the bottlenecked interpreter; very rarely affects timing. Default ON.")),
         flagRow("ff-ctr-idle", L("Fast-Forward CTR Idle Loops"), .fastForwardCtrIdle, state, apply,
-                L("Fast-forwards counter-based idle loops instead of emulating every iteration. Can recover CPU headroom; may slightly affect timing-sensitive games. iCube tuning knob.")),
+                L("Fast-forwards counter-based idle loops instead of emulating every iteration. Can recover CPU headroom; may slightly affect timing-sensitive games. Iridia tuning knob.")),
         flagRow("sync-on-skip-idle", L("Sync on Skip Idle"), .syncOnSkipIdle, state, apply,
                 L("When the CPU fast-forwards through an idle loop, flush the GPU so it stays in sync. ON by default for correctness; turning it off skips the flush for a small CPU win but can cause graphical glitches in some games. A/B knob.")),
       ])

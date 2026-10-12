@@ -8,7 +8,7 @@ import SwiftUI
 enum FilesAppNames {
   static var appFolder: String {
     let info = Bundle.main.infoDictionary
-    return (info?["CFBundleDisplayName"] as? String) ?? (info?["CFBundleName"] as? String) ?? "iCube"
+    return (info?["CFBundleDisplayName"] as? String) ?? (info?["CFBundleName"] as? String) ?? "Iridia"
   }
 
   static var gamesFolder: String { UserFolderUtil.gamesFolderName }

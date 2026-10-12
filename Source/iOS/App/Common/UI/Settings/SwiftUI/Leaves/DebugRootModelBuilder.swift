@@ -41,8 +41,8 @@ enum DebugRootModelBuilder {
     var items = [
       status("user-folder", L("User Folder"),
              h.userFolder.isEmpty
-               ? L("Where iCube keeps its settings, saves and game data.")
-               : String(format: L("Where iCube keeps its settings, saves and game data: %@"), h.userFolder)),
+               ? L("Where Iridia keeps its settings, saves and game data.")
+               : String(format: L("Where Iridia keeps its settings, saves and game data: %@"), h.userFolder)),
     ]
     #if GCEMU_NO_JIT
     // gc-emu: App Store build. No JIT, debugger, TXM or StikDebug rows; the emulator never generates code.
@@ -54,7 +54,7 @@ enum DebugRootModelBuilder {
     items.append(status("debugger-status", L("Debugger"), L("Whether a debugger is attached; iOS 26 needs one to switch JIT on."),
                         badge: h.debuggerAttached ? L("Attached") : L("Not Attached")))
     if h.deviceHasTxm {
-      items.append(status("txm-region", L("TXM JIT Region"), L("Whether this device's JIT memory region has been authorized for iCube."),
+      items.append(status("txm-region", L("TXM JIT Region"), L("Whether this device's JIT memory region has been authorized for Iridia."),
                           badge: h.txmAuthorized ? L("Authorized") : L("Not Authorized")))
     }
     items.append(status("jit-error", L("JIT Error"),
@@ -63,12 +63,12 @@ enum DebugRootModelBuilder {
     // so anything that kills the app in between (a non-broker debugger, but also jetsam while the region faults in) leaves it set.
     if h.txmHandshakeBlocked {
       items.append(SettingsRow.action("retry-jit-authorization", L("Retry JIT Authorization"),
-                                      L("A previous attempt to authorize the JIT region never finished, so iCube is declining to retry on its own. This re-arms it for the next time you open a game with a debugger attached."),
+                                      L("A previous attempt to authorize the JIT region never finished, so Iridia is declining to retry on its own. This re-arms it for the next time you open a game with a debugger attached."),
                                       run: { apply(.retryJitAuthorization) }))
     }
     if state.showsStikDebugEnable {
       items.append(SettingsRow.action("enable-jit-stikdebug", L("Enable JIT via StikDebug"),
-                                      L("Hands iCube's bundled JIT script to StikDebug and enables JIT for this app. StikDebug will relaunch iCube; reopen a game afterward to run with JIT."),
+                                      L("Hands Iridia's bundled JIT script to StikDebug and enables JIT for this app. StikDebug will relaunch Iridia; reopen a game afterward to run with JIT."),
                                       run: { apply(.enableJitViaStikDebug) }))
     }
     if state.showsStikDebugHelp {
@@ -88,7 +88,7 @@ enum DebugRootModelBuilder {
 
   private static func diagnostics(_ state: DebugRootState, _ apply: @escaping Apply) -> MenuSection {
     var items = [
-      status("launch-times", L("Launch Times"), L("How many times iCube has been launched."), badge: "\(state.launchTimes)"),
+      status("launch-times", L("Launch Times"), L("How many times Iridia has been launched."), badge: "\(state.launchTimes)"),
       SettingsRow.action("reset-launch-times", L("Reset Launch Times"), L("Sets the launch counter back to zero."),
                          run: { apply(.resetLaunchTimes) }),
     ]

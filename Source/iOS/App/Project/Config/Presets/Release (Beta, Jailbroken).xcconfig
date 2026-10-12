@@ -10,5 +10,5 @@
 #include "Project/Config/PreprocessorCombine.xcconfig"
 
 // Branding (leaf overrides Common defaults): beta channel uses the yellow beta icon.
-DOL_APP_DISPLAY_NAME = iCube β
+DOL_APP_DISPLAY_NAME = Iridia β
 DOL_APP_ICON_ASSET_NAME = AppIconBeta

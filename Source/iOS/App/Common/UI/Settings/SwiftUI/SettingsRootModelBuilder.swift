@@ -105,7 +105,7 @@ enum SettingsRootModelBuilder {
       ]),
       SettingsRootSection(id: "performance", header: L("Performance"), entries: [
         SettingsLeafEntry(id: "performance-tuning", title: L("Performance Tuning"), icon: "gauge.with.dots.needle.67percent",
-                          description: L("CPU engine, optimisations, clock overrides. The CPU is the bottleneck on iCube."),
+                          description: L("CPU engine, optimisations, clock overrides. The CPU is the bottleneck on Iridia."),
                           hostsMenuScreen: true,
                           // showValidation: true so the correctness-validation rows are searchable.
                           makeModel: { PerformanceTuningModelBuilder.make(state: PerformanceTuningState(), showValidation: true, apply: { _ in }) }) { PerformanceTuningView() },

@@ -29,7 +29,7 @@ enum GraphicsGeneralModelBuilder {
              L("Presents finished frames on a background thread so the CPU thread isn't blocked waiting on the display. Helps on the CPU-bound interpreter; default ON."),
              set: { apply(.asyncPresent($0)) }),
       SettingsRow.toggle("auto-ir", L("Enable Auto Internal Resolution"), state.autoIR,
-             L("Dynamically scales internal resolution between Min and Max to hold the Target FPS. Useful when scenes are GPU-bound; has no benefit when the CPU is the limit (the usual case on iCube)."),
+             L("Dynamically scales internal resolution between Min and Max to hold the Target FPS. Useful when scenes are GPU-bound; has no benefit when the CPU is the limit (the usual case on Iridia)."),
              set: { apply(.autoIR($0)) }),
       SettingsRow.cycle("target-fps", L("Target FPS"), TargetFPS.allCases.map { ($0.label, $0) }, state.targetFPS,
             L("Frame rate Auto Internal Resolution tries to hold by adjusting the render scale. Only used when Auto IR is on."),

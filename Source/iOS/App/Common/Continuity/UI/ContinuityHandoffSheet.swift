@@ -42,7 +42,7 @@ struct ContinuityHandoffSheet: View {
                             Task { await manager.beginHandoff(game: game) }
                         }
                     } else {
-                        Text(L("Visible to nearby devices. Open iCube on the other device and pick this one."))
+                        Text(L("Visible to nearby devices. Open Iridia on the other device and pick this one."))
                             .foregroundColor(.secondary)
                         Button(L("Stop Offering"), role: .destructive) {
                             Task { await manager.endHandoff() }

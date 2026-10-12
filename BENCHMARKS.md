@@ -72,6 +72,18 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 - Result (`bench_compare.py … opt1 opt2`): **no measurable speed change** (−4.1% to +4.5%, within this round's 2–11% run-to-run spread). Expected: CoreMotion runs on its own thread and core.
 - Kept for **battery/heat**: the CoreMotion thread (≈3% of the process's CPU) is gone from the profile.
 
+### 3. Compile the core for A13+ and tune for A18 (was `-mcpu=apple-a10`)
+- Change: `BuildiOSXCFramework.py` uses `-mcpu=apple-a13 -mtune=apple-a18`. iOS 26, our minimum, only runs on A13 and newer, so ARMv8.4 (LSE atomics, RCPC, dot-product, FP16) is safe for every supported device. Full core rebuild (1,207 files).
+- Result (`bench_compare.py … opt2 opt3`; new session after a break, device cooled):
+
+| Program | opt2 | opt3 | change |
+|---|---|---|---|
+| gx-triangle | 5.738 | 5.794 | +1.0% |
+| gx-gxSprites | 4.774 | 4.642 | −2.8% |
+| gx-neheGX-lesson06 | 5.020 | 5.356 | +6.7% |
+
+- **No measurable change** on homebrew (all within noise). These programs barely execute interpreter code, which is where newer instructions help. Kept (no regression; correct baseline); re-measure with real-game workloads.
+
 ### Profile after #1 and #2 (gxSprites, 15 s)
 - Total iCube CPU: **6.36 s** (was 7.29 s) at the same 100% speed.
 - Signpost and CoreMotion costs are gone.

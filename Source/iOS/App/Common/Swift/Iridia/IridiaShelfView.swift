@@ -74,6 +74,15 @@ struct IridiaShelfView: View {
 
   @State private var centred: String?
   @State private var controllerScope = UUID()
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+  private var isLandscapePhone: Bool { verticalSizeClass == .compact }
+  /// Cases grow on iPad, shrink in iPhone landscape.
+  private var caseScale: CGFloat {
+    if isLandscapePhone { return 0.78 }
+    return horizontalSizeClass == .regular ? 1.35 : 1
+  }
 
   /// Every launch from the shelf goes through here: sparkle, then hand over.
   private func play(_ item: TVGameItem, fresh: Bool) {
@@ -97,20 +106,34 @@ struct IridiaShelfView: View {
   var body: some View {
     ZStack {
       IridiaGlass.stage
-      VStack(spacing: 0) {
-        header
-        Text(String(format: L("Your shelf · %d games"), games.count).uppercased())
-          .font(.system(size: 13, weight: .medium))
-          .tracking(1.5)
-          .foregroundStyle(IridiaGlass.dim)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.horizontal, 20)
-          .padding(.top, 14)
-        shelf
-          .frame(height: 340)
-        details
-        Spacer(minLength: 12)
-        tabBar
+      if isLandscapePhone {
+        // iPhone landscape: shelf on the left, the selected game and actions on the right.
+        HStack(spacing: 0) {
+          VStack(spacing: 0) {
+            header
+            shelf.frame(height: 300 * caseScale + 30)
+            Spacer(minLength: 0)
+          }
+          VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            details
+            Spacer(minLength: 8)
+            tabBar
+          }
+          .frame(width: 380)
+        }
+      } else {
+        VStack(spacing: 0) {
+          header
+          shelfCaption
+          shelf
+            .frame(height: 300 * caseScale + 40)
+          details
+            .frame(maxWidth: 560)
+          Spacer(minLength: 12)
+          tabBar
+            .frame(maxWidth: 560)
+        }
       }
     }
     .toolbar(.hidden, for: .navigationBar)
@@ -121,6 +144,16 @@ struct IridiaShelfView: View {
     .onChange(of: games.count) { _, _ in installControllerNavigation() }
     .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in installControllerNavigation() }
     .controllerScope(controllerScope)
+  }
+
+  private var shelfCaption: some View {
+    Text(String(format: L("Your shelf · %d games"), games.count).uppercased())
+      .font(.system(size: 13, weight: .medium))
+      .tracking(1.5)
+      .foregroundStyle(IridiaGlass.dim)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, 20)
+      .padding(.top, 14)
   }
 
   // MARK: Controller navigation
@@ -207,6 +240,8 @@ struct IridiaShelfView: View {
       LazyHStack(spacing: 18) {
         ForEach(ordered, id: \.filePath) { item in
           GlassCase(item: item, isCentred: item.filePath == current?.filePath)
+            .scaleEffect(caseScale)
+            .frame(width: 214 * caseScale, height: 300 * caseScale)
             .scrollTransition(.interactive, axis: .horizontal) { view, phase in
               view
                 .rotation3DEffect(.degrees(phase.value * -38), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
@@ -233,7 +268,7 @@ struct IridiaShelfView: View {
     }
     .scrollTargetBehavior(.viewAligned)
     .scrollPosition(id: $centred, anchor: .center)
-    .safeAreaPadding(.horizontal, 88)
+    .safeAreaPadding(.horizontal, isLandscapePhone ? 60 : (horizontalSizeClass == .regular ? 200 : 88))
     .sensoryFeedback(.selection, trigger: centred)
     .onChange(of: centred) { old, new in if old != nil, new != nil { IridiaSound.tick.play() } }
   }

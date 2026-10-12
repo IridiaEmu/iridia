@@ -9,7 +9,7 @@ enum DolphinPaths {
     #if os(tvOS)
     let base = try? fm.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
     #else
-    let base = try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    let base: URL? = URL(fileURLWithPath: UserFolderUtil.getUserFolder(), isDirectory: true)  // gc-emu: hidden user folder
     #endif
     guard let base else { return nil }
     let user = base.appendingPathComponent("User", isDirectory: true)
@@ -40,7 +40,7 @@ enum DolphinPaths {
     #if os(tvOS)
     let base = try? fm.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
     #else
-    let base = try? fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    let base: URL? = URL(fileURLWithPath: UserFolderUtil.getUserFolder(), isDirectory: true)  // gc-emu: hidden user folder
     #endif
     guard let base else { return nil }
     let user = base.appendingPathComponent("User", isDirectory: true)

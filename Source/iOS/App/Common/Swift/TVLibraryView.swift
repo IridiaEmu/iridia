@@ -2297,7 +2297,7 @@ struct TVLibraryView: View {
           }
 
           // Subtitle
-          Text(L("Get started by importing a game or adding a remote source. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z archives are unpacked automatically."))
+          Text(L("Import a game, or copy it into Files → On My iPhone → iCube → Games. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z archives are unpacked automatically."))
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.85))
             .multilineTextAlignment(.center)

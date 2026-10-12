@@ -9,6 +9,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
     // Before anything logs: a JIT debugger's undrained stdio pipe must not block main (ICUBE-AC).
     DebuggerStdio.makeStdioNonBlocking()
+    // gc-emu: move the old Documents layout into the hidden user folder + Documents/Games before
+    // anything reads Dolphin's folders.
+    UserFolderUtil.migrateLegacyLayoutIfNeeded()
     MotionSettings.registerDefaults()
     DSUSettings.registerDefaults()
 

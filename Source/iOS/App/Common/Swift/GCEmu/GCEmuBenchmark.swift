@@ -134,7 +134,8 @@ enum GCEmuBenchmark {
   }
 
   private static func write(_ r: Report, label: String, game: String) {
-    let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    // Hidden user folder (Library/Application Support/Iridia/Benchmarks), not the Files-visible Documents.
+    let dir = URL(fileURLWithPath: UserFolderUtil.getUserFolder(), isDirectory: true)
       .appendingPathComponent("Benchmarks", isDirectory: true)
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let f = DateFormatter()

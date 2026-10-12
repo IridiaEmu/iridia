@@ -132,7 +132,8 @@ public final class PVWebServer: NSObject, @unchecked Sendable {
         #else
         let base = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         #endif
-        return URL(fileURLWithPath: base).appendingPathComponent("Software")
+        // gc-emu: uploads go to Documents/Games, the app's one Files-visible folder (UserFolderUtil).
+        return URL(fileURLWithPath: base).appendingPathComponent("Games")
     }
 
     // MARK: - Public ObjC API (legacy surface)

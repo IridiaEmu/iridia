@@ -195,3 +195,8 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - Verified on device: a .7z and a .zip pushed into Documents/Software were auto-extracted at launch, and the extracted .dol booted.
   - Told the user that RVZ plays without extraction.
   - To do for Phase 5/7: credit PLzmaSDK and LZMA SDK in Acknowledgements.
+- **One obvious game folder (user request):**
+  - Dolphin's user folder moved to `Library/Application Support/Iridia` (hidden from Files). Games go in `Documents/Games`, the only folder Files shows.
+  - `UserFolderUtil.migrateLegacyLayoutIfNeeded()` runs first in AppDelegate. The Wi-Fi upload server now targets Games, and the benchmark/PGO/debug-snapshot folders are hidden. Scripts use `$UDIR`.
+  - Verified on device: Files shows only "Games", the library lists all 12 programs, and neheGX boots.
+  - The hint text now tells users where to put games.

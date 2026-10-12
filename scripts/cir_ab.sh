@@ -4,13 +4,15 @@
 # A/B Dolphin [Core] settings on the device with benchmark mode.
 #   scripts/cir_ab.sh <label> <program-id> <runs> [Key=Value ...]
 # e.g. scripts/cir_ab.sh fprf iridiabench-x16 3 CIRDeadFprfElim=True
-# Sets the keys in Documents/Config/Dolphin.ini [Core], runs <runs> benchmarks
+# Sets the keys in <user folder>/Config/Dolphin.ini [Core], runs <runs> benchmarks
 # (labels "<label>-<program>-<n>"), copies results to benchmarks/raw/, and always
 # restores the original Dolphin.ini afterwards.
 
 set -uo pipefail
 LABEL="$1"; PROG="$2"; RUNS="$3"; shift 3
 BUNDLE="${GCEMU_BUNDLE:-com.yl4f87nwp8.gcemu.iCube}"
+# App user folder inside the container (hidden from Files; see UserFolderUtil.swift).
+UDIR="${GCEMU_USERDIR:-Library/Application Support/Iridia}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/benchmarks/raw"
 WORK="$(mktemp -d)"
@@ -20,8 +22,8 @@ UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9
 [[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
 dc() { xcrun devicectl device copy "$@" --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" >/dev/null 2>&1; }
 
-dc from --source Documents/Config/Dolphin.ini --destination "$WORK/orig.ini" || { echo "can't read Dolphin.ini" >&2; exit 2; }
-restore() { dc to --source "$WORK/orig.ini" --destination Documents/Config/Dolphin.ini; }
+dc from --source "$UDIR/Config/Dolphin.ini" --destination "$WORK/orig.ini" || { echo "can't read Dolphin.ini" >&2; exit 2; }
+restore() { dc to --source "$WORK/orig.ini" --destination "$UDIR/Config/Dolphin.ini"; }
 trap 'restore; rm -rf "$WORK"' EXIT
 
 # Insert/override keys right after the [Core] header.
@@ -45,7 +47,7 @@ if "[Core]" not in (l.strip() for l in lines):
     out += ["[Core]"] + [f"{k} = {v}" for k, v in keys.items()]
 open(dst, "w").write("\n".join(out) + "\n")
 EOF
-dc to --source "$WORK/test.ini" --destination Documents/Config/Dolphin.ini
+dc to --source "$WORK/test.ini" --destination "$UDIR/Config/Dolphin.ini"
 
 for n in $(seq 1 "$RUNS"); do
   xcrun devicectl device process launch --device "$UDID" --terminate-existing \
@@ -55,7 +57,7 @@ for n in $(seq 1 "$RUNS"); do
 done
 
 xcrun devicectl device info files --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" \
-  --subdirectory Documents/Benchmarks 2>/dev/null | grep -oE "$LABEL-$PROG-[0-9]+-[^ ]+\.json" | while read -r f; do
-  dc from --source "Documents/Benchmarks/$f" --destination "$OUT/$f"
+  --subdirectory "$UDIR/Benchmarks" 2>/dev/null | grep -oE "$LABEL-$PROG-[0-9]+-[^ ]+\.json" | while read -r f; do
+  dc from --source "$UDIR/Benchmarks/$f" --destination "$OUT/$f"
 done
 echo "done: $LABEL ($*)"

@@ -19,7 +19,7 @@ final class SettingsSnapshots {
   }
 
   static var defaultDirectory: URL {
-    FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("DebugSnapshots")
+    URL(fileURLWithPath: UserFolderUtil.getUserFolder(), isDirectory: true).appendingPathComponent("DebugSnapshots")
   }
 
   /// Keep only letters/numbers/`-`/`_` so a name can never escape `directory` (e.g.

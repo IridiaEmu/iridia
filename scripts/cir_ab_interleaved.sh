@@ -9,14 +9,16 @@
 set -uo pipefail
 PROG="$1"; ROUNDS="$2"; COOL="$3"; shift 3
 BUNDLE="${GCEMU_BUNDLE:-com.yl4f87nwp8.gcemu.iCube}"
+# App user folder inside the container (hidden from Files; see UserFolderUtil.swift).
+UDIR="${GCEMU_USERDIR:-Library/Application Support/Iridia}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/benchmarks/raw"
 WORK="$(mktemp -d)"
 UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
 [[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
 dc() { xcrun devicectl device copy "$@" --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" >/dev/null 2>&1; }
-dc from --source Documents/Config/Dolphin.ini --destination "$WORK/orig.ini" || { echo "can't read Dolphin.ini" >&2; exit 2; }
-trap 'dc to --source "$WORK/orig.ini" --destination Documents/Config/Dolphin.ini; rm -rf "$WORK"' EXIT
+dc from --source "$UDIR/Config/Dolphin.ini" --destination "$WORK/orig.ini" || { echo "can't read Dolphin.ini" >&2; exit 2; }
+trap 'dc to --source "$WORK/orig.ini" --destination "$UDIR/Config/Dolphin.ini"; rm -rf "$WORK"' EXIT
 
 make_ini() {  # $1 = out file, $2 = comma-separated Key=Value list (may be empty)
   python3 -I - "$WORK/orig.ini" "$1" "$2" <<'EOF'
@@ -44,7 +46,7 @@ for r in $(seq 1 "$ROUNDS"); do
   i=0
   for v in "$@"; do
     label="${v%%:*}"
-    dc to --source "$WORK/v$i.ini" --destination Documents/Config/Dolphin.ini
+    dc to --source "$WORK/v$i.ini" --destination "$UDIR/Config/Dolphin.ini"
     sleep "$COOL"
     xcrun devicectl device process launch --device "$UDID" --terminate-existing \
       --payload-url "dolphinios://play?id=ID-$PROG" "$BUNDLE" \
@@ -56,6 +58,6 @@ for r in $(seq 1 "$ROUNDS"); do
 done
 
 xcrun devicectl device info files --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" \
-  --subdirectory Documents/Benchmarks 2>/dev/null | grep -oE "[A-Za-z0-9]+-$PROG-[0-9]+-[^ ]+\.json" | while read -r f; do
-  [[ -e "$OUT/$f" ]] || dc from --source "Documents/Benchmarks/$f" --destination "$OUT/$f"
+  --subdirectory "$UDIR/Benchmarks" 2>/dev/null | grep -oE "[A-Za-z0-9]+-$PROG-[0-9]+-[^ ]+\.json" | while read -r f; do
+  [[ -e "$OUT/$f" ]] || dc from --source "$UDIR/Benchmarks/$f" --destination "$OUT/$f"
 done

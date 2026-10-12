@@ -12,7 +12,7 @@ Before/after numbers for every performance change. Newest at the bottom.
     --payload-url "dolphinios://play?id=ID-<program>" com.yl4f87nwp8.gcemu.iCube \
     -- -gcemuBench 15 -gcemuBenchWarmup 5 -gcemuBenchLabel <label>
   ```
-  - It writes `Documents/Benchmarks/<label>-….json` and quits; raw files are copied to `benchmarks/raw/`.
+  - It writes `Library/Application Support/Iridia/Benchmarks/<label>-….json` (hidden user folder) and quits; raw files are copied to `benchmarks/raw/`.
   - **3 runs per program**, reported as the mean.
 - **Primary metric: `maxSpeed`.** This is the speed the emulator could reach with the frame limiter off (1.00 = full speed). It measures headroom even when a program already runs at 100%.
 - Secondary: `speed` (actual), FPS, frame-time 1% low (200 Hz frame-time sampling from optimization #1 on; earlier runs sampled at 20 Hz).

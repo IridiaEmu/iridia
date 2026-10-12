@@ -215,7 +215,7 @@ static inline void SetBaseIfUnspecified(const Config::Info<T>& info, const T& va
   // instrumented runtime at <Software>/pgo/icube-%m.profraw — the Software folder is what the
   // in-app web server already serves for download, and %m gives a cross-run merged profile.
   if (ICubePGOAvailable()) {
-    NSString* pgoDir = [[UserFolderUtil getSoftwareFolder] stringByAppendingPathComponent:@"pgo"];
+    NSString* pgoDir = [[UserFolderUtil getUserFolder] stringByAppendingPathComponent:@"pgo"];  // gc-emu: hidden
     NSError* dirErr = nil;
     [[NSFileManager defaultManager] createDirectoryAtPath:pgoDir
                               withIntermediateDirectories:YES

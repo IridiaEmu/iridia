@@ -8,6 +8,8 @@
 set -uo pipefail
 A_APP="$1"; A_LABEL="$2"; B_APP="$3"; B_LABEL="$4"; PROG="$5"; ROUNDS="$6"; COOL="$7"
 BUNDLE="${GCEMU_BUNDLE:-com.yl4f87nwp8.gcemu.iCube}"
+# App user folder inside the container (hidden from Files; see UserFolderUtil.swift).
+UDIR="${GCEMU_USERDIR:-Library/Application Support/Iridia}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
 [[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
@@ -32,7 +34,7 @@ for r in $(seq 1 "$ROUNDS"); do
 done
 
 xcrun devicectl device info files --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" \
-  --subdirectory Documents/Benchmarks 2>/dev/null | grep -oE "($A_LABEL|$B_LABEL)-$PROG-[0-9]+-[^ ]+\.json" | while read -r f; do
+  --subdirectory "$UDIR/Benchmarks" 2>/dev/null | grep -oE "($A_LABEL|$B_LABEL)-$PROG-[0-9]+-[^ ]+\.json" | while read -r f; do
   [[ -e "$ROOT/benchmarks/raw/$f" ]] || xcrun devicectl device copy from --device "$UDID" --domain-type appDataContainer \
-    --domain-identifier "$BUNDLE" --source "Documents/Benchmarks/$f" --destination "$ROOT/benchmarks/raw/$f" >/dev/null 2>&1
+    --domain-identifier "$BUNDLE" --source "$UDIR/Benchmarks/$f" --destination "$ROOT/benchmarks/raw/$f" >/dev/null 2>&1
 done

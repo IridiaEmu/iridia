@@ -475,7 +475,7 @@ struct EmulationScreen: View {
 
           // VBI
           HStack {
-            Toggle("VBI Frequency Override", isOn: Binding(get: { vbiEnabledQuick }, set: { v in
+            Toggle("Frame Rate (VBI) Override", isOn: Binding(get: { vbiEnabledQuick }, set: { v in
               vbiEnabledQuick = v
               DOLConfigBridge.setMainViOverclockEnable(v)
               if v { DOLConfigBridge.setMainViOverclockPercent(vbiPercentQuick) }
@@ -883,7 +883,7 @@ struct EmulationScreen: View {
                     }
 
                     HStack {
-                      Toggle("VBI Frequency Override", isOn: Binding(get: { vbiEnabledQuick }, set: { v in
+                      Toggle("Frame Rate (VBI) Override", isOn: Binding(get: { vbiEnabledQuick }, set: { v in
                         vbiEnabledQuick = v
                         DOLConfigBridge.setMainViOverclockEnable(v)
                         if v { DOLConfigBridge.setMainViOverclockPercent(vbiPercentQuick) }
@@ -908,7 +908,7 @@ struct EmulationScreen: View {
                       Spacer()
                       Slider(value: efbScaleQuickBinding.asDouble, in: 0 ... Double(max(1, efbMaxScaleQuick)), step: 1)
                         .disabled(efbOverride != .none)
-                      Text(efbScaleQuick == 0 ? "Auto" : "\(efbScaleQuick)x").foregroundColor(.white.opacity(0.8)).frame(width: 50, alignment: .trailing)
+                      Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
                     }
                     HStack {
                       Text(L("Anisotropic Filtering"))
@@ -965,7 +965,7 @@ struct EmulationScreen: View {
                   Text("\(ocPercent)%").foregroundColor(.white.opacity(0.8)).frame(width: 52, alignment: .trailing)
                 }
                 HStack {
-                  Toggle("VBI Frequency Override", isOn: Binding(get: { vbiEnabledQuick }, set: { v in
+                  Toggle("Frame Rate (VBI) Override", isOn: Binding(get: { vbiEnabledQuick }, set: { v in
                     vbiEnabledQuick = v
                     DOLConfigBridge.setMainViOverclockEnable(v)
                     if v { DOLConfigBridge.setMainViOverclockPercent(vbiPercentQuick) }
@@ -996,7 +996,7 @@ struct EmulationScreen: View {
                   Spacer()
                   Slider(value: efbScaleQuickBinding.asDouble, in: 0 ... Double(max(1, efbMaxScaleQuick)), step: 1)
                     .disabled(efbOverride != .none)
-                  Text(efbScaleQuick == 0 ? "Auto" : "\(efbScaleQuick)x").foregroundColor(.white.opacity(0.8)).frame(width: 60, alignment: .trailing)
+                  Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
                 }
                 HStack {
                   Text(L("Anisotropic Filtering"))
@@ -1073,7 +1073,11 @@ struct EmulationScreen: View {
         onClose: { showPauseMenu = false },
         onShowSettings: { showSettings = true },
         platform: .ios,
-        game: game
+        game: game,
+        onShowPerformance: {
+          refreshPerfOverlayState()
+          showPerfOverlay = true
+        }
       )
     }
     .fileImporter(isPresented: $showSkyImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
@@ -1536,6 +1540,11 @@ struct EmulationScreen: View {
     isPaused = TVEmulationBridge.isPaused()
   }
   #endif
+
+  /// gc-emu: "3x · 1920×1584" — GameCube native EFB is 640×528.
+  static func irLabel(_ scale: Int) -> String {
+    scale == 0 ? "Auto" : "\(scale)x · \(640 * scale)×\(528 * scale)"
+  }
 
   /// The quick IR control: writes Base only when the player moves it, and turns Auto-IR off for an
   /// explicit scale, since both drive GFX_EFB_SCALE (same rule as the Settings picker, step #6).

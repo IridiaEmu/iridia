@@ -14,6 +14,8 @@ internal struct PauseMenuView: View {
   let onShowSettings: () -> Void
   let platform: PlatformKind
   let game: TVGameItem
+  /// gc-emu: opens the live Performance panel (resolution / frame rate / CPU clock sliders).
+  var onShowPerformance: (() -> Void)? = nil
 
   @FocusState private var focused: FocusField?
   internal enum FocusField: Hashable {
@@ -243,7 +245,9 @@ internal struct PauseMenuView: View {
 
   // Add pull-down to dismiss for iOS
   #if os(iOS)
-  init(selectedSlot: Binding<Int>, onClose: @escaping () -> Void, onShowSettings: @escaping () -> Void, platform: PlatformKind, game: TVGameItem) {
+  init(selectedSlot: Binding<Int>, onClose: @escaping () -> Void, onShowSettings: @escaping () -> Void, platform: PlatformKind, game: TVGameItem,
+       onShowPerformance: (() -> Void)? = nil) {
+    self.onShowPerformance = onShowPerformance
     self._selectedSlot = selectedSlot
     self.onClose = onClose
     self.onShowSettings = onShowSettings
@@ -774,7 +778,8 @@ internal struct PauseMenuView: View {
         PauseArbiter.shared.userResume()
         onClose()
         #endif
-      })
+      },
+      openPerformance: onShowPerformance.map { show in { PauseArbiter.shared.userResume(); onClose(); show() } })
     return PauseMenuModelBuilder.make(state: state, bindings: pauseMenuBindings, actions: actions)
   }
 
@@ -847,6 +852,8 @@ struct PauseMenuActions {
   var requestReset: () -> Void
   var requestExit: () -> Void
   var recenterPointer: () -> Void
+  /// gc-emu: nil hides the Performance tile (hosts without the live panel).
+  var openPerformance: (() -> Void)? = nil
 }
 
 /// Unified menu UX spec §5: Quick / Game / System. Shared by iOS and tvOS.
@@ -904,6 +911,14 @@ enum PauseMenuModelBuilder {
       MenuItem(id: "screenshot", title: L("Screenshot"), icon: "camera", tint: .pink, role: .action(actions.screenshot),
                description: L("Save the last frame to ScreenShots.")),
     ])
+    var quickSection = quick
+    if let openPerformance = actions.openPerformance {
+      // gc-emu: resumes the game and opens the live panel, so changes show while it runs.
+      quickSection.items.insert(
+        MenuItem(id: "performance", title: L("Performance"), icon: "speedometer", tint: .orange, role: .action(openPerformance),
+                 description: L("Live sliders for internal resolution, frame rate and CPU clock.")),
+        at: min(4, quickSection.items.count))
+    }
 
     var game: [MenuItem] = [
       MenuItem(id: "save-states", title: L("Save States"), icon: "square.stack.3d.up", tint: .purple, role: .action(actions.openSaveStates),
@@ -930,7 +945,7 @@ enum PauseMenuModelBuilder {
       MenuItem(id: "exit", title: L("Exit"), icon: "xmark.circle", tint: .red, role: .destructive(actions.requestExit),
                description: L("Return to the library. Unsaved progress is lost.")),
     ])
-    return MenuModel(sections: [quick, MenuSection(id: "game", header: L("Game"), items: game), system])
+    return MenuModel(sections: [quickSection, MenuSection(id: "game", header: L("Game"), items: game), system])
   }
 }
 

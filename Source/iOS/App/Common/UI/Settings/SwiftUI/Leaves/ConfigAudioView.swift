@@ -49,6 +49,7 @@ struct ConfigAudioView: View {
     case .stretchLatencyMs(let v): state.stretchLatencyMs = v; DOLConfigBridge.setAudioStretchLatencyMs(v)
     case .muteOnNoSpeedLimit(let v): state.muteOnNoSpeedLimit = v; DOLConfigBridge.setAudioMuteOnDisabledSpeedLimit(v)
     case .obeyMuteSwitch(let v): state.obeyMuteSwitch = v; DOLConfigBridge.setAudioMuteSwitchObey(v)
+      AudioSessionManager.shared().setSessionCategory()  // gc-emu: apply now, not next launch
     }
   }
 

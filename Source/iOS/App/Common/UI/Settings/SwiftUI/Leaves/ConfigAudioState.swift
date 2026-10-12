@@ -18,7 +18,7 @@ struct ConfigAudioState: Equatable {
   var stretch = false
   var stretchLatencyMs = 30
   var muteOnNoSpeedLimit = false
-  var obeyMuteSwitch = true
+  var obeyMuteSwitch = false
 
   static let avAudioEngine = "AVAudioEngine"
   static let coreAudio = "CoreAudio"

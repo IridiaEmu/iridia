@@ -56,7 +56,10 @@
   AudioMuteSwitchMode mode = (AudioMuteSwitchMode)Config::Get(Config::MAIN_MUTE_SWITCH_MODE);
 
   NSError* error = nil;
-  AVAudioSessionCategoryOptions options = AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionAllowAirPlay;
+  // gc-emu: no options. AllowBluetoothA2DP/AllowAirPlay are only valid with PlayAndRecord; with
+  // Playback/SoloAmbient iOS rejects them (OSStatus -50), and those categories already route to
+  // AirPods, Bluetooth speakers and AirPlay on their own.
+  AVAudioSessionCategoryOptions options = 0;
 
 #if TARGET_OS_TV
   // tvOS uses playback only. The error used to be ignored here with no fallback: if the OS rejects

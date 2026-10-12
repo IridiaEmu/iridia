@@ -39,12 +39,13 @@ bool AVAudioEngineSound::buildAndStartEngine()
   {
     AVAudioSession* session = [AVAudioSession sharedInstance];
     NSError* sessErr = nil;
-    if (session.category != AVAudioSessionCategoryPlayback)
+    // gc-emu: keep the app's category (Playback, or SoloAmbient when the user chose "Mute in
+    // Silent Mode"); only fall back to Playback if the session was never configured. No options:
+    // A2DP/AirPlay options are invalid for Playback (-50) and it routes there anyway.
+    if (session.category != AVAudioSessionCategoryPlayback &&
+        session.category != AVAudioSessionCategorySoloAmbient)
     {
-      [session setCategory:AVAudioSessionCategoryPlayback
-               withOptions:(AVAudioSessionCategoryOptionAllowBluetoothA2DP |
-                            AVAudioSessionCategoryOptionAllowAirPlay)
-                     error:&sessErr];
+      [session setCategory:AVAudioSessionCategoryPlayback error:&sessErr];
     }
     if (![session setActive:YES error:&sessErr] && sessErr)
     {

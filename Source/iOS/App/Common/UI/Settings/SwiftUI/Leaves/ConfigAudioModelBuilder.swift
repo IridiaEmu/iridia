@@ -37,7 +37,7 @@ enum ConfigAudioModelBuilder {
       SettingsRow.toggle("mute-on-no-speed-limit", L("Mute When Disabling Speed Limit"), state.muteOnNoSpeedLimit,
                          L("Silences audio while the speed limit is off (fast-forward), when it would otherwise play sped up."),
                          set: { apply(.muteOnNoSpeedLimit($0)) }),
-      SettingsRow.toggle("obey-mute-switch", L("Use Mute Hardware Switch"), state.obeyMuteSwitch,
+      SettingsRow.toggle("obey-mute-switch", L("Mute in Silent Mode"), state.obeyMuteSwitch,
                          L("Follows the device's silent switch: game audio is muted while it is on."),
                          set: { apply(.obeyMuteSwitch($0)) }),
     ])

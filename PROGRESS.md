@@ -189,3 +189,9 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - Build B was reinstalled on the phone.
 - **PGO adopted:** +3.3% to +4.9% on all three workloads. The profile is stored at `pgo/icube.profdata` (Git LFS). The phone now runs build E (PGO). Metal confirmed over Vulkan (3–6%). The IridiaPerformance package is done (11 tests).
 - **Paused 2026-10-12 (overnight).** The phone runs build E (PGO). Next: the user adds their own Twilight Princess dump; then benchmark, profile and retrain PGO on it; then finish Phase 4 (FPS overlay) and CHECKPOINT 4.
+- **Compressed game import (user request):**
+  - `.zip` already worked.
+  - Restored `.7z`/`.xz` by vendoring PLzmaSDK 1.6.2 (MIT + LZMA SDK public domain, commit 4dbac7ac, trimmed to 3.7 MB) as a local package (`Packages/PLzmaSDK`). PLzmaSDK streams to disk; SWCompression's 7z path decompresses into memory and would crash on a 1.4 GB game.
+  - Verified on device: a .7z and a .zip pushed into Documents/Software were auto-extracted at launch, and the extracted .dol booted.
+  - Told the user that RVZ plays without extraction.
+  - To do for Phase 5/7: credit PLzmaSDK and LZMA SDK in Acknowledgements.

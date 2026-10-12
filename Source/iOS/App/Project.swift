@@ -373,6 +373,7 @@ let iCube = Target.target(
         .package(product: "GCControlsCore", condition: .when([.ios])),  // gc-emu
         .package(product: "GCControlsUI", condition: .when([.ios])),  // gc-emu
         .package(product: "Zip"),
+        .package(product: "PLzmaSDK", condition: .when([.ios])),  // gc-emu: .7z/.xz import (vendored)
         .package(product: "SWCompression"),
         .package(product: "UICollectionViewLeftAlignedLayout"),
         .package(product: "AltKit"),
@@ -736,6 +737,7 @@ let project = Project(
         .local(path: "../PVHelp"),
         .local(path: "../PVLibrarySnapshot"),
         .local(path: "../../../Packages/GCControls"),  // gc-emu: our touch controls + smart mapping
+        .local(path: "../../../Packages/PLzmaSDK"),  // gc-emu: vendored (local), so Xcode 27 allows its unsafeFlags; .7z/.xz import
         // PVSyncRules is declared once above and shared by PVContinuity (WS-4)
         // and PVCloudSync (WS-5); a duplicate .local(path:) fails tuist generate.
         .local(path: "../PVCloudSync"),

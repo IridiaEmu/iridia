@@ -123,7 +123,7 @@ It checks entitlements, imported symbols, defined symbols and strings, the core'
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `package product 'PLzmaSDK-product' cannot be used … unsafe build flags` | Xcode 27 rejects unsafeFlags in remote SwiftPM packages. iCube's CI uses Xcode 26.3. | PLzmaSDK removed from `Project.swift` (commit 4661f1d). We lose `.7z`/`.xz` import; `.zip` still works. |
+| `package product 'PLzmaSDK-product' cannot be used … unsafe build flags` | Xcode 27 rejects unsafeFlags in **remote** SwiftPM packages. iCube's CI uses Xcode 26.3. | PLzmaSDK 1.6.2 is **vendored** as a local package in `Packages/PLzmaSDK` (local packages may use unsafeFlags), so `.7z`/`.xz` import works again. |
 | `cannot execute tool 'metal' due to missing Metal Toolchain` | Xcode 26+ ships the Metal compiler as a separate download | `xcodebuild -downloadComponent MetalToolchain` |
 | App crashes at launch: `Library not loaded: @rpath/MoltenVK.framework … Trying to load an unsigned library` | Built with `CODE_SIGNING_ALLOWED=NO` | Use ad-hoc signing (see step 4) |
 | `Personal development teams … do not support the Extended Virtual Addressing and Increased Debugging Memory Limit capabilities` | Free accounts can't use these entitlements | Generate with `TUIST_GCEMU_FREE_TEAM=1` (step 5) |

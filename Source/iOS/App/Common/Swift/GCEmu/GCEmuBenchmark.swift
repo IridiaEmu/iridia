@@ -10,6 +10,8 @@
 // atomics, so it doesn't perturb the measurement.
 
 import Foundation
+import Darwin
+import os
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -53,6 +55,12 @@ enum GCEmuBenchmark {
     let frameTimeMs: Stats
     let onePercentLowFrameTimeMs: Double
     let frames: Int
+    /// Memory as iOS counts it for the jetsam limit (phys_footprint), MB: at the end of the run and
+    /// the process lifetime peak.
+    let footprintMB: Double
+    let peakFootprintMB: Double
+    /// What iOS says the app can still allocate before it's killed, MB (os_proc_available_memory).
+    let availableMB: Double
     let samples: [Sample]
   }
 
@@ -135,10 +143,24 @@ enum GCEmuBenchmark {
         fps: Stats(samples.map(\.fps)), vps: Stats(samples.map(\.vps)),
         frameTimeMs: Stats(frameTimes),
         onePercentLowFrameTimeMs: slowest.isEmpty ? 0 : slowest.reduce(0, +) / Double(slowest.count),
-        frames: frameTimes.count, samples: samples)
+        frames: frameTimes.count,
+        footprintMB: memory().now, peakFootprintMB: memory().peak,
+        availableMB: Double(os_proc_available_memory()) / 1_048_576,
+        samples: samples)
       write(report, label: label, game: game)
     }
     t.resume()
+  }
+
+  /// phys_footprint now and its lifetime max, in MB.
+  private static func memory() -> (now: Double, peak: Double) {
+    var info = task_vm_info_data_t()
+    var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+    let kr = withUnsafeMutablePointer(to: &info) {
+      $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+    }
+    guard kr == KERN_SUCCESS else { return (0, 0) }
+    return (Double(info.phys_footprint) / 1_048_576, Double(info.ledger_phys_footprint_peak) / 1_048_576)
   }
 
   private static func write(_ r: Report, label: String, game: String) {

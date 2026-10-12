@@ -143,6 +143,22 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 - **Metal stays the default.**
 - Graphics defaults were reviewed and kept (iCube's measured choices): Hybrid Ubershaders (no compile stutter), shaders precompiled before boot, native resolution, skip EFB access, deferred EFB copies, async present.
 
+### 9. Profile-guided optimization (PGO): adopted
+- Fixed the PGO pipeline:
+  - The app build must pass `DOL_PGO=generate`.
+  - compiler-rt's profile runtime is hidden-visibility, so the core now exports `gcemu_pgo_*` wrappers, in instrumented builds only.
+- Training (instrumented core, benchmark mode, one run each): iridiabench x4/x16/x32, gxSprites, neheGX lesson06, triangle, fb-consoletest, modplay. That gave one merged 6.5 MB .profraw, which became `pgo/icube.profdata` (10.5 MB, 1,787 interpreter functions covered). Normal builds use it automatically (`resolve_pgo`).
+- Result (interleaved A/B, 3 rounds each, build B vs PGO build E):
+
+| Program | before | PGO | change |
+|---|---|---|---|
+| iridiabench-x16 | 1.275 | **1.324** | **+3.8%** |
+| gx-gxSprites | 4.634 | **4.788** | **+3.3%** |
+| gx-neheGX-lesson06 | 5.307 | **5.568** | **+4.9%** |
+
+- It gains on the lightly-trained demos as well as the benchmark, so this isn't overfitting.
+- To do: retrain with real games (the user's own dumps) once added. The profile only holds execution counts, no game data. Re-record after large core changes (`Tools/pgo/pgo.sh status`); stale functions are ignored by clang, not miscompiled.
+
 ### Memory loads/stores (`CachedInterpreter::LoadStoreFast`, ~17% of the CPU thread): reviewed, no change
 - Already a direct path: one `s_logical_pages[ea >> BAT_INDEX_SHIFT]` table load, an alignment check, a byte swap, and a `musttail` to the cold path. No cheap win without architectural changes (e.g. a fastmem-style host mapping).
 

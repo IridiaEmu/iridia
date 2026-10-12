@@ -187,3 +187,4 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - Attempt 2: the core was instrumented, but `___llvm_profile_write_file` / `___llvm_profile_set_filename` are linked "non-external (was a private external)", not exported. So `ICubePGOAvailable()` (dlsym) returns 0, no profile path is set, and nothing is written.
   - Proposed fix: export those two symbols in DOL_PGO=generate builds (`-Wl,-exported_symbol,…` in BuildiOSXCFramework.py, next to the existing `-u` flags). Awaiting the user's OK.
   - Build B was reinstalled on the phone.
+- **PGO adopted:** +3.3% to +4.9% on all three workloads. The profile is stored at `pgo/icube.profdata` (Git LFS). The phone now runs build E (PGO). Metal confirmed over Vulkan (3–6%). The IridiaPerformance package is done (11 tests).

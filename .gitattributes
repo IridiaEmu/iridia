@@ -1,1 +1,2 @@
 *.sln text eol=crlf
+pgo/*.profdata filter=lfs diff=lfs merge=lfs -text

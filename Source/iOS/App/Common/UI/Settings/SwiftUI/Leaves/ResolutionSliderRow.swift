@@ -61,3 +61,27 @@ struct StatsOverlayToggleRow: View {
     Toggle(L("Show FPS & Speed"), isOn: $enabled)
   }
 }
+
+#if os(iOS)
+import IridiaPerformance
+
+/// gc-emu: Settings > Video > Power Mode. Applies the device tier's profile for the chosen mode
+/// (resolution, shader mode, texture filtering); the Resolution slider can still fine-tune after.
+struct PowerModeRow: View {
+  @State private var mode = IridiaPresets.mode
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Picker(L("Power Mode"), selection: $mode) {
+        ForEach(PowerMode.allCases, id: \.self) { m in Text(L(m.displayName)).tag(m) }
+      }
+      .pickerStyle(.segmented)
+      .onChange(of: mode) { _, m in IridiaPresets.apply(mode: m) }
+      Text(String(format: L("This %@ is in the %@ tier."), IridiaPresets.device.chip.description, L(IridiaPresets.device.tier.displayName)))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+    .padding(.vertical, 4)
+  }
+}
+#endif

@@ -12,6 +12,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // gc-emu: move the old Documents layout into the hidden user folder + Documents/Games before
     // anything reads Dolphin's folders.
     UserFolderUtil.migrateLegacyLayoutIfNeeded()
+    #if os(iOS)
+    IridiaPresets.noteLaunch()  // gc-emu: before the core writes its config
+    #endif
     // gc-emu: games reopen where you left off (an automatic save state) instead of at the title screen.
     UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true])
     MotionSettings.registerDefaults()

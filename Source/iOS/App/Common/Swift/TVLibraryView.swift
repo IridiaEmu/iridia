@@ -802,6 +802,11 @@ struct TVLibraryView: View {
         libraryView
       }
     }
+    .onAppear {
+#if os(iOS)
+      IridiaPresets.applyFirstRunIfNeeded()  // gc-emu: per-device defaults on a fresh install
+#endif
+    }
     .task {
 #if canImport(TipKit)
       if #available(iOS 17, tvOS 17, *), !didReloadOnce {

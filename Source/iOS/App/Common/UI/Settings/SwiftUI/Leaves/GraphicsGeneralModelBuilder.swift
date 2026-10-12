@@ -48,7 +48,12 @@ enum GraphicsGeneralModelBuilder {
               set: { apply(.frameCap($0)) }))
     }
     // gc-emu: the two settings most people want, up top; everything else is under Advanced.
-    let picture = MenuSection(id: "picture", header: L("Picture"), items: [
+    var pictureRows: [MenuItem] = []
+    #if os(iOS)
+    pictureRows.append(SettingsRow.custom("power-mode", L("Power Mode"), AnyView(PowerModeRow()),
+             L("Battery Saver runs cooler; Max Performance favours speed; Balanced suits this device.")))
+    #endif
+    let picture = MenuSection(id: "picture", header: L("Picture"), items: pictureRows + [
       SettingsRow.custom("resolution", L("Resolution"), AnyView(ResolutionSliderRow()),
              L("1x is the original GameCube picture. Higher is sharper but uses more battery and heat.")),
       SettingsRow.cycle("aspect-ratio", L("Aspect Ratio"), AspectRatio.allCases.map { ($0.label, $0) }, state.aspect,

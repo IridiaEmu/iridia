@@ -325,6 +325,7 @@ let iCube = Target.target(
         // Display face for chrome (design spec §1). Flat in the bundle so UIAppFonts names resolve.
         "Common/Resources/Fonts/*.ttf",
         "Common/Resources/Fonts/OFL.txt",
+        "Common/Resources/Sounds/*.wav",   // gc-emu: Iridia UI sounds (Tools/branding/make_sounds.swift)
         // These are iOS UIKit xibs/storyboards (touch controller, boot notices, JIT-wait) with an
         // iPhone/iPad-only targeted device family — ibtool rejects them for tvOS ("iOS xibs do not
         // support target device type tv"). tvOS uses the SwiftUI UI, not these, so include them on

@@ -15,6 +15,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // gc-emu: games reopen where you left off (an automatic save state) instead of at the title screen.
     UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true])
     MotionSettings.registerDefaults()
+    #if os(iOS)
+    IridiaSound.preload()
+    #endif
     DSUSettings.registerDefaults()
 
     // Start Sentry as early as possible so it captures crashes during app launch. Configuration

@@ -103,3 +103,8 @@ _Added 2026-10-11 at the user's request, as part of the controller work._
   - Each physical button is shown by the system's GameController glyph (`sfSymbolsName`) and labeled with its GameCube function.
   - Tap to remap; "Reset to smart defaults."
 - **Fast path:** profiles compile to a flat `[GCTarget]` table indexed by element. The controller handler queue reads a fixed-size array snapshot, with no dictionaries or allocations per event.
+
+
+## Phase 5 decisions (2026-10-12)
+- Direction **A · Glass Shelf** (glassier, more 3D). The cube is a real 3D model (no generated art).
+- **No music.** Interface sounds only (original, synthesised; on/off in Settings → Audio; follow the silent switch).

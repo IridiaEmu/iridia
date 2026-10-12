@@ -40,9 +40,19 @@ enum ConfigAudioModelBuilder {
       SettingsRow.toggle("obey-mute-switch", L("Mute in Silent Mode"), state.obeyMuteSwitch,
                          L("Follows the device's silent switch: game audio is muted while it is on."),
                          set: { apply(.obeyMuteSwitch($0)) }),
-    ])
+    ] + interfaceSoundsRows)
 
     return MenuModel(sections: [backend] + effectsSections(state) + [volume, stretching, misc])
+  }
+
+  /// gc-emu: Iridia's menu sounds (taps, chimes). iOS only; they follow the silent switch.
+  private static var interfaceSoundsRows: [MenuItem] {
+    #if os(iOS)
+    return [SettingsRow.custom("interface-sounds", L("Interface Sounds"), AnyView(InterfaceSoundsToggle()),
+                               L("Soft glass taps and chimes in the menus. They follow the silent switch; game audio doesn't."))]
+    #else
+    return []
+    #endif
   }
 
   /// The effects editors the current backend supports. The old screen had them on iOS only.
@@ -66,3 +76,13 @@ enum ConfigAudioModelBuilder {
 
   private static func milliseconds(_ value: Double) -> String { String(format: L("%1$ld ms"), Int(value)) }
 }
+
+#if os(iOS)
+private struct InterfaceSoundsToggle: View {
+  @AppStorage(IridiaSound.defaultsKey) private var enabled = true
+  var body: some View {
+    Toggle(L("Interface Sounds"), isOn: $enabled)
+      .onChange(of: enabled) { _, on in if on { IridiaSound.press.play() } }
+  }
+}
+#endif

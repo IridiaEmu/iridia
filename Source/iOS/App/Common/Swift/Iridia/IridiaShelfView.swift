@@ -73,6 +73,12 @@ struct IridiaShelfView: View {
 
   @State private var centred: String?
 
+  /// Every launch from the shelf goes through here: sparkle, then hand over.
+  private func play(_ item: TVGameItem, fresh: Bool) {
+    IridiaSound.launch.play()
+    onPlay(item, fresh)
+  }
+
   private var ordered: [TVGameItem] {
     let played = LastPlayedStore.all()
     return games.sorted {
@@ -157,13 +163,13 @@ struct IridiaShelfView: View {
             }
             .onTapGesture {
               if item.filePath == current?.filePath {
-                onPlay(item, false)
+                play(item, fresh: false)
               } else {
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = item.filePath }
               }
             }
             .contextMenu {
-              Button { onPlay(item, true) } label: { Label(L("Start at Title Screen"), systemImage: "arrow.counterclockwise") }
+              Button { play(item, fresh: true) } label: { Label(L("Start at Title Screen"), systemImage: "arrow.counterclockwise") }
               Button { onSaves(item) } label: { Label(L("Save States"), systemImage: "square.stack.3d.up") }
               Button { onProperties(item) } label: { Label(L("Properties"), systemImage: "info.circle") }
               Button(role: .destructive) { onDelete(item) } label: { Label(L("Delete"), systemImage: "trash") }
@@ -177,6 +183,7 @@ struct IridiaShelfView: View {
     .scrollPosition(id: $centred, anchor: .center)
     .safeAreaPadding(.horizontal, 88)
     .sensoryFeedback(.selection, trigger: centred)
+    .onChange(of: centred) { old, new in if old != nil, new != nil { IridiaSound.tick.play() } }
   }
 
   // MARK: Details + actions
@@ -195,7 +202,7 @@ struct IridiaShelfView: View {
           .foregroundStyle(IridiaGlass.soft)
         HStack(spacing: 12) {
           let resumable = Self.hasResumePoint(item)
-          Button { onPlay(item, false) } label: {
+          Button { play(item, fresh: false) } label: {
             Label(resumable ? L("Continue") : L("Play"), systemImage: "play.fill")
               .font(.system(size: 18, weight: .bold))
               .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
@@ -204,7 +211,7 @@ struct IridiaShelfView: View {
           }
           .buttonStyle(SpringPressStyle())
           if resumable {
-            Button { onPlay(item, true) } label: {
+            Button { play(item, fresh: true) } label: {
               Text(L("Title Screen"))
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
@@ -339,6 +346,8 @@ struct SpringPressStyle: ButtonStyle {
     configuration.label
       .scaleEffect(configuration.isPressed ? 0.94 : 1)
       .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
+      .onChange(of: configuration.isPressed) { _, pressed in if pressed { IridiaSound.press.play() } }
+      .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in pressed }
   }
 }
 #endif

@@ -132,6 +132,17 @@ Thread split: CPU thread 47%, Video thread 23%, workqueues 18.5%, audio 6%, Core
 - Result (interleaved A/B, 3 rounds, iridiabench-x16): 1.265 → 1.269, **+0.3%, within noise**.
 - Not adopted: no measurable gain, and the build is much slower. ThinLTO stays the default.
 
+### 8. Graphics API: Metal (direct) vs Vulkan (MoltenVK)
+- Interleaved A/B via `GFXBackend` in Dolphin.ini (3 rounds each):
+
+| Program | Metal | Vulkan | Vulkan vs Metal |
+|---|---|---|---|
+| gx-gxSprites | **4.707** (0.6%) | 4.411 (0.7%) | **−6.3%** |
+| gx-neheGX-lesson06 | **5.317** (1.2%) | 5.139 (3.4%) | **−3.3%** |
+
+- **Metal stays the default.**
+- Graphics defaults were reviewed and kept (iCube's measured choices): Hybrid Ubershaders (no compile stutter), shaders precompiled before boot, native resolution, skip EFB access, deferred EFB copies, async present.
+
 ### Memory loads/stores (`CachedInterpreter::LoadStoreFast`, ~17% of the CPU thread): reviewed, no change
 - Already a direct path: one `s_logical_pages[ea >> BAT_INDEX_SHIFT]` table load, an alignment check, a byte swap, and a `musttail` to the cold path. No cheap win without architectural changes (e.g. a fastmem-style host mapping).
 

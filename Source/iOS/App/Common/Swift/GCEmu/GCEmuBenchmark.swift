@@ -146,7 +146,11 @@ enum GCEmuBenchmark {
     enc.dateEncodingStrategy = .iso8601
     if let data = try? enc.encode(r) { try? data.write(to: url, options: .atomic) }
     NSLog("[GCEmuBench] wrote %@ (speed mean %.3f, maxSpeed mean %.3f)", url.lastPathComponent, r.speed.mean, r.maxSpeed.mean)
-    // Bench runs are scripted: quit so the next run starts clean.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { exit(0) }
+    // Bench runs are scripted: quit so the next run starts clean. Flush PGO counters first
+    // (no-op unless the core is a DOL_PGO=generate build), so training runs always land on disk.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      _ = ICubePGOFlush()
+      exit(0)
+    }
   }
 }

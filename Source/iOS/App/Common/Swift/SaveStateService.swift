@@ -237,10 +237,16 @@ public enum SaveStateService {
 
     case .skipOnce:
       skipResumeOnce = false
+      resumeChoiceForNextBoot = nil
       return false
 
     case .loadAuto(let path):
       #if os(iOS)
+      if let choice = resumeChoiceForNextBoot {
+        resumeChoiceForNextBoot = nil
+        if choice { loadResumeState(path) }
+        return choice
+      }
       // gc-emu: ask first. The game is already booting normally, so "Title Screen" just lets it
       // carry on (to load an in-game save); "Continue" loads the resume state. EmulationScreen
       // shows the prompt and calls answerResumePrompt(continue:).
@@ -256,6 +262,7 @@ public enum SaveStateService {
       // Matches the old behavior of clearing a requested-but-missing state
       // path unconditionally; a no-op when it was already nil.
       pendingBootStatePath = nil
+      resumeChoiceForNextBoot = nil
       return false
     }
   }
@@ -266,6 +273,10 @@ public enum SaveStateService {
 
   /// The resume state waiting on the player's choice, or nil when there's nothing to ask.
   static var pendingResumePromptPath: String?
+
+  /// Set by a launch that already chose (the shelf's Continue button): true loads the resume point
+  /// without asking. Consumed by the next boot.
+  static var resumeChoiceForNextBoot: Bool?
 
   /// Continue = load the resume state; Title Screen = leave the fresh boot running.
   static func answerResumePrompt(continue shouldContinue: Bool) {

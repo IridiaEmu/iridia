@@ -1953,18 +1953,29 @@ struct TVLibraryView: View {
 #endif
 #if os(iOS) || targetEnvironment(macCatalyst)
     // iOS Document Pickers
-      .sheet(isPresented: $showImportSoftwarePicker) {
-        NavigationStack {
-          DocumentPickerView(
-            contentTypes: DocumentPickerView.softwareContentTypes,
-            allowsMultipleSelection: true,
-            onPick: { urls in
-              ImportFileManager.shared().importFiles(at: urls as [NSURL])
-            }
-          )
-          .navigationTitle(L("Import Game"))
+      // gc-emu: Apple's picker presented natively by .fileImporter (it was wrapped in a NavigationStack
+      // inside a sheet) and open to every file, not a filter of custom game UTTypes. Both made the
+      // picker's Recents spin forever and hide games. The type is checked after picking instead.
+      // On its own background view because this view already has a .fileImporter (Skylanders).
+      .background {
+        Color.clear.fileImporter(
+          isPresented: $showImportSoftwarePicker,
+          allowedContentTypes: [.data],
+          allowsMultipleSelection: true
+        ) { result in
+          guard case .success(let urls) = result, !urls.isEmpty else { return }
+          let supported = urls.filter { ImportableFileTypes.isImportableFile($0) }
+          let rejected = urls.filter { !ImportableFileTypes.isImportableFile($0) }
+          if !rejected.isEmpty {
+            let names = rejected.map(\.lastPathComponent).joined(separator: ", ")
+            NotificationCenter.default.post(
+              name: NSNotification.Name("DOLShowSnackbar"), object: nil,
+              userInfo: ["text": String(format: L("%@ isn't a game file. Use ISO, RVZ, GCM, CISO, ZIP or 7Z."), names)])
+          }
+          if !supported.isEmpty {
+            ImportFileManager.shared().importFiles(at: supported as [NSURL])
+          }
         }
-        .claimsController()
       }
       .sheet(isPresented: $showImportNANDPicker) {
         NavigationStack {

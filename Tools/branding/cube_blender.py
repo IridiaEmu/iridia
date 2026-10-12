@@ -102,7 +102,7 @@ glass = bpy.data.materials.new("IridiaGlass")
 glass.use_nodes = True
 nt = glass.node_tree
 p = nt.nodes["Principled BSDF"]
-set_input(p, "Base Color", (0.80, 0.74, 1.0, 1))   # faint lavender tint
+set_input(p, "Base Color", (0.74, 0.68, 1.0, 1))   # faint lavender tint
 set_input(p, "Roughness", 0.0)
 set_input(p, "IOR", 1.52)
 set_input(p, ["Transmission Weight", "Transmission"], 1.0)
@@ -126,8 +126,8 @@ floor.name = "Floor"
 fm = bpy.data.materials.new("Floor")
 fm.use_nodes = True
 fp = fm.node_tree.nodes["Principled BSDF"]
-set_input(fp, "Base Color", (INDIGO[0] * 0.9, INDIGO[1] * 0.9, INDIGO[2] * 0.9, 1))
-set_input(fp, "Roughness", 0.22)
+set_input(fp, "Base Color", (INDIGO[0] * 0.28, INDIGO[1] * 0.28, INDIGO[2] * 0.28, 1))
+set_input(fp, "Roughness", 0.55)
 set_input(fp, ["Specular IOR Level", "Specular"], 0.3)
 floor.data.materials.append(fm)
 try:
@@ -150,33 +150,20 @@ def area(name, loc, rot, size_xy, energy, color):
         l.data.is_caustics_light = True
     except AttributeError:
         pass
+    # Seen THROUGH the glass a softbox reads as a glowing core, so lights don't show in
+    # transmission; they still reflect off the surfaces (the highlights we want).
+    l.visible_transmission = False
+    l.visible_camera = False
     return l
 
 # Key softbox top-left (the big white reflection on the top face and left edges).
-area("Key", (-2.2, -1.2, 3.4), (math.radians(35), math.radians(-30), math.radians(-25)), (2.4, 1.0), 650, (1.0, 0.98, 1.0))
+area("Key", (-3.2, -2.0, 4.6), (math.radians(40), math.radians(-32), math.radians(-30)), (5.0, 3.0), 420, (1.0, 0.98, 1.0))
 # Cool rim from behind-right (cyan edge line).
-area("Rim", (2.4, 2.2, 1.6), (math.radians(70), math.radians(35), math.radians(135)), (0.5, 2.0), 420, (0.65, 0.85, 1.0))
+area("Rim", (3.0, 2.8, 2.2), (math.radians(70), math.radians(35), math.radians(135)), (1.2, 3.0), 260, (0.65, 0.85, 1.0))
 # Warm low fill (pink glints on the lower bevels).
-area("Fill", (-1.8, 2.4, 0.6), (math.radians(80), 0, math.radians(-140)), (1.6, 0.4), 160, (1.0, 0.7, 0.9))
+area("Fill", (-2.6, 3.2, 1.2), (math.radians(80), 0, math.radians(-140)), (3.0, 1.0), 140, (1.0, 0.75, 0.92))
 
-# A hard spot from the upper left: refracted through the glass it throws the rainbow caustic
-# onto the floor to the lower right.
-bpy.ops.object.light_add(type="SPOT", location=(-3.0, -2.6, 3.8))
-spot = bpy.context.active_object
-spot.data.energy = 4200
-spot.data.spot_size = math.radians(22)
-spot.data.spot_blend = 0.3
-spot.data.shadow_soft_size = 0.02
-spot.data.color = (1.0, 0.97, 1.0)
-try:
-    spot.data.is_caustics_light = True
-except AttributeError:
-    pass
-direction = (0 - spot.location.x, 0 - spot.location.y, 0.5 - spot.location.z)
-spot.rotation_euler = (0, 0, 0)
-spot.rotation_mode = "QUATERNION"
 from mathutils import Vector  # noqa: E402
-spot.rotation_quaternion = Vector(direction).to_track_quat("-Z", "Y")
 
 # ---------------------------------------------------------------- camera
 bpy.ops.object.camera_add(location=(2.55, -2.85, 2.35))

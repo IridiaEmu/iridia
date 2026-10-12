@@ -188,3 +188,4 @@ The user saw iCube asking for JIT/StikDebug. The goal is an App Store build with
   - Proposed fix: export those two symbols in DOL_PGO=generate builds (`-Wl,-exported_symbol,…` in BuildiOSXCFramework.py, next to the existing `-u` flags). Awaiting the user's OK.
   - Build B was reinstalled on the phone.
 - **PGO adopted:** +3.3% to +4.9% on all three workloads. The profile is stored at `pgo/icube.profdata` (Git LFS). The phone now runs build E (PGO). Metal confirmed over Vulkan (3–6%). The IridiaPerformance package is done (11 tests).
+- **Paused 2026-10-12 (overnight).** The phone runs build E (PGO). Next: the user adds their own Twilight Princess dump; then benchmark, profile and retrain PGO on it; then finish Phase 4 (FPS overlay) and CHECKPOINT 4.

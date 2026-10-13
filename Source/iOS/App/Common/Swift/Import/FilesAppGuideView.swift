@@ -21,8 +21,9 @@ enum FilesAppNames {
 }
 
 #if os(iOS)
-/// gc-emu: step-by-step guide for adding a game with the Files app. It's the fallback for when
-/// Apple's import picker gets stuck on "Loading" (its Recents tab depends on iOS's search index).
+/// gc-emu: step-by-step guide for adding a game with the Files app. Offered from the shelf's "+"
+/// menu, and as the fallback when Apple's import picker gets stuck on "Loading" (its Recents tab
+/// depends on iOS's search index).
 struct FilesAppGuideView: View {
   @Environment(\.dismiss) private var dismiss
 
@@ -42,37 +43,76 @@ struct FilesAppGuideView: View {
 
   var body: some View {
     NavigationStack {
-      List {
-        Section {
-          Text(L("If the import screen keeps showing \"Loading\", you can add games with the Files app instead."))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-        Section(L("Steps")) {
-          ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-              Text("\(index + 1)")
-                .font(.headline.monospacedDigit())
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(Color.accentColor.opacity(0.2)))
-              Label(step.text, systemImage: step.icon)
+      ScrollView {
+        VStack(alignment: .leading, spacing: 22) {
+          Text(String(format: L("Move a game into %@'s Games folder with Apple's Files app. It's the easiest way to add big games, or several at once."), FilesAppNames.appFolder))
+            .font(.system(size: 16))
+            .foregroundStyle(IridiaGlass.soft)
+            .fixedSize(horizontal: false, vertical: true)
+
+          VStack(alignment: .leading, spacing: 10) {
+            IridiaSectionLabel(text: L("Steps"))
+            VStack(alignment: .leading, spacing: 0) {
+              ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                HStack(alignment: .top, spacing: 14) {
+                  Text("\(index + 1)")
+                    .font(.system(size: 15, weight: .bold).monospacedDigit())
+                    .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(LinearGradient(colors: [Color(red: 0.84, green: 0.80, blue: 1.0), IridiaGlass.violet],
+                                                              startPoint: .top, endPoint: .bottom)))
+                  VStack(alignment: .leading, spacing: 4) {
+                    Text(step.text)
+                      .font(.system(size: 16))
+                      .foregroundStyle(IridiaGlass.ink)
+                      .fixedSize(horizontal: false, vertical: true)
+                  }
+                  Spacer(minLength: 8)
+                  Image(systemName: step.icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(IridiaGlass.accent)
+                    .frame(width: 26)
+                }
+                .padding(.vertical, 12)
+                if index < steps.count - 1 { Divider().overlay(Color.white.opacity(0.10)) }
+              }
             }
-            .padding(.vertical, 2)
+            .iridiaPanel()
           }
-        }
-        Section {
-          Text(L("ISO, RVZ, GCM and CISO files work. ZIP and 7Z archives are unpacked automatically; a big one can take a minute or two."))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+
+          VStack(alignment: .leading, spacing: 10) {
+            IridiaSectionLabel(text: L("Where games go"))
+            VStack(alignment: .leading, spacing: 8) {
+              Text(FilesAppNames.gamesPath)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(IridiaGlass.ink)
+              Text(L("ISO, RVZ, GCM and CISO files work. ZIP and 7Z archives are unpacked automatically; a big one can take a minute or two."))
+                .font(.footnote)
+                .foregroundStyle(IridiaGlass.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .iridiaPanel()
+          }
+
           Button {
             if let url = URL(string: "shareddocuments://" + Self.gamesFolderURLPath) {
               UIApplication.shared.open(url)
             }
           } label: {
             Label(L("Open the Files App"), systemImage: "arrow.up.forward.app")
+              .font(.system(size: 17, weight: .semibold))
+              .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+              .frame(maxWidth: .infinity)
+              .frame(height: 52)
+              .glassSurface(radius: 26, prominent: true)
           }
+          .buttonStyle(.plain)
         }
+        .padding(20)
+        .frame(maxWidth: 640)
+        .frame(maxWidth: .infinity)
       }
+      .iridiaScreen()
       .navigationTitle(L("Add Games with Files"))
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -81,6 +121,7 @@ struct FilesAppGuideView: View {
         }
       }
     }
+    .preferredColorScheme(.dark)
   }
 
   /// Opens Files directly in this app's Games folder.

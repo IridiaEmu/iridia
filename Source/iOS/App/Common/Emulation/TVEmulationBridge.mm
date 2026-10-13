@@ -87,6 +87,23 @@ static bool StateOperationAllowed(Core::System& system, const char* operation)
 
 @implementation TVEmulationBridge
 
+// gc-emu: the Continue card's picture (GZ2E01.auto.png), as SaveStateService does for slots. Save & Exit
+// comes from the pause menu, which grabbed the frozen frame into the pause preview when it opened; use it
+// unless a newer thumbnail is already there. Then ask for a live frame in case one is still presented.
++ (void)writeAutoThumbnailForStateAtPath:(NSString*)statePath {
+  NSFileManager* fm = [NSFileManager defaultManager];
+  NSString* thumb = [statePath stringByAppendingPathExtension:@"png"];
+  NSString* preview = [NSTemporaryDirectory() stringByAppendingPathComponent:@"icube_pause_preview.png"];
+  NSDate* previewDate = [[fm attributesOfItemAtPath:preview error:nil] fileModificationDate];
+  NSDate* thumbDate = [[fm attributesOfItemAtPath:thumb error:nil] fileModificationDate];
+  if (previewDate && -[previewDate timeIntervalSinceNow] < 600 &&
+      (!thumbDate || [thumbDate compare:previewDate] == NSOrderedAscending)) {
+    [fm removeItemAtPath:thumb error:nil];
+    [fm copyItemAtPath:preview toPath:thumb error:nil];
+  }
+  [self captureScreenshotToPath:thumb];
+}
+
 + (void)runWithBootParameter:(EmulationBootParameter*)param {
   [[EmulationCoordinator shared] runEmulationWithBootParameter:param];
 }
@@ -101,6 +118,7 @@ static bool StateOperationAllowed(Core::System& system, const char* operation)
       [[NSUserDefaults standardUserDefaults] doubleForKey:@"gcemuBench"] <= 0) {
     NSString* autoPath = [self autoStateFilePath];
     if (autoPath.length > 0 && StateOperationAllowed(Core::System::GetInstance(), "auto-state save")) {
+      [self writeAutoThumbnailForStateAtPath:autoPath];
       State::SaveAs(Core::System::GetInstance(), std::string(autoPath.UTF8String));  // 2603: no wait flag
     }
   }

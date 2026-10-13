@@ -65,6 +65,8 @@ struct IridiaShelfView: View {
   /// Launch. `fresh` = start at the title screen (skip the resume point).
   let onPlay: (TVGameItem, _ fresh: Bool) -> Void
   let onImport: () -> Void
+  /// The step-by-step guide for adding games with the Files app.
+  let onFilesGuide: () -> Void
   let onSettings: () -> Void
   let onSaves: (TVGameItem) -> Void
   let onControllers: () -> Void
@@ -143,9 +145,10 @@ struct IridiaShelfView: View {
       installControllerNavigation()
       // Test hook for UI checks on device: -gcemuOpenSettings YES opens Settings at launch.
       if UserDefaults.standard.bool(forKey: "gcemuOpenSettings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onSettings() } }
-      // -iridiaOpen saves|controllers|properties opens that screen for the centred game.
+      // -iridiaOpen saves|controllers|properties|filesguide opens that screen (the first three for the centred game).
       if let screen = UserDefaults.standard.string(forKey: "iridiaOpen") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          if screen == "filesguide" { onFilesGuide(); return }
           guard let item = current else { return }
           switch screen {
           case "saves": onSaves(item)
@@ -247,7 +250,18 @@ struct IridiaShelfView: View {
         .buttonStyle(SpringPressStyle())
       }
       glassIconButton("square.grid.2x2", label: L("Grid view"), action: onShowGrid)
-      glassIconButton("plus", label: L("Add a game"), action: onImport)
+      // Two ways in: pick a file now, or learn the Files app route (better for big games).
+      Menu {
+        Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
+        Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
+      } label: {
+        Image(systemName: "plus")
+          .font(.system(size: 17, weight: .semibold))
+          .foregroundStyle(.white)
+          .frame(width: 44, height: 44)
+          .glassSurface(radius: 22)
+      }
+      .accessibilityLabel(L("Add a game"))
       glassIconButton("slider.horizontal.3", label: L("Settings"), action: onSettings)
     }
     .padding(.horizontal, 20)

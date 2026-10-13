@@ -91,9 +91,15 @@ final class FreePlaySession: ObservableObject {
     ticker = nil
     ended = true
     // Keep the player's progress: resume point now; the memory card is written when the game stops.
-    SaveStateService.saveAutoStateNow()
-    pauseToken = PauseArbiter.shared.claim("free-play-session")
-    showUnlock = true
+    // Grab the Continue picture while the game is still drawing, then save and pause a moment later.
+    SaveStateService.captureAutoThumbnail(live: true)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
+      // Left the game or bought it in the meantime: the stop path saves, nothing to show.
+      guard ended, TVEmulationBridge.isRunning() else { return }
+      SaveStateService.saveAutoStateNow()
+      pauseToken = PauseArbiter.shared.claim("free-play-session")
+      showUnlock = true
+    }
   }
 
   private func releasePause() {

@@ -73,12 +73,28 @@ public enum SaveStateService {
     TVEmulationBridge.captureScreenshot(toPath: thumbURL.path)
   }
 
-  private static func adoptPausePreviewIfFresh(into thumbURL: URL) {
+  /// gc-emu: the resume ("Continue") save gets a thumbnail too: GZ2E01.auto -> GZ2E01.auto.png.
+  /// Same two sources as a slot save: the pause preview (Save & Exit comes from the pause menu,
+  /// where the game has been frozen since the preview was taken), then a live frame if one is
+  /// still being presented. Best-effort, like slot thumbnails.
+  /// `live` also asks for the next presented frame; only useful while the game is still running
+  /// (a request made while paused would fire on resume, with a later frame).
+  static func captureAutoThumbnail(live: Bool) {
+    guard let url = autoStateURL else { return }
+    let thumbURL = url.appendingPathExtension("png")
+    adoptPausePreviewIfFresh(into: thumbURL, maxAge: 600)
+    if live { TVEmulationBridge.captureScreenshot(toPath: thumbURL.path) }
+  }
+
+  private static func adoptPausePreviewIfFresh(into thumbURL: URL, maxAge: TimeInterval = 60) {
     let fm = FileManager.default
     let preview = pausePreviewURL
     guard let attrs = try? fm.attributesOfItem(atPath: preview.path),
           let modified = attrs[.modificationDate] as? Date,
-          Date().timeIntervalSince(modified) < 60 else { return }
+          Date().timeIntervalSince(modified) < maxAge else { return }
+    // Never replace a newer thumbnail (e.g. a live frame grabbed as the app left the foreground).
+    if let existing = (try? fm.attributesOfItem(atPath: thumbURL.path))?[.modificationDate] as? Date,
+       existing >= modified { return }
     try? fm.removeItem(at: thumbURL)
     try? fm.copyItem(at: preview, to: thumbURL)
   }
@@ -110,6 +126,7 @@ public enum SaveStateService {
   /// because iOS may end a backgrounded app (or the user swipes it away) without +stop ever running.
   static func saveAutoStateNow() {
     guard resumeEnabled, TVEmulationBridge.isStateOperationAllowed(), let url = autoStateURL else { return }
+    captureAutoThumbnail(live: false)   // live frames were requested earlier (resign-active, session end)
     TVEmulationBridge.saveState(toPath: url.path, wait: true)
     NSLog("[Resume] saved %@ (app backgrounded)", url.lastPathComponent)
   }
@@ -309,6 +326,17 @@ public enum SaveStateService {
   }()
 
   #if os(iOS)
+  /// gc-emu: frames stop once the app is in the background, so grab the Continue thumbnail while
+  /// the game is still presenting (resign-active comes first).
+  private static let willResignActiveObserverToken: NSObjectProtocol = {
+    NotificationCenter.default.addObserver(
+      forName: UIApplication.willResignActiveNotification, object: nil, queue: .main
+    ) { _ in
+      guard resumeEnabled, TVEmulationBridge.isRunning(), let url = autoStateURL else { return }
+      TVEmulationBridge.captureScreenshot(toPath: url.appendingPathExtension("png").path)
+    }
+  }()
+
   private static let didEnterBackgroundObserverToken: NSObjectProtocol = {
     NotificationCenter.default.addObserver(
       forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
@@ -330,6 +358,7 @@ public enum SaveStateService {
     _ = didStartObserverToken
     #if os(iOS)
     _ = didEnterBackgroundObserverToken
+    _ = willResignActiveObserverToken
     #endif
   }
 }

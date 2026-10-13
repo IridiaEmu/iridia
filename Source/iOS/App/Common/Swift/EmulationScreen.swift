@@ -1614,6 +1614,11 @@ struct EmulationScreen: View {
   /// gc-emu: the game stays paused while the player chooses.
   private func presentResumePromptIfPending() {
     guard SaveStateService.pendingResumePromptPath != nil, !showResumePrompt else { return }
+    // Test hook: -iridiaResumeAnswer continue|title answers the prompt without a tap.
+    if let answer = UserDefaults.standard.string(forKey: "iridiaResumeAnswer") {
+      SaveStateService.answerResumePrompt(continue: answer == "continue")
+      return
+    }
     if resumePromptToken == nil { resumePromptToken = PauseArbiter.shared.claim("resume-prompt") }
     showResumePrompt = true
   }

@@ -95,7 +95,7 @@ struct SaveStateCardView: View {
         HStack(spacing: 8) {
           if state.isAuto {
             // The resume save is already titled "Continue"; only badge it when renamed.
-            if state.displayName != L("Continue") { Badge(text: L("Continue"), color: Self.continueBadge) }
+            if state.displayName != "Continue", state.displayName != L("Continue") { Badge(text: L("Continue"), color: Self.continueBadge) }
           } else if let slot = state.slot {
             Badge(text: String(format: L("Slot %d"), slot), color: Self.slotBadge)
           }

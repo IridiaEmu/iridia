@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import UIKit
 
 public protocol SaveStateProviding {
@@ -106,10 +107,31 @@ public final class FilesystemSaveStateProvider: SaveStateProviding {
   }
 
   public func thumbnail(for state: SaveStateInfo) async -> UIImage? {
-    if let url = state.thumbnailURL, let data = try? Data(contentsOf: url), let img = await UIImage(data: data, scale: UIScreen.main.scale) {
-      return img
+    guard let url = state.thumbnailURL else { return nil }
+    return Self.downsampledThumbnail(at: url)
+  }
+
+  /// gc-emu: thumbnails are screenshots at the game's internal resolution (5120×4224, ~13 MB, at 8x),
+  /// and decoding one whole costs ~85 MB. Decode straight to card size instead, and shrink an
+  /// oversized file on disk once so later loads (and the save folder) stay small.
+  static let thumbnailMaxPixels = 960
+
+  static func downsampledThumbnail(at url: URL) -> UIImage? {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+    let options: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceShouldCacheImmediately: true,
+      kCGImageSourceThumbnailMaxPixelSize: thumbnailMaxPixels,
+    ]
+    guard let small = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+    let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+    let width = props?[kCGImagePropertyPixelWidth] as? Int ?? 0
+    let height = props?[kCGImagePropertyPixelHeight] as? Int ?? 0
+    if max(width, height) > thumbnailMaxPixels, let png = UIImage(cgImage: small).pngData() {
+      try? png.write(to: url, options: .atomic)
     }
-    return nil
+    return UIImage(cgImage: small)
   }
 
   public func delete(state: SaveStateInfo) throws {

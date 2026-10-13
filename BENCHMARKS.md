@@ -293,3 +293,26 @@ ImmediateXFB off, Hybrid Ubershaders, thermal "nominal" throughout.
 Full speed at every resolution; the A12X GPU has room to spare up to 4x (screenshots confirm 4x is
 sharper), so the CPU sets the limit. About one hitch every 10–12 s at all resolutions (CPU side).
 The core now targets `-mcpu=apple-a12` so it runs on A12/A12X iPads (iPadOS 26 still supports them).
+
+## #17 Where the heat comes from — TP, iPhone 16 Pro (2026-10-13)
+New report fields: per-thread CPU, Metal GPU busy % (render command buffers' GPU start→end),
+whole-app CPU %. Ordon save state, 10 s warmup + 40 s, 30 s cool-downs, ImmediateXFB off.
+
+| Resolution | GPU busy | App CPU | Emulated CPU thread | Video thread | Memory | Thermal after |
+|---|---|---|---|---|---|---|
+| 1x | 8% | 72% | 55% | 12% | 604 MB | nominal |
+| 2x | 8% | 70% | 53% | 12% | 604 MB | nominal |
+| 3x | 8% | 71% | 54% | 12% | 604 MB | nominal |
+| 4x | 8% | 73% | 55% | 13% | 603 MB | nominal |
+| 5x | 82% | 83% | 64% | 15% | 866 MB | fair |
+| 6x | 82% | 81% | 62% | 14% | 867 MB | fair |
+| 7x | 82% | 79% | 61% | 13% | 866 MB | fair |
+| 8x | 87% | 83% | 64% | 14% | 1,269 MB | fair |
+
+- A cliff between 4x and 5x: the GPU goes from nearly idle to nearly saturated, and the emulated
+  CPU also gets ~15% slower (shared SoC power budget), so headroom falls from ~2.0× to ~1.65×.
+- The iPhone 16 Pro's game area is ~1606×1206 px in landscape: 3x (1920×1584) already exceeds it,
+  so 5x–8x only add supersampling while costing the GPU ~10× the work.
+- CPU sampling profile of the emulated CPU thread (in-app sampler, 7,821 samples): ~47% sleeping
+  between frames, the rest spread over hundreds of interpreter handlers (none above 2.4%). No single
+  hot spot; a large CPU-side saving would need structural interpreter work.

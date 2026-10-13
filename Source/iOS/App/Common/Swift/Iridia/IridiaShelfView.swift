@@ -209,7 +209,7 @@ struct IridiaShelfView: View {
   // MARK: Header
 
   private var header: some View {
-    HStack(spacing: 10) {
+    HStack(spacing: 8) {
       IridiaCube.mark
         .resizable()
         .scaledToFit()
@@ -218,12 +218,16 @@ struct IridiaShelfView: View {
       Text("Iridia")
         .font(.system(size: 24, weight: .semibold))
         .foregroundStyle(IridiaGlass.ink)
+        .lineLimit(1)
+        .layoutPriority(1)
       Spacer()
       if !IridiaUnlock.isUnlocked {
         Button { showUnlock = true } label: {
           Text(L("Unlock"))
             .font(.system(size: 14, weight: .bold))
             .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+            .lineLimit(1)
+            .fixedSize()                 // never squeeze or wrap ("Unlo / ck")
             .padding(.horizontal, 14)
             .frame(height: 36)
             .glassSurface(radius: 18, prominent: true)

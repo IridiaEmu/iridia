@@ -1,0 +1,119 @@
+{
+  "" : {
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PVContinuityTests-primary.dia",
+    "emit-module-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PVContinuityTests-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PVContinuityTests-primary-emit-module.dia",
+    "pch" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PVContinuityTests-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PVContinuityTests-primary.swiftdeps"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/DerivedSources/test_entry_point.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/test_entry_point~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/FallbackMachineTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/FallbackMachineTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/LibraryManifestTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryManifestTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/LibraryServerTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/LibraryServerTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/ModelTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ModelTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/PairingServerTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PairingServerTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/PullerTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/PullerTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/ServerTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/ServerTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/TestSupport.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TestSupport~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/TrustTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/TrustTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Tests/PVContinuityTests/WireTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.dia",
+    "index-unit-output-path" : "/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuityTests-p.build/Objects-normal/arm64/WireTests~partial.swiftmodule"
+  }
+}

@@ -10,7 +10,7 @@ import Zip
 
 @MainActor
 final class SkinLibraryTests: XCTestCase {
-  private static let fixtureIdentifier = "com.joemattiello.icube.testcube"
+  private static let fixtureIdentifier = "app.iridia.testcube"
   private static let fixtureGameType = "public.aoshuang.game.ngc"
   private static let wiiGameType = "public.aoshuang.game.wii"
 
@@ -180,7 +180,7 @@ final class SkinLibraryTests: XCTestCase {
 
   func testWiiSkinCannotBeSelectedForGameCube() throws {
     let library = SkinLibrary(rootURL: root)
-    let wii = try library.importSkin(from: makeArchive(gameType: Self.wiiGameType, identifier: "com.joemattiello.icube.testwii"))
+    let wii = try library.importSkin(from: makeArchive(gameType: Self.wiiGameType, identifier: "app.iridia.testwii"))
     XCTAssertEqual(wii.gameType, .wii)
     library.select(wii, for: .gameCube, orientation: .portrait)
     XCTAssertNil(library.selectedSkin(for: .gameCube, orientation: .portrait))

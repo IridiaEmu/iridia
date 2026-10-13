@@ -1,0 +1,29 @@
+{
+  "" : {
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/PVSyncRules-primary.dia",
+    "emit-module-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/PVSyncRules-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/PVSyncRules-primary-emit-module.dia",
+    "pch" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/PVSyncRules-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/PVSyncRules-primary.swiftdeps"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVSyncRules/Sources/PVSyncRules/SyncClassifier.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.dia",
+    "index-unit-output-path" : "/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncClassifier~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVSyncRules/Sources/PVSyncRules/SyncableFileType.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.dia",
+    "index-unit-output-path" : "/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVSyncRules.build/Debug/PVSyncRules-t.build/Objects-normal/arm64/SyncableFileType~partial.swiftmodule"
+  }
+}

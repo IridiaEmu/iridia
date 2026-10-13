@@ -1,0 +1,41 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "pvsyncrules",
+          "kind" : "fileSystem",
+          "location" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVSyncRules",
+          "name" : "PVSyncRules"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVSyncRules"
+        },
+        "subpath" : "pvsyncrules"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "pvwebserver",
+          "kind" : "fileSystem",
+          "location" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer",
+          "name" : "PVWebServer"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer"
+        },
+        "subpath" : "pvwebserver"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

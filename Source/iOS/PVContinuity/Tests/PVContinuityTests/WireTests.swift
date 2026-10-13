@@ -207,7 +207,7 @@ final class AdvertisementCodecTests: XCTestCase {
 
     func testActivityTypeIsTheICubeOne() {
         // Must match the NSUserActivityTypes entry in Info.plist / Info-TV.plist.
-        XCTAssertEqual(ContinuityAdvertisement.activityType, "com.joemattiello.icube.continuity.play")
+        XCTAssertEqual(ContinuityAdvertisement.activityType, "app.iridia.continuity.play")
     }
 
     func testServiceTypeIsTheICubeOne() {

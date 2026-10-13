@@ -18,7 +18,7 @@ import PVContinuity
 /// pairing identity would each be able to claim the other's sessions.
 enum ContinuityIdentityStore {
 
-    private static let service = "com.joemattiello.icube.continuity"
+    private static let service = "app.iridia.continuity"
     private static let account = "peer-identity"
     /// The stable id lives in `UserDefaults` because it is not secret; only the
     /// key material needs the Keychain.

@@ -10,7 +10,7 @@ import UIKit
 /// Group snapshot, not a stale in-memory list. Routed through `MainDisplaySceneDelegate`'s
 /// existing `handleShortcut` switch.
 enum QuickActionsUpdater {
-    static let shortcutType = "com.joemattiello.icube.play"
+    static let shortcutType = "app.iridia.play"
     static let maxItems = 3
 
     /// Pure: up to three most recent games, in the snapshot's existing recency order.

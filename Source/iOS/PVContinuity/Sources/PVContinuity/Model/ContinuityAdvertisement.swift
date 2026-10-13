@@ -90,7 +90,7 @@ extension ContinuityAdvertisement {
     /// The custom Handoff activity type. Must appear in the app's
     /// `NSUserActivityTypes` Info.plist array on every receiving platform, or
     /// the activity is silently never delivered.
-    public static let activityType = "com.joemattiello.icube.continuity.play"
+    public static let activityType = "app.iridia.continuity.play"
 
     private enum UserInfoKey {
         static let payload = "continuityAdvertisement"

@@ -1,0 +1,23 @@
+{
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Sources/PVContinuity/Server/ContinuityRoutes.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityRoutes.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityRoutes.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityRoutes.dia",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityRoutes.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityRoutes.swiftdeps"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Sources/PVContinuity/Server/ContinuitySessionServer.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuitySessionServer.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuitySessionServer.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuitySessionServer.dia",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuitySessionServer.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuitySessionServer.swiftdeps"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/Sources/PVContinuity/Trust/ContinuityLibraryGrantStore.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityLibraryGrantStore.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityLibraryGrantStore.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityLibraryGrantStore.dia",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityLibraryGrantStore.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVContinuity.build/Debug/PVContinuity-t.build/Objects-normal/arm64/ContinuityLibraryGrantStore.swiftdeps"
+  }
+}

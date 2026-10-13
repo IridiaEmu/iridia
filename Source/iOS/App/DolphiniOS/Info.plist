@@ -177,7 +177,7 @@
 	     there and keeps the two plists from drifting. -->
 	<key>NSUserActivityTypes</key>
 	<array>
-		<string>com.joemattiello.icube.continuity.play</string>
+		<string>app.iridia.continuity.play</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

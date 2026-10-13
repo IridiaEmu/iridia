@@ -67,7 +67,7 @@ final class LibraryLookupTests: XCTestCase {
     }
 
     func testResolveWithOutcomeReportsTheSnapshotLoad() {
-        let suite = "com.joemattiello.icube.tests.\(UUID().uuidString)"
+        let suite = "app.iridia.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(Data("not json".utf8), forKey: LibrarySnapshotKeys.snapshot)

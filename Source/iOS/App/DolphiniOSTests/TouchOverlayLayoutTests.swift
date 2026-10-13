@@ -166,7 +166,7 @@ final class TouchOverlayLayoutTests: XCTestCase {
   }
 
   func testProgrammaticOverlayIsOnUnlessTurnedOff() {
-    let suite = "com.joemattiello.icube.tests.\(UUID().uuidString)"
+    let suite = "app.iridia.tests.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
     defer { defaults.removePersistentDomain(forName: suite) }
     XCTAssertTrue(TouchOverlayFlag.isProgrammatic(in: defaults), "never set: the new overlay is the default")

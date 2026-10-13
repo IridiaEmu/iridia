@@ -9,7 +9,7 @@ final class LibrarySnapshotLoadOutcomeTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suiteName = "com.joemattiello.icube.tests.\(UUID().uuidString)"
+        suiteName = "app.iridia.tests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
     }
 

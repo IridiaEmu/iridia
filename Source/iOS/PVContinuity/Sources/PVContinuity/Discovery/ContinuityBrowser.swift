@@ -44,7 +44,7 @@ public actor ContinuityBrowser {
         browser.stateUpdateHandler = { state in
             if case .failed = state { continuation.finish() }
         }
-        browser.start(queue: DispatchQueue(label: "com.joemattiello.icube.continuity.browser"))
+        browser.start(queue: DispatchQueue(label: "app.iridia.continuity.browser"))
         self.browser = browser
         return stream
     }

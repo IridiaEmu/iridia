@@ -25,7 +25,7 @@
 public enum ContinuityPackage {
     public static let fileExtension = "icubepkg"
     /// Exported UTI. Must match the app's `UTExportedTypeDeclarations`.
-    public static let typeIdentifier = "com.joemattiello.icube.package"
+    public static let typeIdentifier = "app.iridia.package"
     public static let mimeType = "application/x-icube-package"
     public static let manifestEntryName = "manifest.json"
 }

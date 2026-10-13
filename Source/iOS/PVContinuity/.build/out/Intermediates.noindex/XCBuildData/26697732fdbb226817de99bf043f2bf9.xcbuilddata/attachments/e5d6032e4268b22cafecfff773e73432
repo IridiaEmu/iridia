@@ -1,0 +1,109 @@
+{
+  "" : {
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer-primary.dia",
+    "emit-module-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer-primary-emit-module.dia",
+    "pch" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer-primary.swiftdeps"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/DerivedSources/resource_bundle_accessor.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/resource_bundle_accessor~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/PVWebServer.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/PVWebServer~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/ROMUploadServer.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/ROMUploadServer~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/SerialFileWriter.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/SerialFileWriter~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/UploadFailure.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/UploadFailure~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/WebRoute.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebRoute~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/WebServerClientMode.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerClientMode~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/WebServerLifecyclePolicy.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerLifecyclePolicy~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/WebServerPageRenderer.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPageRenderer~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVWebServer/Sources/PVWebServer/WebServerPathSafety.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.dia",
+    "index-unit-output-path" : "/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVContinuity/.build/out/Intermediates.noindex/PVWebServer.build/Debug/PVWebServer-t.build/Objects-normal/arm64/WebServerPathSafety~partial.swiftmodule"
+  }
+}

@@ -123,7 +123,7 @@
 	     there and keeps the two plists from drifting. -->
 	<key>NSUserActivityTypes</key>
 	<array>
-		<string>com.joemattiello.icube.continuity.play</string>
+		<string>app.iridia.continuity.play</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>iCube uses the local network to discover DSU controllers, to share your library with nearby devices, and to hand a game off to another device. Transfers between devices are not encrypted.</string>

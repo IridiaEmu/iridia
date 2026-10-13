@@ -15,6 +15,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     #if os(iOS)
     IridiaPresets.noteLaunch()  // gc-emu: before the core writes its config
     IridiaUnlock.start()        // gc-emu: StoreKit 2 listener + entitlement
+    ControlOptions.apply()      // gc-emu: camera-stick inversion into the core
     #endif
     // gc-emu: games reopen where you left off (an automatic save state) instead of at the title screen.
     UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true,

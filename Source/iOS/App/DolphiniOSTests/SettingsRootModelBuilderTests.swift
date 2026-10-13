@@ -48,7 +48,7 @@ final class SettingsRootModelBuilderTests: XCTestCase {
   func test_hostsMenuScreen_isExactlyTheMigratedLeavesAndControllers() {
     let entries = SettingsRootModelBuilder.sections(isIOS: true, achievements: true).flatMap(\.entries)
     let hosting = Set(entries.filter(\.hostsMenuScreen).map(\.id))
-    XCTAssertEqual(hosting, ["graphics-video", "graphics-enhancements", "graphics-hacks", "graphics-advanced", "performance-tuning", "controllers", "advanced", "interface", "general", "console-gamecube", "audio", "debug"])
+    XCTAssertEqual(hosting, ["graphics-video", "graphics-enhancements", "graphics-hacks", "graphics-advanced", "performance-tuning", "controllers", "control-options", "advanced", "interface", "general", "console-gamecube", "audio", "debug"])
   }
 
   func test_entriesAreHashableByID() {

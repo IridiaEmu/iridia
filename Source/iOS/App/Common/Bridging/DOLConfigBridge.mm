@@ -36,6 +36,7 @@
 #import "FastmemManager.h"
 
 #include "Common/FileUtil.h"
+#include "Core/HW/GCPadEmu.h"
 #include "Common/IniFile.h"
 
 // Extern DSU client RX counter for DEBUG HUD (defined in DualShockUDPClient.cpp)
@@ -1301,6 +1302,10 @@ static NSString* BaseLayerKeyName(const Config::Location& location)
   auto& system = Core::System::GetInstance();
   for (int i = 0; i < 16; i++)
     system.GetSkylanderPortal().RemoveSkylander((u8)i);
+}
+
++ (void)setCStickInvertX:(BOOL)invertX y:(BOOL)invertY {
+  g_gcemu_cstick_invert.store(static_cast<uint8_t>((invertX ? 1 : 0) | (invertY ? 2 : 0)), std::memory_order_relaxed);
 }
 
 @end

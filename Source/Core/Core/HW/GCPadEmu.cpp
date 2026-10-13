@@ -17,6 +17,8 @@
 #include "InputCommon/ControllerEmu/StickGate.h"
 #include "InputCommon/GCPadStatus.h"
 
+std::atomic<uint8_t> g_gcemu_cstick_invert{0};
+
 static const u16 button_bitmasks[] = {
     PAD_BUTTON_A,
     PAD_BUTTON_B,
@@ -169,8 +171,11 @@ GCPadStatus GCPad::GetInput() const
   pad.stickY = MapFloat<u8>(main_stick_state.y, GCPadStatus::MAIN_STICK_CENTER_Y, 1);
 
   const auto c_stick_state = m_c_stick->GetState(m_input_override_function);
-  pad.substickX = MapFloat<u8>(c_stick_state.x, GCPadStatus::C_STICK_CENTER_X, 1);
-  pad.substickY = MapFloat<u8>(c_stick_state.y, GCPadStatus::C_STICK_CENTER_Y, 1);
+  const uint8_t invert = g_gcemu_cstick_invert.load(std::memory_order_relaxed);
+  const ControlState cx = (invert & 1) ? -c_stick_state.x : c_stick_state.x;
+  const ControlState cy = (invert & 2) ? -c_stick_state.y : c_stick_state.y;
+  pad.substickX = MapFloat<u8>(cx, GCPadStatus::C_STICK_CENTER_X, 1);
+  pad.substickY = MapFloat<u8>(cy, GCPadStatus::C_STICK_CENTER_Y, 1);
 
   // triggers
   std::array<ControlState, 2> triggers;

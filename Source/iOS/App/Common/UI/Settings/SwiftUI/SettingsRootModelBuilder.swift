@@ -100,6 +100,11 @@ enum SettingsRootModelBuilder {
         SettingsLeafEntry(id: "controllers", title: L("Controllers"), icon: "gamecontroller",
                           description: L("Players, devices, what each plays as, and remapping."),
                           hostsMenuScreen: true) { ControllersRootView() },
+        // gc-emu: global control options (invert the camera stick).
+        SettingsLeafEntry(id: "control-options", title: L("Control Options"), icon: "arrow.up.and.down.and.arrow.left.and.right",
+                          description: L("Invert the camera stick (C-stick)."),
+                          hostsMenuScreen: true,
+                          makeModel: { ControlOptions.model(invertX: .constant(false), invertY: .constant(false)) }) { ControlOptionsView() },
       ]),
       SettingsRootSection(id: "performance", header: L("Performance"), entries: [
         SettingsLeafEntry(id: "performance-tuning", title: L("Performance Tuning"), icon: "gauge.with.dots.needle.67percent",

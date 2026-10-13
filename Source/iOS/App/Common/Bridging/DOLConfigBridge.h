@@ -586,6 +586,8 @@ extern NSNotificationName const DOLConfigChangedNotification;
 // Debug metrics
 + (NSUInteger)dsuClientRxCount;
 
+/// gc-emu: invert the GameCube C-stick ("camera stick") for every pad. Takes effect immediately.
++ (void)setCStickInvertX:(BOOL)invertX y:(BOOL)invertY;
 @end
 
 NS_ASSUME_NONNULL_END

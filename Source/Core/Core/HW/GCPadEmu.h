@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <atomic>
+#include <cstdint>
 #include <string>
 
 #include "Common/Common.h"
@@ -32,6 +34,11 @@ enum class PadGroup
   Options,
   Triforce,
 };
+
+// gc-emu: "Invert camera stick" (Settings > Controllers > Control Options). Bit 0 = left/right,
+// bit 1 = up/down. Set by the app; read once per poll with a relaxed load (no config lookup in
+// the input path). Applies to every GameCube pad, touch and physical controllers alike.
+extern std::atomic<uint8_t> g_gcemu_cstick_invert;
 
 class GCPad : public ControllerEmu::EmulatedController
 {

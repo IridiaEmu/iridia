@@ -278,3 +278,18 @@ Reports now include hitches (frames > 1.5× median), p99 frame time and whole-ap
   native-res EFB copies (1.53×) gave nothing; 4x was 1.60×.
 - **Adopted:** ImmediateXFB off on the owner's phone (new installs already default to off).
   **Rejected:** PrecisionFrameTiming off (oversleeps: −11% headroom, more CPU), AF and EFB-copy changes.
+
+## #16 iPad Pro 12.9" 3rd gen (A12X, iPadOS 26.6.2), Twilight Princess (2026-10-13)
+Ordon save state, 15 s warmup + 100 s measured, one run per resolution, 30 s cool-downs,
+ImmediateXFB off, Hybrid Ubershaders, thermal "nominal" throughout.
+
+| Resolution | Speed | Headroom | p99 frame | 1% low | Hitches /100 s | CPU % |
+|---|---|---|---|---|---|---|
+| 1x | 1.000 | 1.28× | 34.4 ms | 41.4 ms | 10 | 108 |
+| 2x | 1.000 | 1.28× | 34.4 ms | 40.0 ms | 8 | 108 |
+| 3x | 1.000 | 1.29× | 34.4 ms | 40.0 ms | 8 | 108 |
+| 4x | 1.000 | 1.28× | 34.4 ms | 40.0 ms | 8 | 108 |
+
+Full speed at every resolution; the A12X GPU has room to spare up to 4x (screenshots confirm 4x is
+sharper), so the CPU sets the limit. About one hitch every 10–12 s at all resolutions (CPU side).
+The core now targets `-mcpu=apple-a12` so it runs on A12/A12X iPads (iPadOS 26 still supports them).

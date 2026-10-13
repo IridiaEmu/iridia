@@ -27,7 +27,6 @@ final class SettingsRepairTests: XCTestCase {
       "Dolphin.Core.SyncGPU": "False",
       "Graphics.Hacks.EFBToTextureEnable": "True",
       "Graphics.Hacks.XFBToTextureEnable": "True",
-      "Graphics.Hacks.ImmediateXFBEnable": "True",
       "Graphics.Hacks.VISkip": "False",
       "Graphics.Hacks.VISkipMode": "2",
       "Graphics.Settings.ShaderCompilerThreads": "2",

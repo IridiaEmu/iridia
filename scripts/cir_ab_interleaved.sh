@@ -14,8 +14,9 @@ UDIR="${GCEMU_USERDIR:-Library/Application Support/Iridia}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/benchmarks/raw"
 WORK="$(mktemp -d)"
-UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
-[[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
+# The device must be named: GCEMU_DEVICE=<UDID> (a paired phone can show up over Wi-Fi, so never guess).
+UDID="${GCEMU_DEVICE:-}"
+[[ -n "$UDID" ]] || { echo "set GCEMU_DEVICE=<UDID>; devices:" >&2; xcrun devicectl list devices 2>/dev/null | grep physical >&2; exit 2; }
 dc() { xcrun devicectl device copy "$@" --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" >/dev/null 2>&1; }
 dc from --source "$UDIR/Config/Dolphin.ini" --destination "$WORK/orig.ini" || { echo "can't read Dolphin.ini" >&2; exit 2; }
 trap 'dc to --source "$WORK/orig.ini" --destination "$UDIR/Config/Dolphin.ini"; rm -rf "$WORK"' EXIT

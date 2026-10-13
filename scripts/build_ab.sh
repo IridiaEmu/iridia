@@ -16,8 +16,9 @@ PLAY_ID="${PLAY_ID:-ID-$PROG}"
 BENCH_SECS="${BENCH_SECS:-15}"; BENCH_WARMUP="${BENCH_WARMUP:-5}"
 read -r -a EXTRA <<< "${BENCH_EXTRA:-}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
-[[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
+# The device must be named: GCEMU_DEVICE=<UDID> (a paired phone can show up over Wi-Fi, so never guess).
+UDID="${GCEMU_DEVICE:-}"
+[[ -n "$UDID" ]] || { echo "set GCEMU_DEVICE=<UDID>; devices:" >&2; xcrun devicectl list devices 2>/dev/null | grep physical >&2; exit 2; }
 
 for app in "$A_APP" "$B_APP"; do
   "$ROOT/scripts/verify_no_jit.sh" --dev "$app" >/dev/null || { echo "verify_no_jit failed for $app" >&2; exit 1; }

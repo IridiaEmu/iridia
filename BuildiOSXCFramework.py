@@ -28,7 +28,7 @@ CONFIG = {
     "platforms": {
         "OS64": {  # iOS device (arm64)
             "deployment_target": "17.0",
-            "arch_flags": "-mcpu=apple-a13 -mtune=apple-a18",  # gc-emu: iOS 26 minimum = A13+
+            "arch_flags": "-mcpu=apple-a12 -mtune=apple-a18",  # gc-emu: iPadOS 26 still runs on A12/A12X iPads
             "suffix": "-ios",
             "xcode_platform": "iphoneos",
         },
@@ -40,7 +40,7 @@ CONFIG = {
         },
         "TVOS": {  # tvOS device (arm64)
             "deployment_target": "17.0",
-            "arch_flags": "-mcpu=apple-a13 -mtune=apple-a18",  # gc-emu: iOS 26 minimum = A13+
+            "arch_flags": "-mcpu=apple-a12 -mtune=apple-a18",  # gc-emu: iPadOS 26 still runs on A12/A12X iPads
             "suffix": "-tvos",
             "xcode_platform": "appletvos",
         },
@@ -465,9 +465,10 @@ class DolphinBuilder:
 
         # Explicit ARM device tuning (mirror BuildCore.sh)
         if platform in ["OS64", "TVOS"]:
-            # gc-emu: iOS 26 (our minimum) runs only on A13 and newer, so ARMv8.4 is the baseline
-            # (LSE atomics, RCPC, dot-product, FP16). Tuned for the A18 class.
-            tune_flags = "-mcpu=apple-a13 -mtune=apple-a18"
+            # gc-emu: iPhones on iOS 26 are A13+, but iPadOS 26 still runs on A12/A12X iPads
+            # (iPad Pro 2018/2020, Air 3, mini 5, iPad 8), so ARMv8.3 (A12) is the baseline.
+            # Tuned for the A18 class.
+            tune_flags = "-mcpu=apple-a12 -mtune=apple-a18"
             c_flags += f" {tune_flags}"
             cxx_flags += f" {tune_flags}"
 

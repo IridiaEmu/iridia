@@ -15,8 +15,9 @@ MIN_SPEED="${SMOKE_MIN_SPEED:-0.95}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUN="smoke-$(date +%Y%m%d-%H%M%S)"
 OUT="$ROOT/benchmarks/smoke/$RUN"; mkdir -p "$OUT"
-UDID=$(xcrun devicectl list devices 2>/dev/null | grep physical | grep -oE '[0-9A-F]{8}-[0-9A-F]{16}' | head -1)
-[[ -n "$UDID" ]] || { echo "no device connected" >&2; exit 2; }
+# The device must be named: GCEMU_DEVICE=<UDID> (a paired phone can show up over Wi-Fi, so never guess).
+UDID="${GCEMU_DEVICE:-}"
+[[ -n "$UDID" ]] || { echo "set GCEMU_DEVICE=<UDID>; devices:" >&2; xcrun devicectl list devices 2>/dev/null | grep physical >&2; exit 2; }
 
 PROGS=("$@")
 [[ ${#PROGS[@]} -gt 0 ]] || PROGS=(gx-triangle gx-gxSprites gx-neheGX-lesson06 fb-consoletest modplay iridiabench-x1)

@@ -218,6 +218,8 @@ enum GCEmuBenchmark {
       .appendingPathComponent("Benchmarks", isDirectory: true)
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let f = DateFormatter()
+    f.calendar = Calendar(identifier: .gregorian)   // not the device's (e.g. Japanese era years)
+    f.locale = Locale(identifier: "en_US_POSIX")
     f.dateFormat = "yyyyMMdd-HHmmss"
     let safe = { (s: String) in s.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" } }
     let url = dir.appendingPathComponent("\(safe(label))-\(safe(game))-\(f.string(from: r.date)).json")

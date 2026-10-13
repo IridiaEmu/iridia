@@ -153,7 +153,7 @@ struct IridiaShelfView: View {
   }
 
   private var shelfCaption: some View {
-    Text(String(format: L("Your shelf · %d games"), games.count).uppercased())
+    Text(String(format: games.count == 1 ? L("Your shelf · %d game") : L("Your shelf · %d games"), games.count).uppercased())
       .font(.system(size: 13, weight: .medium))
       .tracking(1.5)
       .foregroundStyle(IridiaGlass.dim)
@@ -257,6 +257,7 @@ struct IridiaShelfView: View {
   // MARK: Shelf (3D carousel)
 
   private var shelf: some View {
+    GeometryReader { geo in
     ScrollView(.horizontal, showsIndicators: false) {
       LazyHStack(spacing: 18) {
         ForEach(ordered, id: \.filePath) { item in
@@ -289,8 +290,11 @@ struct IridiaShelfView: View {
     }
     .scrollTargetBehavior(.viewAligned)
     .scrollPosition(id: $centred, anchor: .center)
-    .safeAreaPadding(.horizontal, isLandscapePhone ? 60 : (horizontalSizeClass == .regular ? 200 : 88))
+    // Half the leftover width on each side, so the first and last case can sit in the centre too.
+    .safeAreaPadding(.horizontal, max(16, (geo.size.width - 214 * caseScale) / 2))
     .sensoryFeedback(.selection, trigger: centred)
+    }
+    .frame(height: 300 * caseScale + 24)
   }
 
   // MARK: Details + actions

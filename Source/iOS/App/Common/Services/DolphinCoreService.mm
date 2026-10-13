@@ -71,7 +71,9 @@ static inline void SetBaseIfUnspecified(const Config::Info<T>& info, const T& va
   // Speed-first video/CPU defaults
   SetBaseIfUnspecified(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM, true);
   SetBaseIfUnspecified(Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM, true);
-  SetBaseIfUnspecified(Config::GFX_HACK_IMMEDIATE_XFB, true);
+  // gc-emu: no Immediate XFB by default (Dolphin's default). Presenting on the VI clock measured
+  // smoother and cheaper on iPhone 16 Pro: +9% headroom, -5% CPU, 1% lows 34.6 vs 37.5 ms
+  // (BENCHMARKS #15).
   // GFX_HACK_VI_SKIP: do NOT default ON on this rebaseline. VISkip lets the throttle DROP VI
   // interrupts (VideoInterface.cpp:987 early-returns before asserting IR_INT) whenever the core
   // lags >~20ms, as a catch-up. On HEAD's lean CachedInterpreter, CPU-heavy titles run

@@ -24,7 +24,7 @@ public enum Chip: Equatable, Sendable, CustomStringConvertible {
 
 /// Performance tiers used to pick defaults. Ordered from slowest to fastest.
 public enum DeviceTier: Int, Comparable, Sendable, CaseIterable, Codable {
-  /// A13–A14 (iPhone 11, SE 2, iPhone 12). JIT-less GameCube is tough here: native resolution,
+  /// A12–A14 (A12/A12X iPads, iPhone 11, SE 2, iPhone 12). JIT-less GameCube is tough here: native resolution,
   /// cheapest shader mode, speed hacks on.
   case entry = 0
   /// A15–A16 (iPhone 13/14/15, SE 3).
@@ -71,6 +71,14 @@ public struct DeviceInfo: Equatable, Sendable {
     // M4 (iPad Pro 2024)
     "iPad16,3": .m(4), "iPad16,4": .m(4), "iPad16,5": .m(4), "iPad16,6": .m(4),
     // A-series iPads
+    // A12X / A12Z (iPad Pro 2018 and 2020: still on iPadOS 26), A12 (Air 3, mini 5, iPad 8), A13 (iPad 9)
+    "iPad8,1": .a(12, pro: true), "iPad8,2": .a(12, pro: true), "iPad8,3": .a(12, pro: true),
+    "iPad8,4": .a(12, pro: true), "iPad8,5": .a(12, pro: true), "iPad8,6": .a(12, pro: true),
+    "iPad8,7": .a(12, pro: true), "iPad8,8": .a(12, pro: true), "iPad8,9": .a(12, pro: true),
+    "iPad8,10": .a(12, pro: true), "iPad8,11": .a(12, pro: true), "iPad8,12": .a(12, pro: true),
+    "iPad11,1": .a(12, pro: false), "iPad11,2": .a(12, pro: false), "iPad11,3": .a(12, pro: false),
+    "iPad11,4": .a(12, pro: false), "iPad11,6": .a(12, pro: false), "iPad11,7": .a(12, pro: false),
+    "iPad12,1": .a(13, pro: false), "iPad12,2": .a(13, pro: false),
     "iPad13,1": .a(14, pro: false), "iPad13,2": .a(14, pro: false),  // Air 4
     "iPad13,18": .a(14, pro: false), "iPad13,19": .a(14, pro: false),  // iPad 10
     "iPad14,1": .a(15, pro: false), "iPad14,2": .a(15, pro: false),  // mini 6

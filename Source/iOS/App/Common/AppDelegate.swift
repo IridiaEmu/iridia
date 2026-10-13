@@ -14,6 +14,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     UserFolderUtil.migrateLegacyLayoutIfNeeded()
     #if os(iOS)
     IridiaPresets.noteLaunch()  // gc-emu: before the core writes its config
+    IridiaUnlock.start()        // gc-emu: StoreKit 2 listener + entitlement
     #endif
     // gc-emu: games reopen where you left off (an automatic save state) instead of at the title screen.
     UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true,

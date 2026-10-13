@@ -374,6 +374,7 @@ let iCube = Target.target(
         .package(product: "GCControlsCore", condition: .when([.ios])),  // gc-emu
         .package(product: "GCControlsUI", condition: .when([.ios])),  // gc-emu
         .package(product: "IridiaPerformance", condition: .when([.ios])),  // gc-emu: device tiers + presets
+        .package(product: "IridiaStore", condition: .when([.ios])),  // gc-emu: Unlock Full Version + free play sessions
         .package(product: "Zip"),
         .package(product: "PLzmaSDK", condition: .when([.ios])),  // gc-emu: .7z/.xz import (vendored)
         .package(product: "SWCompression"),
@@ -683,7 +684,9 @@ let schemes: [Scheme] = [
         testAction: .targets(["iCubeTests"], configuration: .configuration("Debug (AppStore)")),
         runAction: .runAction(
             configuration: .configuration("Release (AppStore)"),
-            arguments: .arguments(environmentVariables: appStoreEnvVars)
+            arguments: .arguments(environmentVariables: appStoreEnvVars),
+            // gc-emu: runs from Xcode use local StoreKit testing (no App Store Connect needed).
+            options: .options(storeKitConfigurationPath: "Common/Store/Iridia.storekit")
         ),
         archiveAction: .archiveAction(configuration: .configuration("Release (AppStore)")),
         profileAction: .profileAction(configuration: .configuration("Release (AppStore)")),
@@ -695,7 +698,8 @@ let schemes: [Scheme] = [
         buildAction: .buildAction(targets: ["iCube"]),
         testAction: .targets(["iCubeTests"], configuration: .configuration("Debug (Non-Jailbroken)")),
         // gc-emu: no LLDB JIT bless hook; App Store builds never use JIT.
-        runAction: .runAction(configuration: .configuration("Release (Non-Jailbroken)")),
+        runAction: .runAction(configuration: .configuration("Release (Non-Jailbroken)"),
+                              options: .options(storeKitConfigurationPath: "Common/Store/Iridia.storekit")),
         archiveAction: .archiveAction(configuration: .configuration("Release (Non-Jailbroken)")),
         profileAction: .profileAction(configuration: .configuration("Release (Non-Jailbroken)")),
         analyzeAction: .analyzeAction(configuration: .configuration("Debug (Non-Jailbroken)"))
@@ -740,6 +744,7 @@ let project = Project(
         .local(path: "../PVLibrarySnapshot"),
         .local(path: "../../../Packages/GCControls"),  // gc-emu: our touch controls + smart mapping
         .local(path: "../../../Packages/IridiaPerformance"),  // gc-emu: device tiers, presets, thermal governor
+        .local(path: "../../../Packages/IridiaStore"),  // gc-emu: StoreKit 2 unlock + free play timer
         .local(path: "../../../Packages/PLzmaSDK"),  // gc-emu: vendored (local), so Xcode 27 allows its unsafeFlags; .7z/.xz import
         // PVSyncRules is declared once above and shared by PVContinuity (WS-4)
         // and PVCloudSync (WS-5); a duplicate .local(path:) fails tuist generate.

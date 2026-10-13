@@ -283,6 +283,9 @@ struct EmulationScreen: View {
   @State private var controllerSettingsToken: PauseArbiter.Token?
   // gc-emu: "Continue where you left off?" prompt (see SaveStateService.answerResumePrompt).
   @State private var showResumePrompt = false
+  #if os(iOS)
+  @StateObject private var freePlay = FreePlaySession()   // gc-emu: free 10-minute play sessions
+  #endif
   @AppStorage(GCEmuStatsOverlay.defaultsKey) private var showStatsOverlay = false
   @State private var resumePromptToken: PauseArbiter.Token?
   var showTopBar: Bool { topBar.isVisible }
@@ -1098,6 +1101,25 @@ struct EmulationScreen: View {
       TVEmulationBridge.setWiiIMUPointEnabled(false, forWiimote: touchSlot)
     }
     .modifier(SettingsNavigationFallback(showSettings: $showSettings))
+    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DOLEmulationDidStartNotification"))) { _ in
+      freePlay.begin()
+    }
+    .onDisappear { freePlay.end() }
+    .fullScreenCover(isPresented: $freePlay.showUnlock) {
+      UnlockView(context: .sessionEnded,
+                 onUnlocked: { freePlay.unlocked() },
+                 onDismiss: {
+                   // "Not now": the session is over. Stopping writes the memory card and resume point.
+                   freePlay.showUnlock = false
+                   freePlay.end()
+                   TVEmulationBridge.stop()
+                   #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+                   GameActivityManager.end()
+                   #endif
+                   NotificationCenter.default.post(name: Notification.Name("DOLEmulationRequestExitToLibrary"), object: nil)
+                 })
+        .interactiveDismissDisabled(true)
+    }
     .onReceive(NotificationCenter.default.publisher(for: SaveStateService.resumePromptNotification)) { _ in
       presentResumePromptIfPending()
     }

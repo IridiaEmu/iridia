@@ -186,3 +186,22 @@ Source: https://developer.apple.com/app-store/review/guidelines/ (fetched 2026-1
 1. Approve the base (A as modified above, B, or C).
 2. Approve **GameCube-only** (strip Wii and its key). Recommended.
 3. Rename the IAP from "Full GameCube Unlock" to a name without "GameCube," and frame the 10-minute limit as "free play sessions" rather than a "free trial."
+
+## Phase 6: Guideline 3.1.1 wording review (2026-10-12)
+Source: Apple's App Review Guidelines (developer.apple.com/app-store/review/guidelines), 3.1.1 / 3.1.2 / 2.1.
+
+- **Model:** free download; every game launch is a free 10-minute play session (unlimited sessions,
+  never expires); one non-consumable "Unlock Full Version" ($2.99) removes the limit and the forced
+  FPS/speed readout. This is a limited free version, not a time-based trial: nothing expires or is
+  taken away, so the "XX-day Trial" Price Tier 0 item that 3.1.1 asks of *time-based trials* doesn't
+  apply. The word "trial" is never used in the app or metadata.
+- **Disclosure before and during play:** a toast at the start of each session ("Free play session:
+  10 minutes. Unlock the full version for unlimited play."), a warning 1 minute before the end, and
+  the unlock screen that states exactly what the purchase adds, that it's one-time (no subscription,
+  no ads), and that free sessions stay available ("Not now").
+- **Must-haves met:** unlocking uses In-App Purchase only (StoreKit 2); Restore Purchases is on the
+  unlock screen; verified transactions only; refunds and revocations re-lock; the IAP is reachable
+  by the reviewer at any time (shelf "Unlock" button) and when a session ends.
+- **For the App Review notes (Phase 7):** explain the session model, that the IAP can be tested from
+  the shelf's Unlock button or by playing 10 minutes, and that sessions repeat without limit.
+- **Never gate the 3DS mode** (Phase 10): it is free; `FreePlaySession` only runs for GameCube play.

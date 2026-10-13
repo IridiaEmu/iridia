@@ -74,6 +74,8 @@ struct IridiaShelfView: View {
 
   @State private var centred: String?
   @State private var controllerScope = UUID()
+  @ObservedObject private var store = IridiaUnlock.store
+  @State private var showUnlock = false
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -145,6 +147,9 @@ struct IridiaShelfView: View {
     .onChange(of: games.count) { _, _ in installControllerNavigation() }
     .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in installControllerNavigation() }
     .controllerScope(controllerScope)
+    .fullScreenCover(isPresented: $showUnlock) {
+      UnlockView(context: .browsing, onUnlocked: { showUnlock = false }, onDismiss: { showUnlock = false })
+    }
   }
 
   private var shelfCaption: some View {
@@ -214,6 +219,17 @@ struct IridiaShelfView: View {
         .font(.system(size: 24, weight: .semibold))
         .foregroundStyle(IridiaGlass.ink)
       Spacer()
+      if !IridiaUnlock.isUnlocked {
+        Button { showUnlock = true } label: {
+          Text(L("Unlock"))
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+            .padding(.horizontal, 14)
+            .frame(height: 36)
+            .glassSurface(radius: 18, prominent: true)
+        }
+        .buttonStyle(SpringPressStyle())
+      }
       glassIconButton("square.grid.2x2", label: L("Grid view"), action: onShowGrid)
       glassIconButton("plus", label: L("Add a game"), action: onImport)
       glassIconButton("slider.horizontal.3", label: L("Settings"), action: onSettings)

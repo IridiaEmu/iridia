@@ -1106,8 +1106,7 @@ struct TVLibraryView: View {
               )
               .onChangeCompat(of: focusedFilePath) { _, newVal in
                 if newVal == item.filePath {
-                  let gen = UIImpactFeedbackGenerator(style: .light)
-                  gen.impactOccurred()
+                  if IridiaHaptics.enabled { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
                   // Auto-scroll to follow focus
                   DispatchQueue.main.async {
                     scr.scrollTo(item.filePath, anchor: .center)
@@ -2677,8 +2676,7 @@ struct TVLibraryView: View {
           }
           if element == gamepad.buttonA, gamepad.buttonA.isPressed {
             if let fp = focusedFilePath, let item = model.games.first(where: { $0.filePath == fp }) { DispatchQueue.main.async { selectGame(item) } }
-            let gen = UIImpactFeedbackGenerator(style: .medium)
-            gen.impactOccurred()
+            if IridiaHaptics.enabled { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
           }
           // B2: L1/R1 step the system filter backward/forward. Shares the same
           // physical `leftShoulder`/`rightShoulder` buttons that `installExtraInputHandlers`
@@ -2724,8 +2722,7 @@ struct TVLibraryView: View {
           }
           if element == gamepad.buttonA, gamepad.buttonA.isPressed {
             if let fp = focusedFilePath, let item = model.games.first(where: { $0.filePath == fp }) { DispatchQueue.main.async { selectGame(item) } }
-            let gen = UIImpactFeedbackGenerator(style: .medium)
-            gen.impactOccurred()
+            if IridiaHaptics.enabled { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
           }
         }
       }
@@ -2783,7 +2780,7 @@ struct TVLibraryView: View {
       object: nil,
       userInfo: ["text": "\(platformFilter.displayName) · \(count) \(L("games"))"]
     )
-    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    if IridiaHaptics.enabled { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
   }
 #endif
 

@@ -318,7 +318,7 @@ struct IridiaShelfView: View {
     .scrollPosition(id: $centred, anchor: .center)
     // Half the leftover width on each side, so the first and last case can sit in the centre too.
     .safeAreaPadding(.horizontal, max(16, (geo.size.width - 214 * caseScale) / 2))
-    .sensoryFeedback(.selection, trigger: centred)
+    .sensoryFeedback(.selection, trigger: centred) { _, _ in IridiaHaptics.enabled }
     }
     .frame(height: 300 * caseScale + 24)
   }
@@ -483,7 +483,7 @@ struct SpringPressStyle: ButtonStyle {
     configuration.label
       .scaleEffect(configuration.isPressed ? 0.94 : 1)
       .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
-      .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in pressed }
+      .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, pressed in pressed && IridiaHaptics.enabled }
   }
 }
 #endif

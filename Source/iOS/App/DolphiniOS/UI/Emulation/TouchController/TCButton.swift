@@ -78,7 +78,7 @@ class TCButton: UIButton {
     }
 
     #if os(iOS)
-    hapticGenerator.impactOccurred()
+    if IridiaHaptics.enabled { hapticGenerator.impactOccurred() }
     #endif
 
     if isAxis {
@@ -120,7 +120,7 @@ class TCButton: UIButton {
 
     if lastForce != force, force == maxForce {
       #if os(iOS)
-      hapticGenerator.impactOccurred()
+      if IridiaHaptics.enabled { hapticGenerator.impactOccurred() }
       #endif
     }
 

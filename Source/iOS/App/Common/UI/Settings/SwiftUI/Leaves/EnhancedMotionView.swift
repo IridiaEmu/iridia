@@ -45,7 +45,7 @@ struct EnhancedMotionControlsView: View {
       MotionSettings.applyRecommended()
       sync()
       #if os(iOS)
-      UINotificationFeedbackGenerator().notificationOccurred(.success)
+      if IridiaHaptics.enabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
       #endif
     }
     // A running game re-reads motion settings on this notification.

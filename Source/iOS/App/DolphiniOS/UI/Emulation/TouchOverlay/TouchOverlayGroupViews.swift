@@ -300,6 +300,7 @@ enum TouchOverlayHaptics {
   private static let generator = UIImpactFeedbackGenerator(style: .medium)
 
   static func impact() {
+    guard IridiaHaptics.enabled else { return }   // gc-emu: Settings > Controllers > Vibration
     generator.impactOccurred()
   }
 }

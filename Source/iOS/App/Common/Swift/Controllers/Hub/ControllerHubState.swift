@@ -149,6 +149,8 @@ struct ControllerHubState {
   var rumbleDestination: RumbleDestination
   var connectTakesPlayer1: Bool
   var touchOverlayProgrammatic: Bool
+  /// gc-emu: Vibration (IridiaHaptics), off by default.
+  var vibration = false
   /// Device, Plays as and Layout choices waiting out the settle delay; the builder shows them.
   var pending = PendingHubChanges()
   /// The id of a row the view should move focus to once, after its list changed (a Plays as change
@@ -217,4 +219,5 @@ struct ControllerHubActions {
   var setTouchOverlayProgrammatic: (Bool) -> Void
   var resetOverlayLayouts: () -> Void
   var lightsDestination: () -> AnyView
+  var setVibration: (Bool) -> Void = { IridiaHaptics.enabled = $0 }
 }

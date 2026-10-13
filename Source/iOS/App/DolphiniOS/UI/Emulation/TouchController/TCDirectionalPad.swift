@@ -73,7 +73,7 @@ class TCDirectionalPad: UIView {
     } else {
       if !isPressed {
         #if os(iOS)
-        hapticGenerator.impactOccurred()
+        if IridiaHaptics.enabled { hapticGenerator.impactOccurred() }
         #endif
         isPressed = true
       }

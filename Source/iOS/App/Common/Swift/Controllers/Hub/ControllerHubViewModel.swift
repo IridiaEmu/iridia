@@ -207,6 +207,7 @@ final class ControllerHubViewModel {
       touchOverlayProgrammatic: reader.touchOverlayProgrammatic(),
       pending: state.pending,
       focusRequest: state.focusRequest)
+    state.vibration = IridiaHaptics.enabled
   }
 
   /// Takes a snapshot and follows assignment and device changes until `stop()`. Idempotent.
@@ -310,6 +311,10 @@ final class ControllerHubViewModel {
         #else
         AnyView(EmptyView())
         #endif
+      },
+      setVibration: { [weak self] enabled in
+        IridiaHaptics.enabled = enabled
+        self?.reload()
       })
   }
 

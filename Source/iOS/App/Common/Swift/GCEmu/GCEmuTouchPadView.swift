@@ -45,8 +45,20 @@ final class GCEmuTouchPadView: UIView {
     pad.skin = BuiltinSkins.default
     pad.onStateChange = { [weak self] packed in self?.send(packed) }
     pad.onMenu = { NotificationCenter.default.post(name: Notification.Name("DOLShowPauseMenu"), object: nil) }
+    pad.settings.hapticsEnabled = IridiaHaptics.enabled
     addSubview(pad)
+    // Follow Settings > Controllers > Vibration, also when it's changed from the pause menu mid-game.
+    defaultsObserver = NotificationCenter.default.addObserver(
+      forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        guard let self, self.pad.settings.hapticsEnabled != IridiaHaptics.enabled else { return }
+        self.pad.settings.hapticsEnabled = IridiaHaptics.enabled
+      }
+    }
   }
+
+  private var defaultsObserver: NSObjectProtocol?
 
   required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
@@ -77,6 +89,7 @@ final class GCEmuTouchPadView: UIView {
   }
 
   deinit {
+    if let defaultsObserver { NotificationCenter.default.removeObserver(defaultsObserver) }
     let p = port
     DispatchQueue.main.async { TCManagerInterface.clearAll(forController: p) }
   }

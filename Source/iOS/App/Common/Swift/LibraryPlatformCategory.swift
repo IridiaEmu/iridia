@@ -255,7 +255,7 @@ struct LibraryPlatformFilterBar: View {
     libraryPlatformFilterPill(category: cat, count: count, isSelected: isSelected) {
       selection = cat
       #if os(iOS)
-      UIImpactFeedbackGenerator(style: .light).impactOccurred()
+      if IridiaHaptics.enabled { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
       #endif
       onSelectionChange?()
     }
@@ -363,7 +363,7 @@ struct LibrarySearchFilterBar: View {
             let count = LibraryPlatformMapper.count(in: games, for: cat, overrides: overrides)
             libraryPlatformFilterPill(category: cat, count: count, isSelected: selection == cat) {
               selection = cat
-              UIImpactFeedbackGenerator(style: .light).impactOccurred()
+              if IridiaHaptics.enabled { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
               onSelectionChange?()
             }
             .id(cat)

@@ -142,6 +142,10 @@ enum ControllerHubModelBuilder {
         set: { if let percent = $0.base as? Int { actions.setOverlayOpacity(Float(percent) / 100) } })),
       description: L("How see-through the on-screen controls are.")))
     items.append(MenuItem(
+      id: "touch-vibration", title: L("Vibration"), icon: "iphone.radiowaves.left.and.right",
+      role: .toggle(Binding(get: { state.vibration }, set: { actions.setVibration($0) })),
+      description: L("A light buzz when you press on-screen buttons and tap around the app.")))
+    items.append(MenuItem(
       id: "touch-editable", title: L("Editable Controls"), icon: "slider.horizontal.below.rectangle",
       role: .toggle(Binding(get: { state.touchOverlayProgrammatic }, set: { actions.setTouchOverlayProgrammatic($0) })),
       description: L("On by default: controls you can move and resize from Edit Layout or with a long press in-game. Off uses the older fixed pads.")))

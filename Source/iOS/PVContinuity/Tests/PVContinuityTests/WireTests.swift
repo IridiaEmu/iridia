@@ -212,7 +212,7 @@ final class AdvertisementCodecTests: XCTestCase {
 
     func testServiceTypeIsTheICubeOne() {
         // Must match the NSBonjourServices entry in both Info.plists.
-        XCTAssertEqual(ContinuityService.type, "_icube-continuity._tcp")
+        XCTAssertEqual(ContinuityService.type, "_iridia-continuity._tcp")
     }
 }
 

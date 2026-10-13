@@ -2,16 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDisplayName</key>
-	<string>$(DOL_APP_DISPLAY_NAME)</string>
 	<key>ALTDeviceID</key>
 	<string>NotSet</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>UIAppSupportsHDR</key>
-	<true/>
+	<key>CFBundleDisplayName</key>
+	<string>$(DOL_APP_DISPLAY_NAME)</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -101,16 +97,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>stikdebug</string>
-		<string>stikjit</string>
-		<!-- Provenance ecosystem integration: base scheme for launching/callbacks,
-		     plus the capability marker scheme that gates "Send to Provenance"
-		     (see Common/Ecosystem/EcosystemSchemes.swift). -->
-		<string>provenance</string>
-		<string>provenance-ecosystem</string>
-	</array>
 	<key>DOLBuildSource</key>
 	<string>$(DOL_BUILD_SOURCE)</string>
 	<key>DOLCoreVersion</key>
@@ -130,15 +116,19 @@
 			<string>DirectionalGamepad</string>
 		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>stikdebug</string>
+		<string>stikjit</string>
+		<string>provenance</string>
+		<string>provenance-ecosystem</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
-		<!-- Continuity pulls talk plain HTTP to .local / raw-IP peers on the LAN.
-		     ATS exempts local connections by default, but the explicit key removes
-		     any ambiguity on device. This is the transport tradeoff documented in
-		     PVContinuity/ContinuityPairingMath: pairing authenticates the peer and
-		     adds no confidentiality. -->
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 		<key>NSExceptionDomains</key>
@@ -161,24 +151,23 @@
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_altserver._tcp</string>
-		<!-- ROMUploadServer advertises _http._tcp through its NWListener and _webdav._tcp
-		     through NetService; both must be declared or local-network policy can park the
-		     listener in .waiting. -->
 		<string>_http._tcp</string>
 		<string>_webdav._tcp</string>
-		<!-- WS-4: continuity handoff + nearby library sharing. On tvOS this is the
-		     ONLY discovery path, since there is no system Handoff. -->
-		<string>_icube-continuity._tcp</string>
+		<string>_iridia-continuity._tcp</string>
 	</array>
-	<!-- Custom Handoff activity: continue a game in progress on another device
-	     (ContinuityAdvertisement.activityType). Handoff is iOS/iPadOS/macOS only;
-	     tvOS uses the in-app Bonjour browser instead, but the key is harmless
-	     there and keeps the two plists from drifting. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Iridia uses your local network to reach game servers you add (such as WebDAV), to receive games from your computer over Wi-Fi, and to hand a game to your other devices.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>app.iridia.continuity.play</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>RoundedMplus1c-Medium.ttf</string>
+		<string>RoundedMplus1c-Bold.ttf</string>
+	</array>
+	<key>UIAppSupportsHDR</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -233,11 +222,6 @@
 			<key>UIApplicationShortcutItemType</key>
 			<string>dios.quick.settings</string>
 		</dict>
-	</array>
-	<key>UIAppFonts</key>
-	<array>
-		<string>RoundedMplus1c-Medium.ttf</string>
-		<string>RoundedMplus1c-Bold.ttf</string>
 	</array>
 	<key>UIFileSharingEnabled</key>
 	<true/>

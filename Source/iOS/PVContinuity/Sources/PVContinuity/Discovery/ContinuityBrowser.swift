@@ -10,7 +10,7 @@ import Network
 /// **both** `Info.plist` and `Info-TV.plist` — or `NWBrowser` finds nothing and
 /// `NetService` publishes nothing, with no error either way.
 public enum ContinuityService {
-    public static let type = "_icube-continuity._tcp"
+    public static let type = "_iridia-continuity._tcp"
 }
 
 /// Browses the local network for iCube continuity advertisements.

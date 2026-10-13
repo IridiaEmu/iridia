@@ -111,11 +111,10 @@
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_altserver._tcp</string>
 		<string>_webdav._tcp</string>
 		<!-- WS-4: continuity handoff + nearby library sharing. On tvOS this is the
 		     ONLY discovery path, since there is no system Handoff. -->
-		<string>_icube-continuity._tcp</string>
+		<string>_iridia-continuity._tcp</string>
 	</array>
 	<!-- Custom Handoff activity: continue a game in progress on another device
 	     (ContinuityAdvertisement.activityType). Handoff is iOS/iPadOS/macOS only;

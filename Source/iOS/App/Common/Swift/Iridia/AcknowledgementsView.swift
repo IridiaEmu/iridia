@@ -6,9 +6,12 @@
 import SwiftUI
 
 enum IridiaLinks {
-  /// Iridia's public source repository (GPL). Set when the repository is published (Phase 7);
-  /// until then the screen says the source is published with each release.
-  static let sourceCode: URL? = nil
+  /// Iridia's public source repository (GPL), if one is published. Optional: the written offer
+  /// below covers source distribution on its own.
+  static let sourceCode: URL? = URL(string: "https://github.com/zaptrem4/iridia")
+
+  /// Where to ask for the source under the written offer (a backup to the public repository).
+  static let sourceRequestContact = "github.com/zaptrem4/iridia/issues"
 }
 
 struct AcknowledgementsView: View {
@@ -34,6 +37,14 @@ struct AcknowledgementsView: View {
     Credit(name: "Rounded M+", detail: "Rounded display typeface used in some menus.", license: "SIL Open Font License 1.1", url: "https://github.com/google/fonts/tree/main/ofl/roundedmplus1c"),
   ]
 
+  /// "1.0.0 (13)": names the exact build a source request refers to.
+  static var versionString: String {
+    let info = Bundle.main.infoDictionary
+    let v = info?["CFBundleShortVersionString"] as? String ?? "?"
+    let b = info?["CFBundleVersion"] as? String ?? "?"
+    return "\(v) (\(b))"
+  }
+
   private static func bundled(_ name: String, _ ext: String) -> String {
     guard let url = Bundle.main.url(forResource: name, withExtension: ext),
           let text = try? String(contentsOf: url, encoding: .utf8) else { return "" }
@@ -50,10 +61,6 @@ struct AcknowledgementsView: View {
             .foregroundStyle(.secondary)
           if let url = IridiaLinks.sourceCode {
             Link(L("Source code"), destination: url)
-          } else {
-            Text(L("The complete source code is published with every release."))
-              .font(.subheadline)
-              .foregroundStyle(.secondary)
           }
         }
         .padding(.vertical, 4)
@@ -66,6 +73,17 @@ struct AcknowledgementsView: View {
           }
           .navigationTitle(L("GPL v2"))
         }
+      }
+
+      Section(L("Source code offer")) {
+        VStack(alignment: .leading, spacing: 8) {
+          Text(L("For at least three years from the date you received this version of Iridia, we will give anyone who asks a complete machine-readable copy of its corresponding source code, under the terms of the GNU General Public License version 2 (section 3(b)). It is sent as a download or on a medium customarily used for software interchange, for no more than our cost of providing it."))
+            .font(.subheadline)
+          Text(String(format: L("Write to %@ and include this version: %@."), IridiaLinks.sourceRequestContact, Self.versionString))
+            .font(.subheadline.weight(.semibold))
+            .textSelection(.enabled)
+        }
+        .padding(.vertical, 4)
       }
 
       Section(L("Built on")) {

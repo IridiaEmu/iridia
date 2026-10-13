@@ -258,3 +258,23 @@ over from #11; thermal "fair"). All 7 pass at full speed (speed 1.00):
 
 Homebrew headroom is lower than #1–#9 (≈5.5×) because those ran at 1x; TP's 1.60× matches #11's
 8x figure (1.58×), so **no regression**. Hyrule Field still not measured (needs a save there).
+
+## #15 Frame stability at high resolution (2026-10-13)
+TP, Ordon save state, `scripts/ini_ab.sh` (10 s warmup + 20 s, 90 s cool-downs, 3 rounds each).
+Reports now include hitches (frames > 1.5× median), p99 frame time and whole-app CPU %.
+
+- **Heat is the main cause of drops.** With the phone already hot ("serious") TP fell to 0.83–0.88×
+  speed at 3x, 5x and 8x alike: iOS slows the CPU. Higher resolution adds GPU heat, so it gets
+  there sooner. (Keep Cool, which lowered resolution when hot, was removed at the owner's request.)
+- 4x, phone cool:
+
+| Variant | Headroom | CPU % | p99 frame | 1% low |
+|---|---|---|---|---|
+| ImmediateXFB on (owner's phone) | 1.53× | 87 | 35.4 ms | 37.5 ms |
+| PrecisionFrameTiming off (no spin-wait) | 1.36× | 92 | 34.5 ms | 34.9 ms |
+| **ImmediateXFB off** (Dolphin default) | **1.67×** | **83** | 34.2 ms | **34.6 ms** |
+
+- 8x with ImmediateXFB off: 1.55× headroom, p99 34.1 ms, 0 hitches. Anisotropy 1x (1.54×) and
+  native-res EFB copies (1.53×) gave nothing; 4x was 1.60×.
+- **Adopted:** ImmediateXFB off on the owner's phone (new installs already default to off).
+  **Rejected:** PrecisionFrameTiming off (oversleeps: −11% headroom, more CPU), AF and EFB-copy changes.

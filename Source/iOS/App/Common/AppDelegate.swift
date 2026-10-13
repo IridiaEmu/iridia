@@ -22,13 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     MotionSettings.registerDefaults()
     DSUSettings.registerDefaults()
 
-    // Start Sentry as early as possible so it captures crashes during app launch. Configuration
-    // lives in SentryTelemetryService (emulation-gated tracing + hang tracking).
-    SentryTelemetryService.configure()
-    #if canImport(MetricKit) && !os(tvOS)
-    // The app extensions can't receive MetricKit payloads; their signposts arrive here.
-    ExtensionMetricsReporter.start()
-    #endif
+    // gc-emu: no telemetry (iCube's Sentry crash/performance reporting removed).
 
     // Settings-sync backbone: one global Config-changed hook (debounced auto-save of menu changes so
     // settings persist between runs, + a coalesced refresh notification so open settings UI re-reads

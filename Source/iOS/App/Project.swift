@@ -347,7 +347,7 @@ let iCube = Target.target(
         .folderReference(path: "Project/Assets/compiled_shaders"),
     ],
     entitlements: nil, // per-config via CODE_SIGN_ENTITLEMENTS in appConfigs
-    scripts: preScripts + [uploadDsymScript],
+    scripts: preScripts + [],
     dependencies: [
         .xcframework(path: "../../../build/xcframework/PVlibDolphin.xcframework"),
         // MoltenVK (Vulkan-on-Metal ICD) is iOS-only: the prebuilt xcframework has only
@@ -380,7 +380,6 @@ let iCube = Target.target(
         .package(product: "SWCompression"),
         .package(product: "UICollectionViewLeftAlignedLayout"),
         .package(product: "AltKit"),
-        .package(product: "Sentry"),
         .sdk(name: "ReplayKit", type: .framework),
         .sdk(name: "AVFoundation", type: .framework),
         .sdk(name: "UniformTypeIdentifiers", type: .framework),
@@ -760,7 +759,6 @@ let project = Project(
         // unless the app links with -ObjC, and SentryClient.prepareEvent calls it, so every
         // MetricKit diagnostic crashed the app. CI resolves fresh (Package.resolved is
         // gitignored), so the floor is what keeps 9.29.1 out.
-        .remote(url: "https://github.com/getsentry/sentry-cocoa", requirement: .upToNextMajor(from: "9.29.2")),
     ],
     settings: .settings(
         base: projectBase,

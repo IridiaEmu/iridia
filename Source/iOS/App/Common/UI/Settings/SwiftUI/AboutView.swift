@@ -127,10 +127,7 @@ struct AboutView: View {
         Text("This software should not be used to play games you do not legally own.")
           .multilineTextAlignment(.center)
 
-        // gc-emu: Iridia's own source (GPL) once published, and the full credits.
-        if let url = IridiaLinks.sourceCode {
-          Button(L("Source Code")) { openURL(url) }
-        }
+        // gc-emu: the source link lives only inside Acknowledgements (kept low-key on purpose).
         NavigationLink(destination: AcknowledgementsView().padBackNavigation()) {
           Label(L("Acknowledgements"), systemImage: "heart.text.square")
         }

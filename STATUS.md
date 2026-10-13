@@ -110,7 +110,7 @@ Docs: PLAN.md, PROGRESS.md, RESEARCH.md, BUILDING.md, BENCHMARKS.md, PERFORMANCE
    - The 10-minute session timer, with auto-save and the unlock screen.
    - Restore purchases, transaction verification and refunds.
    - A local .storekit file, and a review of the 3.1.1 wording.
-3. **Phase 7, compliance (not started):**
+3. **Phase 7, compliance (mostly done 2026-10-12; only the public repo push is left):** Sentry removed; privacy manifest; firmware/Wii features removed, HLE boot with no IPL; clean App Store entitlements with increased memory and our App Group; Store/ paperwork written. Original list:
    - PrivacyInfo.xcprivacy.
    - High-level boot with no BIOS/IPL.
    - A **public GPL source repo**, required before release. Commits use a placeholder author that

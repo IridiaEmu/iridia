@@ -178,6 +178,6 @@ final class ConfigAudioModelBuilderTests: XCTestCase {
     XCTAssertFalse(s.stretch)
     XCTAssertEqual(s.stretchLatencyMs, 30)
     XCTAssertFalse(s.muteOnNoSpeedLimit)
-    XCTAssertTrue(s.obeyMuteSwitch)
+    XCTAssertFalse(s.obeyMuteSwitch)   // gc-emu: game audio plays with the silent switch on
   }
 }

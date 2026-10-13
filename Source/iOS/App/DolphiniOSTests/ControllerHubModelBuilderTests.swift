@@ -269,7 +269,7 @@ final class ControllerHubModelBuilderTests: XCTestCase {
 
   func test_touchControls_layoutRow_isNamedLayout_withAutoGameCubeWiiRemote_andTheRightDescription() throws {
     let model = make(state(system: .wii))
-    XCTAssertEqual(ids(model, section: "touch-controls"), ["touch-visible", "touch-layout", "touch-opacity", "touch-editable", "touch-edit-layout", "touch-edit-ir-area", "touch-skins", "touch-reset-layouts"])
+    XCTAssertEqual(ids(model, section: "touch-controls"), ["touch-visible", "touch-layout", "touch-opacity", "touch-vibration", "touch-game-rumble", "touch-editable", "touch-edit-layout", "touch-edit-ir-area", "touch-skins", "touch-reset-layouts"])
     let layout = try XCTUnwrap(model.item(id: "touch-layout"))
     XCTAssertEqual(layout.title, "Layout")
     guard case .cycle(let options, _) = layout.role else { return XCTFail("cycle") }
@@ -344,7 +344,7 @@ final class ControllerHubModelBuilderTests: XCTestCase {
     XCTAssertTrue(running.contains("touch-layout"))
     XCTAssertEqual(
       ids(make(state(system: .gamecube, isGameRunning: false)), section: "touch-controls"),
-      ["touch-opacity", "touch-editable", "touch-edit-layout", "touch-skins", "touch-reset-layouts"])
+      ["touch-opacity", "touch-vibration", "touch-game-rumble", "touch-editable", "touch-edit-layout", "touch-skins", "touch-reset-layouts"])
   }
 
   func test_showHideToggle_writesThroughTheAction() {

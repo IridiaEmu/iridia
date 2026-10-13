@@ -1,7 +1,7 @@
 {
   // Hand-written test skin: no third-party art.
   "name": "Test Cube",
-  "identifier": "com.joemattiello.icube.testcube",
+  "identifier": "app.iridia.testcube",
   "gameTypeIdentifier": "public.aoshuang.game.ngc",
   "debug": false,
   "representations": {

@@ -537,7 +537,8 @@ let iCubeTests = Target.target(
     destinations: [.iPhone, .iPad],
     product: .unitTests,
     bundleId: "com.joemattiello.iCubeTests",
-    deploymentTargets: .multiplatform(iOS: "17.0"),
+    // gc-emu: match the app's iOS 26 minimum, or `@testable import iCube` won't compile.
+    deploymentTargets: .multiplatform(iOS: "26.0"),
     infoPlist: .default,
     sources: ["DolphiniOSTests/**/*.swift"],
     // A folder reference (not a glob) keeps `Skins/<name>.deltaskin/` intact inside the test bundle.

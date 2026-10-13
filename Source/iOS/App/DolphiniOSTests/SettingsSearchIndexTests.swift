@@ -38,7 +38,8 @@ final class SettingsSearchIndexTests: XCTestCase {
   }
 
   func test_gameCubeRows_areFoundByTheirOwnTitles() {
-    XCTAssertTrue(index.hits(query: "main menu").contains { $0.entryID == "console-gamecube" })
+    // gc-emu: the "Main Menu" (IPL) row is gone; System Language is a GameCube row that stays.
+    XCTAssertTrue(index.hits(query: "system language").contains { $0.entryID == "console-gamecube" })
   }
 
   func test_wiiRows_areFoundByTheirOwnTitles() {

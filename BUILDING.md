@@ -129,3 +129,18 @@ It checks entitlements, imported symbols, defined symbols and strings, the core'
 | `Personal development teams … do not support the Extended Virtual Addressing and Increased Debugging Memory Limit capabilities` | Free accounts can't use these entitlements | Generate with `TUIST_GCEMU_FREE_TEAM=1` (step 5) |
 | `An Application Group with Identifier 'group.com.joemattiello.icube' is not available` | That App Group belongs to iCube's developer | Free-team mode drops it; the app falls back to standard defaults |
 | `building for iOS Simulator, but linking in … built for iOS` | xcframework has no simulator slice | Rebuild the core with `-p SIMULATORARM64` |
+
+## App unit tests (Simulator)
+
+The core needs its Simulator slice (`-p OS64 SIMULATORARM64`, step 2). Then, with any iOS 27 Simulator
+(a separate derived-data folder keeps the device build intact):
+```sh
+cd ~/Projects/gc-emu/Source/iOS/App
+env PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" xcodebuild test \
+  -workspace iCube.xcworkspace -scheme "iCube (NJB)" \
+  -destination "platform=iOS Simulator,name=iPhone 18 Pro" \
+  -derivedDataPath ~/Projects/gc-emu/build-dd-sim \
+  CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" PROVISIONING_PROFILE_SPECIFIER=""
+```
+1,466 tests, about 25 s once built (first build ~10 min). Package tests: `swift test` in
+`Packages/GCControls` and `Packages/IridiaPerformance`; StoreKit tests: `Tools/StoreTestHost`.

@@ -58,6 +58,8 @@ enum GCEmuBenchmark {
     let hitches: Int
     /// Whole-app CPU time over the measured window, as % of one core (a power/heat proxy).
     let cpuPercent: Double
+    /// CPU % of one core per thread name over the measured window (busiest first in practice).
+    let threadCPU: [String: Double]
     let frames: Int
     /// Memory as iOS counts it for the jetsam limit (phys_footprint), MB: at the end of the run and
     /// the process lifetime peak.
@@ -154,13 +156,14 @@ enum GCEmuBenchmark {
     var lastRaw = -1.0
     var t0: CFAbsoluteTime = 0
     var cpu0 = 0.0
+    var threads0: [String: Double] = [:]
     let t = DispatchSource.makeTimerSource(queue: queue)
     timer = t
     var tick = 0
     // 5 ms ticks: fast enough to see every frame's raw time (frames are >= 16 ms); counters every 10th tick.
     t.schedule(deadline: .now() + warmup, repeating: .milliseconds(5), leeway: .milliseconds(1))
     t.setEventHandler {
-      if t0 == 0 { t0 = CFAbsoluteTimeGetCurrent(); cpu0 = cpuSeconds() }
+      if t0 == 0 { t0 = CFAbsoluteTimeGetCurrent(); cpu0 = cpuSeconds(); threads0 = threadCPUSeconds() }
       let now = CFAbsoluteTimeGetCurrent() - t0
       let snap = DOLPerfBridge.snapshot()
       func v(_ k: String) -> Double { snap[k]?.doubleValue ?? 0 }
@@ -184,6 +187,10 @@ enum GCEmuBenchmark {
         onePercentLowFrameTimeMs: slowest.isEmpty ? 0 : slowest.reduce(0, +) / Double(slowest.count),
         hitches: { let m = Stats(frameTimes).p50; return frameTimes.filter { $0 > m * 1.5 }.count }(),
         cpuPercent: (cpuSeconds() - cpu0) / max(now, 0.001) * 100,
+        threadCPU: threadCPUSeconds().reduce(into: [:]) { out, kv in
+          let pct = (kv.value - (threads0[kv.key] ?? 0)) / max(now, 0.001) * 100
+          if pct >= 0.5 { out[kv.key] = (pct * 10).rounded() / 10 }
+        },
         frames: frameTimes.count,
         footprintMB: memory().now, peakFootprintMB: memory().peak,
         availableMB: Double(os_proc_available_memory()) / 1_048_576,
@@ -191,6 +198,32 @@ enum GCEmuBenchmark {
       write(report, label: label, game: game)
     }
     t.resume()
+  }
+
+  /// CPU seconds per thread, summed by thread name (unnamed threads grouped as "unnamed").
+  private static func threadCPUSeconds() -> [String: Double] {
+    var list: thread_act_array_t?
+    var count: mach_msg_type_number_t = 0
+    guard task_threads(mach_task_self_, &list, &count) == KERN_SUCCESS, let list else { return [:] }
+    defer {
+      for i in 0..<Int(count) { mach_port_deallocate(mach_task_self_, list[i]) }
+      vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern: list)), vm_size_t(Int(count) * MemoryLayout<thread_t>.stride))
+    }
+    var out: [String: Double] = [:]
+    for i in 0..<Int(count) {
+      var info = thread_extended_info_data_t()
+      var n = mach_msg_type_number_t(MemoryLayout<thread_extended_info_data_t>.size / MemoryLayout<natural_t>.size)
+      let kr = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: Int(n)) { thread_info(list[i], thread_flavor_t(THREAD_EXTENDED_INFO), $0, &n) }
+      }
+      guard kr == KERN_SUCCESS else { continue }
+      let name = withUnsafeBytes(of: info.pth_name) { raw in
+        String(decoding: raw.prefix(while: { $0 != 0 }), as: UTF8.self)
+      }
+      let secs = Double(info.pth_user_time + info.pth_system_time) / 1_000_000_000
+      out[name.isEmpty ? "unnamed" : name, default: 0] += secs
+    }
+    return out
   }
 
   /// User + system CPU time of the whole process, seconds.

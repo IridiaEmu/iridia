@@ -10,7 +10,7 @@ enum ConfigInterfaceModelBuilder {
       SettingsRow.toggle("names-db", L("Use Built-In Database of Game Names"), state.useNamesDB,
                          L("Replaces raw disc IDs with proper game titles from the built-in database."),
                          set: { apply(.useNamesDB($0)) }),
-      SettingsRow.toggle("covers", L("Download Game Covers from GameTDB.com for Use in Grid Mode"), state.useCovers,
+      SettingsRow.toggle("covers", L("Download Game Covers from GameTDB.com"), state.useCovers,
                          L("Fetches box art from GameTDB.com over the network (once per game) for grid view. Turn off to stay fully offline."),
                          set: { apply(.useCovers($0)) }),
     ])

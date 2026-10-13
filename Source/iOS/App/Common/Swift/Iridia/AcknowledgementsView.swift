@@ -30,6 +30,7 @@ struct AcknowledgementsView: View {
     Credit(name: "PLzmaSDK", detail: "7-Zip archive support (Oleh Kulykov).", license: "MIT", url: "https://github.com/OlehKulykov/PLzmaSDK"),
     Credit(name: "LZMA SDK", detail: "7-Zip compression (Igor Pavlov), used by PLzmaSDK.", license: "Public domain", url: "https://www.7-zip.org/sdk.html"),
     Credit(name: "MoltenVK", detail: "Vulkan on Metal, for the optional Vulkan renderer.", license: "Apache-2.0", url: "https://github.com/KhronosGroup/MoltenVK"),
+    Credit(name: "Droid Sans", detail: "The GameCube system fonts Dolphin generates for games (no Nintendo fonts are included).", license: "Apache-2.0", url: "https://fonts.google.com/specimen/Droid+Sans"),
     Credit(name: "Rounded M+", detail: "Rounded display typeface used in some menus.", license: "SIL Open Font License 1.1", url: "https://github.com/google/fonts/tree/main/ofl/roundedmplus1c"),
   ]
 

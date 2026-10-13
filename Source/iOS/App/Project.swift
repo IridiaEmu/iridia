@@ -320,6 +320,7 @@ let iCube = Target.target(
     ],
     resources: [
         "DolphiniOS/Assets.xcassets",
+        "DolphiniOS/PrivacyInfo.xcprivacy",   // gc-emu: app privacy manifest (no tracking, no data collected)
         "Common/Assets.xcassets",
         "Common/DolphinAssets.xcassets",
         // Display face for chrome (design spec §1). Flat in the bundle so UIAppFonts names resolve.

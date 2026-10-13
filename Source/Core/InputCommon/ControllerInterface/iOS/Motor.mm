@@ -27,6 +27,17 @@ int RumbleDestination()
   return value ? value.intValue : 1;
 #endif
 }
+
+/// gc-emu: Settings > Controllers > Touch Controls > Game Rumble ("iridia_game_rumble"). Off by
+/// default: games don't vibrate the iPhone/iPad itself. Rumble on a physical controller is separate.
+bool GameRumbleOnDevice()
+{
+#if TARGET_OS_TV
+  return false;
+#else
+  return [[NSUserDefaults standardUserDefaults] boolForKey:@"iridia_game_rumble"];
+#endif
+}
 }  // namespace
 
 #if !TARGET_OS_TV
@@ -132,7 +143,8 @@ int RumbleDestination()
 
 namespace ciface::iOS
 {
-Motor::Motor(CHHapticEngine* engine, const std::string name) : m_haptic_engine(engine), m_name(std::move(name))
+Motor::Motor(CHHapticEngine* engine, const std::string name, bool on_device)
+    : m_haptic_engine(engine), m_name(std::move(name)), m_on_device(on_device)
 {
   std::lock_guard<std::mutex> guard(m_lock);
 
@@ -237,6 +249,11 @@ void Motor::SetState(ControlState state)
 {
   std::lock_guard<std::mutex> guard(m_lock);
 
+  // The device's own vibration only with Game Rumble on (this motor, or mirrored to the device).
+  const bool device_rumble = GameRumbleOnDevice();
+  if (m_on_device && !device_rumble)
+    state = 0.0;
+
   if (state == m_last_state)
   {
     return;
@@ -249,7 +266,7 @@ void Motor::SetState(ControlState state)
 #if !TARGET_OS_TV
   if (destination == 0 || destination == 2)
   {
-    [[DOLDeviceHaptics shared] setState:(state > 0)];
+    [[DOLDeviceHaptics shared] setState:(state > 0 && device_rumble)];
   }
 
   // Device-only: leave the controller motor untouched.

@@ -208,6 +208,7 @@ final class ControllerHubViewModel {
       pending: state.pending,
       focusRequest: state.focusRequest)
     state.vibration = IridiaHaptics.enabled
+    state.gameRumble = IridiaHaptics.gameRumble
   }
 
   /// Takes a snapshot and follows assignment and device changes until `stop()`. Idempotent.
@@ -314,6 +315,10 @@ final class ControllerHubViewModel {
       },
       setVibration: { [weak self] enabled in
         IridiaHaptics.enabled = enabled
+        self?.reload()
+      },
+      setGameRumble: { [weak self] enabled in
+        IridiaHaptics.gameRumble = enabled
         self?.reload()
       })
   }

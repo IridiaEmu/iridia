@@ -142,9 +142,13 @@ enum ControllerHubModelBuilder {
         set: { if let percent = $0.base as? Int { actions.setOverlayOpacity(Float(percent) / 100) } })),
       description: L("How see-through the on-screen controls are.")))
     items.append(MenuItem(
-      id: "touch-vibration", title: L("Vibration"), icon: "iphone.radiowaves.left.and.right",
+      id: "touch-vibration", title: L("Button Vibration"), icon: "hand.tap",
       role: .toggle(Binding(get: { state.vibration }, set: { actions.setVibration($0) })),
       description: L("A light buzz when you press on-screen buttons and tap around the app.")))
+    items.append(MenuItem(
+      id: "touch-game-rumble", title: L("Game Rumble"), icon: "iphone.radiowaves.left.and.right",
+      role: .toggle(Binding(get: { state.gameRumble }, set: { actions.setGameRumble($0) })),
+      description: L("Let games vibrate your device when they rumble the controller. A connected controller with rumble still rumbles either way.")))
     items.append(MenuItem(
       id: "touch-editable", title: L("Editable Controls"), icon: "slider.horizontal.below.rectangle",
       role: .toggle(Binding(get: { state.touchOverlayProgrammatic }, set: { actions.setTouchOverlayProgrammatic($0) })),

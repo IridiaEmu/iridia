@@ -111,3 +111,6 @@ keys.txt
 /build-pgo/
 ab/
 benchmarks/profiles/
+Tools/StoreTestHost/Derived/
+Tools/StoreTestHost/*.xcodeproj/
+Tools/StoreTestHost/*.xcworkspace/

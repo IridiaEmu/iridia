@@ -3,7 +3,7 @@ import Foundation
 /// The one place the App Group id lives on the Swift side. The ObjC mirror is
 /// `DOLAppGroupIdentifier` in `Common/SharedDefaults.m`; keep them identical.
 public enum LibrarySnapshotAppGroup {
-    public static let identifier = "group.com.joemattiello.icube"
+    public static let identifier = "group.app.iridia"   // gc-emu: Iridia's App Group (register in Phase 9)
 
     /// `nil` when the running process is not entitled to the group (unsigned CI
     /// build, wildcard profile, test process). Every caller must tolerate nil.

@@ -1,0 +1,11 @@
+Target dependency graph (4 targets)
+Target 'AllIncludingTests' in project 'Aggregate'
+➜ Explicit dependency on target 'PVLibrarySnapshotTests-product' in project 'PVLibrarySnapshot'
+➜ Dependency on target 'PVLibrarySnapshotTests-product' in project 'PVLibrarySnapshot' via transitive dependency through 'PVLibrarySnapshotTests-test-runner'
+➜ Explicit dependency on target 'PVLibrarySnapshot-product' in project 'PVLibrarySnapshot'
+➜ Explicit dependency on target 'PVLibrarySnapshot' in project 'PVLibrarySnapshot'
+Target 'PVLibrarySnapshot-product' in project 'PVLibrarySnapshot'
+➜ Explicit dependency on target 'PVLibrarySnapshot' in project 'PVLibrarySnapshot'
+Target 'PVLibrarySnapshotTests-product' in project 'PVLibrarySnapshot'
+➜ Explicit dependency on target 'PVLibrarySnapshot' in project 'PVLibrarySnapshot'
+Target 'PVLibrarySnapshot' in project 'PVLibrarySnapshot' (no dependencies)

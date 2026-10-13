@@ -1,0 +1,89 @@
+{
+  "" : {
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PVLibrarySnapshotTests-primary.dia",
+    "emit-module-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PVLibrarySnapshotTests-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PVLibrarySnapshotTests-primary-emit-module.dia",
+    "pch" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PVLibrarySnapshotTests-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PVLibrarySnapshotTests-primary.swiftdeps"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/DerivedSources/test_entry_point.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/test_entry_point~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/DiscHeaderReaderTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/DiscHeaderReaderTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/ExtensionMetricsReportTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionMetricsReportTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/ExtensionTelemetryTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/ExtensionTelemetryTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/LibraryLookupTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibraryLookupTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/LibrarySnapshotLoadOutcomeTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotLoadOutcomeTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/LibrarySnapshotTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/LibrarySnapshotTests~partial.swiftmodule"
+  },
+  "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/Tests/PVLibrarySnapshotTests/PreviewFormattingTests.swift" : {
+    "const-values" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.swiftconstvalues",
+    "dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.d",
+    "diagnostics" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.dia",
+    "index-unit-output-path" : "/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.o",
+    "llvm-bc" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.bc",
+    "object" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.o",
+    "swift-dependencies" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests.swiftdeps",
+    "swiftmodule" : "/Users/luketremblay/Projects/gc-emu/Source/iOS/PVLibrarySnapshot/.build/out/Intermediates.noindex/PVLibrarySnapshot.build/Debug/PVLibrarySnapshotTests-p.build/Objects-normal/arm64/PreviewFormattingTests~partial.swiftmodule"
+  }
+}

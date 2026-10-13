@@ -25,7 +25,7 @@ final class LibrarySnapshotTests: XCTestCase {
     }
 
     func testAppGroupIdentifierIsFixed() {
-        XCTAssertEqual(LibrarySnapshotAppGroup.identifier, "group.com.joemattiello.icube")
+        XCTAssertEqual(LibrarySnapshotAppGroup.identifier, "group.app.iridia")
         XCTAssertEqual(LibrarySnapshotAppGroup.coverFilename(gameID: "GALE01"), "cover_GALE01.jpg")
     }
 

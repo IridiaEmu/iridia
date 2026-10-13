@@ -1,0 +1,4 @@
+module PVLibrarySnapshot {
+header "PVLibrarySnapshot-Swift.h"
+export *
+}

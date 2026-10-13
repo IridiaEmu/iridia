@@ -26,8 +26,19 @@ struct SaveStateCardView: View {
 
   #if os(tvOS)
   private static let thumbnailSize = CGSize(width: 480, height: 270)
+  private static let radius: CGFloat = 12
+  private static let placeholderFill = Color.gray.opacity(0.25)
+  private static let vignette = Color.black.opacity(0.75)
+  private static let continueBadge = Color.green
+  private static let slotBadge = Color.blue
   #else
   private static let thumbnailSize = CGSize(width: 300, height: 170)
+  // gc-emu: Iridia palette: violet glass instead of iCube's grey/green/blue.
+  private static let radius: CGFloat = 16
+  private static let placeholderFill = Color(red: 0.55, green: 0.45, blue: 1.0).opacity(0.16)
+  private static let vignette = Color(red: 0.04, green: 0.02, blue: 0.12).opacity(0.85)
+  private static let continueBadge = Color(red: 0.55, green: 0.45, blue: 1.0)
+  private static let slotBadge = Color.white.opacity(0.22)
   #endif
 
   var body: some View {
@@ -43,8 +54,8 @@ struct SaveStateCardView: View {
             .resizable()
             .scaledToFit()
         } else {
-          RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.gray.opacity(0.25))
+          RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+            .fill(Self.placeholderFill)
             .overlay(
               Image(systemName: "photo")
                 .font(.system(size: 28, weight: .regular))
@@ -52,24 +63,28 @@ struct SaveStateCardView: View {
             )
         }
       }
+      #if os(iOS)
+      // gc-emu: fill the grid cell's width (cells grow past 300 pt on wide phones and iPads) at a
+      // fixed 16:9 shape; the picture keeps its own ratio, letterboxed on the dark card.
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .aspectRatio(16.0 / 9.0, contentMode: .fit)
+      .background(Self.vignette.opacity(0.6))
+      #else
       .frame(width: Self.thumbnailSize.width, height: Self.thumbnailSize.height)
+      #endif
       .clipped()
-      .overlay(
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-          .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-      )
       .background(
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
+        RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
           .fill(Color.white.opacity(0.04))
       )
-      .cornerRadius(12)
+      .cornerRadius(Self.radius)
 
       // Vignette + metadata
       LinearGradient(
-        colors: [Color.black.opacity(0.0), Color.black.opacity(0.75)],
+        colors: [Color.black.opacity(0.0), Self.vignette],
         startPoint: .center, endPoint: .bottom
       )
-      .cornerRadius(12)
+      .cornerRadius(Self.radius)
 
       VStack(alignment: .leading, spacing: 4) {
         Text(state.displayName)
@@ -79,9 +94,10 @@ struct SaveStateCardView: View {
 
         HStack(spacing: 8) {
           if state.isAuto {
-            Badge(text: L("Continue"), color: .green)
+            // The resume save is already titled "Continue"; only badge it when renamed.
+            if state.displayName != L("Continue") { Badge(text: L("Continue"), color: Self.continueBadge) }
           } else if let slot = state.slot {
-            Badge(text: String(format: L("Slot %d"), slot))
+            Badge(text: String(format: L("Slot %d"), slot), color: Self.slotBadge)
           }
           if !state.isCompatible {
             #if os(tvOS)
@@ -117,6 +133,20 @@ struct SaveStateCardView: View {
       }
       .padding(12)
     }
+    #if os(iOS)
+    // gc-emu: Iridia glass rim (bright top edge fading down), like the shelf's cases.
+    .overlay(
+      RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+        .strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.08)], startPoint: .top, endPoint: .bottom),
+                      lineWidth: 1)
+    )
+    .shadow(color: .black.opacity(0.35), radius: 10, y: 6)
+    #else
+    .overlay(
+      RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+    )
+    #endif
     #if !os(tvOS)
     .sheet(isPresented: $showIncompatibleHelp) {
       NavigationStack {

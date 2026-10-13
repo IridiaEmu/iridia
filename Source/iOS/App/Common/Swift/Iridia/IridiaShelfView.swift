@@ -143,6 +143,18 @@ struct IridiaShelfView: View {
       installControllerNavigation()
       // Test hook for UI checks on device: -gcemuOpenSettings YES opens Settings at launch.
       if UserDefaults.standard.bool(forKey: "gcemuOpenSettings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onSettings() } }
+      // -iridiaOpen saves|controllers|properties opens that screen for the centred game.
+      if let screen = UserDefaults.standard.string(forKey: "iridiaOpen") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          guard let item = current else { return }
+          switch screen {
+          case "saves": onSaves(item)
+          case "controllers": onControllers()
+          case "properties": onProperties(item)
+          default: break
+          }
+        }
+      }
     }
     .onChange(of: games.count) { _, _ in installControllerNavigation() }
     .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in installControllerNavigation() }

@@ -18,151 +18,138 @@ struct TVSoftwarePropertiesView: View, Identifiable {
   }
 
   #if os(iOS)
-  /// iOS layout: compact header + adaptive property grid inside a NavigationStack
+  /// iOS layout, Iridia look: cover and title on the indigo stage, then glass panels for the game's
+  /// details and its saved settings. GameCube only (no Wii sensor bar).
   private var iosBody: some View {
     NavigationStack {
       GeometryReader { proxy in
         let isCompact = proxy.size.width < 600
-        let coverWidth: CGFloat = isCompact ? 140 : 220
-        let columns: [GridItem] = isCompact
-          ? [GridItem(.flexible(), spacing: 16)]
-          : [GridItem(.flexible(), spacing: 20), GridItem(.flexible(), spacing: 20)]
+        let coverWidth: CGFloat = isCompact ? 130 : 200
+        let fileSizeText = ByteCountFormatter.string(fromByteCount: Int64(item.fileSize), countStyle: .file)
 
         ScrollView {
-          VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .top, spacing: 16) {
+          VStack(alignment: .leading, spacing: 22) {
+            HStack(alignment: .top, spacing: 18) {
               Image(uiImage: item.coverImage)
                 .resizable()
                 .aspectRatio(2.0 / 3.0, contentMode: .fit)
                 .frame(width: coverWidth)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 6)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.08)], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                )
+                .shadow(color: IridiaGlass.violet.opacity(0.35), radius: 16, y: 8)
 
               VStack(alignment: .leading, spacing: 8) {
                 Text(item.title)
                   .font(.system(size: isCompact ? 22 : 28, weight: .bold))
+                  .foregroundStyle(IridiaGlass.ink)
                   .lineLimit(3)
-                Text(combinedId)
+                Text([item.gameID, item.countryName].filter { !$0.isEmpty }.joined(separator: " · "))
                   .font(.system(size: 14, weight: .medium))
-                  .foregroundColor(.secondary)
+                  .foregroundStyle(IridiaGlass.soft)
                 Toggle(L("Favorite"), isOn: Binding(get: { item.isFavorite }, set: { item.isFavorite = $0 }))
+                  .foregroundStyle(IridiaGlass.ink)
+                  .padding(.top, 6)
               }
               .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            LazyVGrid(columns: columns, spacing: 12) {
-              let fileSizeText = ByteCountFormatter.string(fromByteCount: Int64(item.fileSize), countStyle: .file)
-
-              PropertyCard(title: L("Internal Name"), value: internalName)
-              PropertyCard(title: L("Game ID"), value: item.gameID)
-
-              PropertyCard(title: L("Disc"), value: String(item.discNumber + 1))
-              PropertyCard(title: L("Revision"), value: String(item.revision))
-
-              PropertyCard(title: L("Manufacturer"), value: item.makerLong)
-              PropertyCard(title: L("Region"), value: item.countryName)
-
-              PropertyCard(title: L("Title ID (Hex)"), value: item.titleIDHex ?? "-")
-              PropertyCard(title: L("GameTDB ID"), value: item.gametdbID)
-
-              PropertyCard(title: L("Apploader Date"), value: item.apploaderDateString ?? "-")
-              PropertyCard(title: L("File Size"), value: fileSizeText)
+            VStack(alignment: .leading, spacing: 10) {
+              IridiaSectionLabel(text: L("Details"))
+              VStack(spacing: 0) {
+                DetailRow(title: L("Game ID"), value: item.gameID)
+                DetailRow(title: L("Region"), value: item.countryName)
+                DetailRow(title: L("Publisher"), value: item.makerLong)
+                DetailRow(title: L("Disc"), value: String(item.discNumber + 1))
+                DetailRow(title: L("Revision"), value: String(item.revision))
+                DetailRow(title: L("File Size"), value: fileSizeText, isLast: true)
+              }
+              .iridiaPanel()
             }
 
             // Game Settings: this title's saved settings (`GameProfiles`), not a Dolphin input profile.
-            VStack(alignment: .leading, spacing: 12) {
-              Text(L("Game Settings")).font(.headline)
-              HStack(spacing: 12) {
-                if GameProfiles.shared.profile(for: item.gameID) != nil {
-                  Button(L("Apply Recommended")) {
-                    if let rec = GameProfiles.shared.profile(for: item.gameID) {
-                      GameProfiles.shared.setProfile(rec, for: item.gameID)
-                      GameProfiles.shared.applyProfileIfAvailable(for: item)
-                      profilesVersion &+= 1
-                    }
-                  }
-                  .buttonStyle(.bordered)
-                }
+            VStack(alignment: .leading, spacing: 10) {
+              IridiaSectionLabel(text: L("Game Settings"))
+              VStack(alignment: .leading, spacing: 14) {
                 Toggle(L("Widescreen Hack"), isOn: Binding(get: { DOLConfigBridge.gfxWidescreenHack() }, set: { DOLConfigBridge.setGfxWidescreenHack($0) }))
-              }
-              // Per-game sensor bar sensitivity (SYSCONF)
-              VStack(alignment: .leading) {
-                HStack { Text(L("Sensor Bar Sensitivity"))
-                  Spacer()
-                  Text("\(DOLConfigBridge.sysconfSensorBarSensitivity())").foregroundStyle(.secondary)
-                }
-                Slider(value: Binding(get: { Double(DOLConfigBridge.sysconfSensorBarSensitivity()) }, set: { DOLConfigBridge.setSysconfSensorBarSensitivity(Int($0.rounded())) }), in: 1 ... 5, step: 1)
-              }
-              // Shader preset chooser with preview
-              HStack {
                 NavigationLink(destination: ShaderPickerView(selectedPresetPath: Binding(get: { UserDefaults.standard.string(forKey: "shader_preset_path") }, set: { UserDefaults.standard.set($0, forKey: "shader_preset_path")
                   NotificationCenter.default.post(name: Notification.Name("DOLShaderSettingsDidChange"), object: nil)
                 }))) {
-                  Text(L("Shader Preset"))
-                  Spacer()
-                  Text(UserDefaults.standard.string(forKey: "shader_preset_path")?.split(separator: "/").last.map(String.init) ?? L("None")).foregroundStyle(.secondary)
+                  HStack {
+                    Text(L("Shader Preset"))
+                    Spacer()
+                    Text(UserDefaults.standard.string(forKey: "shader_preset_path")?.split(separator: "/").last.map(String.init) ?? L("None"))
+                      .foregroundStyle(IridiaGlass.soft)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(IridiaGlass.dim)
+                  }
                 }
-              }
-              Divider()
-              HStack(spacing: 12) {
-                Button(L("Save as Game Settings")) {
-                  let snap = GameProfiles.shared.buildProfileFromCurrentSettings()
-                  GameProfiles.shared.setProfile(snap, for: item.gameID)
-                  GameProfiles.shared.applyProfileIfAvailable(for: item)
-                  profilesVersion &+= 1
+                .buttonStyle(.plain)
+                Divider().overlay(Color.white.opacity(0.12))
+                Text(L("Save the settings above for this game only. They're applied whenever it starts."))
+                  .font(.footnote)
+                  .foregroundStyle(IridiaGlass.dim)
+                  .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                  Button(L("Save for This Game")) {
+                    let snap = GameProfiles.shared.buildProfileFromCurrentSettings()
+                    GameProfiles.shared.setProfile(snap, for: item.gameID)
+                    GameProfiles.shared.applyProfileIfAvailable(for: item)
+                    profilesVersion &+= 1
+                  }
+                  .buttonStyle(.borderedProminent)
+                  if GameProfiles.shared.hasSavedProfile(for: item.gameID) {
+                    Button(L("Clear"), role: .destructive) {
+                      GameProfiles.shared.clearProfile(for: item.gameID)
+                      DOLConfigBridge.setGfxWidescreenHack(false)
+                      profilesVersion &+= 1
+                    }
+                    .buttonStyle(.bordered)
+                    Spacer()
+                    Label(L("Saved"), systemImage: "checkmark.circle.fill")
+                      .font(.caption.weight(.semibold))
+                      .foregroundStyle(IridiaGlass.accent)
+                  }
                 }
-                .buttonStyle(.borderedProminent)
-                Button(L("Clear Game Settings")) {
-                  GameProfiles.shared.clearProfile(for: item.gameID)
-                  // Force update for the toggles and pickers to reflect cleared state
-                  DOLConfigBridge.setGfxWidescreenHack(false)
-                  profilesVersion &+= 1
-                }
-                .buttonStyle(.bordered)
-                if GameProfiles.shared.hasSavedProfile(for: item.gameID) {
-                  Text(L("Saved")).font(.caption).foregroundStyle(.secondary)
-                }
-              }
-              // Optional diff view
-              if let prof = GameProfiles.shared.profile(for: item.gameID) {
-                let diff = GameProfiles.shared.diffCurrentSettings(from: prof)
-                if !diff.isEmpty {
-                  VStack(alignment: .leading, spacing: 6) {
-                    Text(L("Differences from Saved Settings")).font(.subheadline).foregroundStyle(.secondary)
-                    ForEach(Array(diff.enumerated()), id: \.offset) { pair in
-                      let row = pair.element
-                      HStack { Text(row.0)
-                        Spacer()
-                        Text(row.1).foregroundStyle(.secondary)
-                        Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                        Text(row.2).foregroundStyle(.secondary)
+                if let prof = GameProfiles.shared.profile(for: item.gameID) {
+                  let diff = GameProfiles.shared.diffCurrentSettings(from: prof)
+                  if !diff.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                      Text(L("Changed since saved")).font(.subheadline).foregroundStyle(IridiaGlass.soft)
+                      ForEach(Array(diff.enumerated()), id: \.offset) { pair in
+                        let row = pair.element
+                        HStack {
+                          Text(row.0)
+                          Spacer()
+                          Text(row.1).foregroundStyle(IridiaGlass.dim)
+                          Image(systemName: "arrow.right").foregroundStyle(IridiaGlass.dim)
+                          Text(row.2).foregroundStyle(IridiaGlass.soft)
+                        }
+                        .font(.footnote)
                       }
                     }
                   }
                 }
               }
+              .foregroundStyle(IridiaGlass.ink)
+              .iridiaPanel()
+              .id(profilesVersion)
             }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .id(profilesVersion)
           }
-          .padding(16)
+          .padding(20)
+          .frame(maxWidth: 760)
+          .frame(maxWidth: .infinity)
         }
-        .background(
-          Image(uiImage: item.coverImage)
-            .resizable()
-            .scaledToFill()
-            .blur(radius: 20)
-            .opacity(0.35)
-            .ignoresSafeArea()
-        )
       }
-      .navigationTitle(L("Properties"))
+      .iridiaScreen()
+      .navigationTitle(L("Game Info"))
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) { Button(L("Done")) { dismiss() } }
       }
     }
+    .preferredColorScheme(.dark)
   }
   #endif
 
@@ -278,6 +265,32 @@ struct TVSoftwarePropertiesView: View, Identifiable {
     return item.gameID
   }
 }
+
+// MARK: - Detail row (iOS, Iridia)
+
+#if os(iOS)
+private struct DetailRow: View {
+  let title: String
+  let value: String
+  var isLast = false
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(alignment: .firstTextBaseline) {
+        Text(title).foregroundStyle(IridiaGlass.soft)
+        Spacer(minLength: 16)
+        Text(value.isEmpty ? "–" : value)
+          .foregroundStyle(IridiaGlass.ink)
+          .multilineTextAlignment(.trailing)
+          .textSelection(.enabled)
+      }
+      .font(.system(size: 15))
+      .padding(.vertical, 10)
+      if !isLast { Divider().overlay(Color.white.opacity(0.10)) }
+    }
+  }
+}
+#endif
 
 // MARK: - Property Card Component
 

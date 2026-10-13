@@ -43,6 +43,19 @@ struct SaveStateFilmstripView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
+      #if os(iOS)
+      // gc-emu: Iridia header: the game's name rather than its ID code.
+      VStack(alignment: .leading, spacing: 4) {
+        Text(L("Save States"))
+          .font(.system(size: 30, weight: .bold))
+          .foregroundStyle(IridiaGlass.ink)
+        Text(gameTitle)
+          .font(.system(size: 15))
+          .foregroundStyle(IridiaGlass.soft)
+          .lineLimit(1)
+      }
+      .padding(.horizontal)
+      #else
       HStack {
         Text(L("Save States"))
           .font(.largeTitle.weight(.bold))
@@ -52,6 +65,7 @@ struct SaveStateFilmstripView: View {
           .foregroundStyle(.secondary)
       }
       .padding(.horizontal)
+      #endif
 
       if vm.states.isEmpty {
         emptyState
@@ -191,22 +205,39 @@ struct SaveStateFilmstripView: View {
     .task {
       await vm.load(gameID: gameID)
     }
+    #if os(iOS)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .iridiaScreen()
+    #endif
+  }
+
+  /// The library title for this game ID (falls back to the ID for a game no longer in the library).
+  private var gameTitle: String {
+    TVLibraryBridge.currentGames().first(where: { $0.gameID == gameID })?.title ?? gameID
   }
 
   private var emptyState: some View {
     VStack(spacing: 12) {
-      Image(systemName: "tray")
+      Image(systemName: "square.stack.3d.up")
         .font(.system(size: 40, weight: .regular))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(emptyTint)
       Text(L("No Save States"))
         .font(.title3.weight(.semibold))
       Text(L("Save states for this game will appear here."))
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(emptyTint)
         .multilineTextAlignment(.center)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .padding()
+  }
+
+  private var emptyTint: Color {
+    #if os(iOS)
+    IridiaGlass.soft
+    #else
+    .secondary
+    #endif
   }
 
   /// This view is reached two ways: from the pause menu of an already-running

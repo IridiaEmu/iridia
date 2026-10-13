@@ -48,6 +48,10 @@ struct ControllerHubView: View {
     .onAppear { viewModel.start() }
     .onDisappear { viewModel.stop() }
     #if os(iOS)
+    // gc-emu: Iridia look in every host (library sheet, pause menu, Settings): the list already
+    // draws the indigo stage; keep the navigation bar see-through and dark over it.
+    .toolbarBackground(.hidden, for: .navigationBar)
+    .toolbarColorScheme(.dark, for: .navigationBar)
     // Attached to the hub, not a row: nothing waits on a lazily built row (see above).
     .fullScreenCover(isPresented: $viewModel.isLayoutEditorPresented) {
       TouchOverlayLayoutEditorView(padKind: TouchOverlayLayoutEditorView.lastPadKind(), overGame: false) {

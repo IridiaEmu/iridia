@@ -857,6 +857,7 @@ struct TVLibraryView: View {
           ControllerHubView(system: .gamecube, onBack: { showLibraryControllers = false })
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { showLibraryControllers = false } } }
         }
+        .preferredColorScheme(.dark)   // gc-emu: Iridia sheets are always dark
         .claimsController()
       }
     } else {

@@ -898,6 +898,7 @@ struct EmulationScreen: View {
                         .disabled(efbOverride != .none)
                       Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
                     }
+                    if efbScaleQuick >= ResolutionSliderRow.hotScale { ResolutionSliderRow.hotWarning }
                     HStack {
                       Text(L("Anisotropic Filtering"))
                         .foregroundColor(.white.opacity(0.8))
@@ -987,6 +988,7 @@ struct EmulationScreen: View {
                     .disabled(efbOverride != .none)
                   Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
                 }
+                if efbScaleQuick >= ResolutionSliderRow.hotScale { ResolutionSliderRow.hotWarning }
                 HStack {
                   Text(L("Anisotropic Filtering"))
                     .foregroundColor(.white.opacity(0.8))

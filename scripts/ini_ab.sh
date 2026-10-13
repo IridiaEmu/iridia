@@ -22,10 +22,19 @@ TAG="ab$(date +%H%M%S)"
 UDID="${GCEMU_DEVICE:-}"
 [[ -n "$UDID" ]] || { echo "set GCEMU_DEVICE=<UDID>; devices:" >&2; xcrun devicectl list devices 2>/dev/null | grep physical >&2; exit 2; }
 dc() { xcrun devicectl device copy "$@" --device "$UDID" --domain-type appDataContainer --domain-identifier "$BUNDLE" >/dev/null 2>&1; }
+# Push a file and check it landed. `devicectl copy to` silently skips a file whose size matches the
+# device's copy when the local one is older, so refresh its date first, then read it back.
+push() {  # $1 local file, $2 device path
+  touch "$1"; dc to --source "$1" --destination "$2"
+  dc from --source "$2" --destination "$WORK/verify" && cmp -s "$1" "$WORK/verify" || echo "WARNING: $2 did not update" >&2
+}
 for f in Dolphin GFX; do
   dc from --source "$UDIR/Config/$f.ini" --destination "$WORK/$f.orig" || { echo "can't read $f.ini" >&2; exit 2; }
 done
-trap 'for f in Dolphin GFX; do dc to --source "$WORK/$f.orig" --destination "$UDIR/Config/$f.ini"; done; rm -rf "$WORK"' EXIT
+restore() { for f in Dolphin GFX; do push "$WORK/$f.orig" "$UDIR/Config/$f.ini"; done; rm -rf "$WORK"; }
+# Restore the player's settings however the run ends (finished, Ctrl-C or killed).
+trap restore EXIT
+trap 'exit 130' INT TERM
 
 make_ini() {  # $1 = file (Dolphin|GFX), $2 = out file, $3 = comma-separated File/Section/Key=Value list
   python3 -I - "$WORK/$1.orig" "$2" "$1" "$3" <<'EOF'
@@ -61,7 +70,7 @@ for r in $(seq 1 "$ROUNDS"); do
   i=0
   for v in "$@"; do
     label="$TAG-${v%%:*}"
-    for f in Dolphin GFX; do dc to --source "$WORK/$f.v$i" --destination "$UDIR/Config/$f.ini"; done
+    for f in Dolphin GFX; do push "$WORK/$f.v$i" "$UDIR/Config/$f.ini"; done
     sleep "$COOL"
     xcrun devicectl device process launch --device "$UDID" --terminate-existing \
       --payload-url "dolphinios://play?id=$PLAY_ID" "$BUNDLE" \

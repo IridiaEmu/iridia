@@ -30,6 +30,8 @@ struct ResolutionSliderRow: View {
         Text(L("Set automatically for this game right now."))
           .font(.caption)
           .foregroundStyle(.secondary)
+      } else if scale >= Self.hotScale {
+        Self.hotWarning
       }
     }
     .padding(.vertical, 4)
@@ -45,6 +47,18 @@ struct ResolutionSliderRow: View {
     scale = newScale
     DOLConfigBridge.setGfxEfbScale(newScale)
     DOLConfigBridge.setGfxAutoIREnable(false)
+  }
+
+  /// gc-emu: from here up the GPU works ~10× harder for little visible gain (BENCHMARKS #17: iPhone 16
+  /// Pro, Twilight Princess: 8% GPU busy at 1x–4x, 82–87% at 5x–8x; the screen shows ~3x at most).
+  static let hotScale = 5
+
+  static var hotWarning: some View {
+    Label(L("Runs hot: little visible difference on this screen. 4x looks about the same and keeps your device cooler."),
+          systemImage: "thermometer.high")
+      .font(.caption)
+      .foregroundStyle(.orange)
+      .fixedSize(horizontal: false, vertical: true)
   }
 
   /// "2x · 1280×1056" (GameCube native EFB is 640×528).

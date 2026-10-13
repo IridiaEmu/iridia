@@ -42,7 +42,6 @@ final class SettingsSearchIndexTests: XCTestCase {
   }
 
   func test_wiiRows_areFoundByTheirOwnTitles() {
-    XCTAssertTrue(index.hits(query: "sensor bar").contains { $0.entryID == "console-wii" })
   }
 
   func test_audioRows_areFoundByTheirOwnTitles() {

@@ -13,26 +13,14 @@ final class ConfigGameCubeModelBuilderTests: XCTestCase {
   }
 
   func test_rowOrder_andSections() {
-    XCTAssertEqual(model().allItems.map(\.id), ["load-main-menu", "language"])
-    XCTAssertEqual(model().sections.map(\.id), ["general", "system-language"])
-    XCTAssertEqual(model().sections.map(\.header), ["General", nil])
-    XCTAssertEqual(model().allItems.map(\.title), ["Load GameCube Main Menu", "System Language"])
+    // gc-emu: the IPL "Load GameCube Main Menu" row is gone (it needs a dumped Nintendo IPL).
+    XCTAssertEqual(model().allItems.map(\.id), ["language"])
+    XCTAssertEqual(model().sections.map(\.id), ["system-language"])
+    XCTAssertEqual(model().allItems.map(\.title), ["System Language"])
   }
 
   func test_everyRow_hasADescription() {
     for item in model().allItems { XCTAssertFalse((item.description ?? "").isEmpty, item.id) }
-  }
-
-  func test_loadMainMenu_reflectsTheState_andEmitsItsOwnChange() {
-    for shown in [true, false] {
-      guard case .toggle(let binding)? = model(ConfigGameCubeState(loadMainMenu: shown, language: 0)).item(id: "load-main-menu")?.role else { return XCTFail("not a toggle") }
-      XCTAssertEqual(binding.wrappedValue, shown)
-      for value in [true, false] {
-        changes = []
-        binding.wrappedValue = value
-        XCTAssertEqual(changes, [.loadMainMenu(value)])
-      }
-    }
   }
 
   func test_language_listsTheSixGameCubeLanguages_inIndexOrder() {

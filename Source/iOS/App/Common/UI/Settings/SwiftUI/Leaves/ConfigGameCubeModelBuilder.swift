@@ -13,17 +13,13 @@ enum ConfigGameCubeModelBuilder {
   }
 
   static func make(state: ConfigGameCubeState, apply: @escaping (ConfigGameCubeChange) -> Void) -> MenuModel {
-    let general = MenuSection(id: "general", header: L("General"), items: [
-      SettingsRow.toggle("load-main-menu", L("Load GameCube Main Menu"), state.loadMainMenu,
-                         L("Boots through the console's startup menu (IPL/BIOS animation) instead of straight into the game. Needs a matching-region GameCube IPL dump; without one, games boot directly anyway. Turn off to start games faster."),
-                         set: { apply(.loadMainMenu($0)) }),
-    ])
+    // gc-emu: no "Load GameCube Main Menu" (it needs a dumped Nintendo IPL); games boot with the HLE BIOS.
     // The old screen's section header was the row's own label, so it is the row's title here.
     let language = MenuSection(id: "system-language", items: [
       SettingsRow.cycle("language", L("System Language"), languageOptions(including: state.language), state.language,
                         L("Language the emulated GameCube reports to games. The GameCube supports English, German, French, Spanish, Italian, and Dutch only. Defaults to your device language where supported, otherwise English."),
                         set: { apply(.language($0)) }),
     ])
-    return MenuModel(sections: [general, language])
+    return MenuModel(sections: [language])
   }
 }

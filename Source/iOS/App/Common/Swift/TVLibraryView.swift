@@ -1578,20 +1578,9 @@ struct TVLibraryView: View {
   @ViewBuilder
   private var librarySystemMenuSection: some View {
     Section(L("System")) {
-      Button(action: { libraryMenuAction { model.loadGameCubeMainMenu() } }) {
-        Label(L("GameCube: Load Main Menu"), systemImage: "gamecontroller")
-      }
-#if os(tvOS)
-      Button(action: { libraryMenuAction { showUpdateRegions = true } }) {
-        Label(L("Wii: Online System Update"), systemImage: "arrow.triangle.2.circlepath")
-      }
-#else
-      Button(action: { model.performOnlineSystemUpdate() }) {
-        Label(L("Wii: Online System Update"), systemImage: "arrow.triangle.2.circlepath")
-      }
-#endif
+      // gc-emu: no "Load Main Menu" (needs a dumped GameCube IPL) and no "Wii: Online System Update"
+      // (downloads Nintendo firmware). Iridia boots games with Dolphin's HLE BIOS, nothing to supply.
 #if os(iOS)
-      Divider()
       Button(action: {
         if DSUSettings.role() == .receiver {
           NotificationCenter.default.post(
@@ -1632,16 +1621,9 @@ struct TVLibraryView: View {
           Image(systemName: "folder")
         }
       }
-      Button(action: { showImportNANDPicker = true }) {
-        Label(L("Import BootMii NAND Backup…"), systemImage: "tray.and.arrow.down")
-      }
+      // gc-emu: Wii-only imports removed (BootMii NAND backup, Skylander figures): GameCube only.
 #endif
 #if os(iOS)
-      if DOLConfigBridge.mainEmulateSkylanderPortal() {
-        Button(action: { showImportSkylanderPicker = true }) {
-          Label(L("Import Skylander Figure…"), systemImage: "figure.stand")
-        }
-      }
       Divider()
 #endif
       Button(action: { libraryMenuAction { showWebImportSheet = true } }) {

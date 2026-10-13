@@ -4,6 +4,7 @@
 #include "VideoBackends/Metal/MTLStateTracker.h"
 
 #include <algorithm>
+#include <atomic>
 #include <bit>
 #include <mutex>
 
@@ -25,6 +26,13 @@
 #include "VideoCommon/VideoConfig.h"
 
 static constexpr u32 PERF_QUERY_BUFFER_SIZE = 512;
+
+// gc-emu: total GPU time (µs) of completed render command buffers, read by the iOS benchmark.
+static std::atomic<u64> s_gpu_busy_micros{0};
+extern "C" unsigned long long GCEmuMetalGPUMicros()
+{
+  return s_gpu_busy_micros.load(std::memory_order_relaxed);
+}
 
 std::unique_ptr<Metal::StateTracker> Metal::g_state_tracker;
 
@@ -438,6 +446,10 @@ void Metal::StateTracker::FlushEncoders()
   [m_current_render_cmdbuf
       addCompletedHandler:[backref = m_backref, draw = m_current_draw,
                            q = std::move(m_current_perf_query)](id<MTLCommandBuffer> buf) {
+        // gc-emu: GPU busy time for the benchmark's heat numbers (GCEmuMetalGPUMicros).
+        const double gpu_seconds = buf.GPUEndTime - buf.GPUStartTime;
+        if (gpu_seconds > 0 && gpu_seconds < 1.0)
+          s_gpu_busy_micros.fetch_add(static_cast<u64>(gpu_seconds * 1e6), std::memory_order_relaxed);
         std::lock_guard<std::mutex> guard(backref->mtx);
         if (StateTracker* tracker = backref->state_tracker)
         {

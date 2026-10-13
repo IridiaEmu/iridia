@@ -58,6 +58,8 @@ enum GCEmuBenchmark {
     let hitches: Int
     /// Whole-app CPU time over the measured window, as % of one core (a power/heat proxy).
     let cpuPercent: Double
+    /// GPU busy time over the window, % (Metal command buffers' GPU start→end).
+    let gpuPercent: Double
     /// CPU % of one core per thread name over the measured window (busiest first in practice).
     let threadCPU: [String: Double]
     let frames: Int
@@ -157,13 +159,18 @@ enum GCEmuBenchmark {
     var t0: CFAbsoluteTime = 0
     var cpu0 = 0.0
     var threads0: [String: Double] = [:]
+    var gpu0 = 0.0
     let t = DispatchSource.makeTimerSource(queue: queue)
     timer = t
     var tick = 0
     // 5 ms ticks: fast enough to see every frame's raw time (frames are >= 16 ms); counters every 10th tick.
     t.schedule(deadline: .now() + warmup, repeating: .milliseconds(5), leeway: .milliseconds(1))
     t.setEventHandler {
-      if t0 == 0 { t0 = CFAbsoluteTimeGetCurrent(); cpu0 = cpuSeconds(); threads0 = threadCPUSeconds() }
+      if t0 == 0 {
+        t0 = CFAbsoluteTimeGetCurrent(); cpu0 = cpuSeconds(); threads0 = threadCPUSeconds()
+        gpu0 = DOLPerfBridge.snapshot()["gpuMicros"]?.doubleValue ?? 0
+        GCEmuProfiler.startIfRequested(label: label)   // -gcemuProfile <s>: sample the CPU thread
+      }
       let now = CFAbsoluteTimeGetCurrent() - t0
       let snap = DOLPerfBridge.snapshot()
       func v(_ k: String) -> Double { snap[k]?.doubleValue ?? 0 }
@@ -187,6 +194,7 @@ enum GCEmuBenchmark {
         onePercentLowFrameTimeMs: slowest.isEmpty ? 0 : slowest.reduce(0, +) / Double(slowest.count),
         hitches: { let m = Stats(frameTimes).p50; return frameTimes.filter { $0 > m * 1.5 }.count }(),
         cpuPercent: (cpuSeconds() - cpu0) / max(now, 0.001) * 100,
+        gpuPercent: ((snap["gpuMicros"]?.doubleValue ?? 0) - gpu0) / 1_000_000 / max(now, 0.001) * 100,
         threadCPU: threadCPUSeconds().reduce(into: [:]) { out, kv in
           let pct = (kv.value - (threads0[kv.key] ?? 0)) / max(now, 0.001) * 100
           if pct >= 0.5 { out[kv.key] = (pct * 10).rounded() / 10 }

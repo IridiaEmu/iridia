@@ -12,6 +12,9 @@
 #include "VideoCommon/PerformanceMetrics.h"
 #include "Core/System.h"  // 2606: PerformanceMetrics lives on Core::System
 
+// gc-emu: defined in the core's Metal backend (MTLStateTracker.mm).
+extern "C" unsigned long long GCEmuMetalGPUMicros();
+
 @implementation DOLPerfBridge
 
 + (NSDictionary<NSString*, NSNumber*>*)snapshot {
@@ -39,6 +42,7 @@
     @"maxSpeed" : @(maxSpeed),
     @"frameTimeMs" : @(frameTimeMs),
     @"rawFrameTimeMs" : @(rawFrameTimeMs),
+    @"gpuMicros" : @(GCEmuMetalGPUMicros()),  // gc-emu: Metal GPU busy time, µs (0 on other backends)
   };
 }
 

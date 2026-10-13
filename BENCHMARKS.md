@@ -240,3 +240,21 @@ resolutions there and cap the slider by available memory (Phase 5).
   *Round 1 of the TP pair produced no report for either build.
 - **No measurable gain**, so the original profile stays. The interpreter's hot code is the same
   handlers whatever the game, and the homebrew/IridiaBench profile already covers them.
+
+## #14 Phase 8 smoke test (2026-10-13)
+`scripts/smoke_test.sh` (installed app, 4 s warmup + 8 s measured, phone set to **8x** resolution, left
+over from #11; thermal "fair"). All 7 pass at full speed (speed 1.00):
+
+| Program | FPS | Headroom (maxSpeed p50) |
+|---|---|---|
+| gx-triangle | 50 | 2.29× |
+| gx-gxSprites | 50 | 1.92× |
+| gx-neheGX-lesson06 | 50 | 1.92× |
+| fb-consoletest | 1 (console) | 11.95× |
+| modplay (audio only, no frames) | — | 11.56× |
+| iridiabench-x1 | 30–50 | 2.39× |
+| TP, Ordon save state | 30 | 1.60× |
+| TP, Ordon forest path (resume save, 15 s) | 30 | 2.32× |
+
+Homebrew headroom is lower than #1–#9 (≈5.5×) because those ran at 1x; TP's 1.60× matches #11's
+8x figure (1.58×), so **no regression**. Hyrule Field still not measured (needs a save there).

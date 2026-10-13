@@ -117,7 +117,7 @@ Docs: PLAN.md, PROGRESS.md, RESEARCH.md, BUILDING.md, BENCHMARKS.md, PERFORMANCE
      must be rewritten first.
    - App Review notes, description, keywords, age rating and privacy policy.
    - A review of whether downloading cover art (GameTDB) is OK for the store.
-4. **Phase 8, testing (not started):**
+4. **Phase 8, testing (started 2026-10-13):** package tests 44/44 pass; device smoke test `scripts/smoke_test.sh` 7/7 pass (BENCHMARKS #14). Still to do:
    - Unit and smoke tests in CI. The updated settings unit tests haven't been run, because a
      simulator build of the core isn't set up.
    - Oldest and newest supported devices; Hyrule Field benchmarks; a compatibility list.

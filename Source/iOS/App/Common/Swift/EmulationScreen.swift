@@ -887,6 +887,25 @@ struct EmulationScreen: View {
                 HStack(alignment: .top, spacing: 20) {
                   // Left column
                   VStack(alignment: .leading, spacing: 12) {
+                    // gc-emu: resolution first
+                    HStack {
+                      Text(L("Internal Resolution"))
+                        .foregroundColor(.white.opacity(0.8))
+                        .font(.caption)
+                      autoBadge(efbOverride)
+                      Spacer()
+                      Slider(value: efbScaleQuickBinding.asDouble, in: 0 ... Double(max(1, efbMaxScaleQuick)), step: 1)
+                        .disabled(efbOverride != .none)
+                      Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
+                    }
+                    HStack {
+                      Text(L("Anisotropic Filtering"))
+                        .foregroundColor(.white.opacity(0.8))
+                        .font(.caption)
+                      Spacer()
+                      Slider(value: $anisotropyQuick.onSet { DOLConfigBridge.setGfxEnhanceAnisotropySamples($0) }.asDouble, in: 1 ... 16, step: 1)
+                      Text("\(anisotropyQuick)x").foregroundColor(.white.opacity(0.8)).frame(width: 50, alignment: .trailing)
+                    }
                     HStack {
                       Toggle("CPU Clock Override", isOn: Binding(get: { ocEnabled }, set: { v in
                         ocEnabled = v
@@ -926,25 +945,6 @@ struct EmulationScreen: View {
                       Text("\(vbiPercentQuick)%").foregroundColor(.white.opacity(0.8)).frame(width: 52, alignment: .trailing)
                     }
 
-                    // Graphics controls
-                    HStack {
-                      Text(L("Internal Resolution"))
-                        .foregroundColor(.white.opacity(0.8))
-                        .font(.caption)
-                      autoBadge(efbOverride)
-                      Spacer()
-                      Slider(value: efbScaleQuickBinding.asDouble, in: 0 ... Double(max(1, efbMaxScaleQuick)), step: 1)
-                        .disabled(efbOverride != .none)
-                      Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
-                    }
-                    HStack {
-                      Text(L("Anisotropic Filtering"))
-                        .foregroundColor(.white.opacity(0.8))
-                        .font(.caption)
-                      Spacer()
-                      Slider(value: $anisotropyQuick.onSet { DOLConfigBridge.setGfxEnhanceAnisotropySamples($0) }.asDouble, in: 1 ... 16, step: 1)
-                      Text("\(anisotropyQuick)x").foregroundColor(.white.opacity(0.8)).frame(width: 50, alignment: .trailing)
-                    }
                     if overscanApplicable {
                       Toggle(L("Full Screen Display"), isOn: overscanFullscreenBinding)
                         .tint(.blue)
@@ -977,6 +977,24 @@ struct EmulationScreen: View {
                 Toggle(L("Show FPS & Speed"), isOn: $showStatsOverlay)
                   .tint(.blue)
                   .foregroundColor(.white)
+                // gc-emu: resolution first, so free-session players can test how their games run
+                HStack {
+                  Text(L("Internal Resolution"))
+                    .foregroundColor(.white.opacity(0.8))
+                  autoBadge(efbOverride)
+                  Spacer()
+                  Slider(value: efbScaleQuickBinding.asDouble, in: 0 ... Double(max(1, efbMaxScaleQuick)), step: 1)
+                    .disabled(efbOverride != .none)
+                  Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
+                }
+                HStack {
+                  Text(L("Anisotropic Filtering"))
+                    .foregroundColor(.white.opacity(0.8))
+                  Spacer()
+                  Slider(value: $anisotropyQuick.onSet { DOLConfigBridge.setGfxEnhanceAnisotropySamples($0) }.asDouble, in: 1 ... 16, step: 1)
+                  Text("\(anisotropyQuick)x").foregroundColor(.white.opacity(0.8)).frame(width: 60, alignment: .trailing)
+                }
+                Divider().background(.white.opacity(0.2))
                 HStack {
                   Toggle("CPU Clock Override", isOn: Binding(get: { ocEnabled }, set: { v in
                     ocEnabled = v
@@ -1022,23 +1040,6 @@ struct EmulationScreen: View {
                 // Overlays + diagnostics, as a scannable icon grid.
                 overlayToggleGrid()
 
-                // Quick graphics controls
-                HStack {
-                  Text(L("Internal Resolution"))
-                    .foregroundColor(.white.opacity(0.8))
-                  autoBadge(efbOverride)
-                  Spacer()
-                  Slider(value: efbScaleQuickBinding.asDouble, in: 0 ... Double(max(1, efbMaxScaleQuick)), step: 1)
-                    .disabled(efbOverride != .none)
-                  Text(Self.irLabel(efbScaleQuick)).font(.caption.monospacedDigit()).foregroundColor(.white.opacity(0.8)).frame(width: 110, alignment: .trailing)
-                }
-                HStack {
-                  Text(L("Anisotropic Filtering"))
-                    .foregroundColor(.white.opacity(0.8))
-                  Spacer()
-                  Slider(value: $anisotropyQuick.onSet { DOLConfigBridge.setGfxEnhanceAnisotropySamples($0) }.asDouble, in: 1 ... 16, step: 1)
-                  Text("\(anisotropyQuick)x").foregroundColor(.white.opacity(0.8)).frame(width: 60, alignment: .trailing)
-                }
                 if overscanApplicable {
                   Toggle(L("Full Screen Display"), isOn: overscanFullscreenBinding)
                     .tint(.blue)
@@ -1050,7 +1051,7 @@ struct EmulationScreen: View {
           .padding(20)
           .frame(maxWidth: isLandscape ? min(geometry.size.width * 0.9, 720) : 420)
           .frame(maxHeight: isLandscape ? min(geometry.size.height * 0.8, 400) : .infinity)
-          .background(.black.opacity(0.6))
+          .background(.black.opacity(0.9))   // gc-emu: readable over the touch controller
           .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
           .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(.white.opacity(0.15), lineWidth: 1))
           .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
@@ -1129,6 +1130,10 @@ struct EmulationScreen: View {
       Button(L("Title Screen")) { answerResumePrompt(false) }
     } message: {
       Text(L("Continue picks up exactly where you stopped. Title Screen starts the game normally so you can load your in-game save."))
+    }
+    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DOLShowPerformancePanel"))) { _ in
+      refreshPerfOverlayState()   // gc-emu: test hook (-gcemuShowPerformanceAfter)
+      showPerfOverlay = true
     }
     .fullScreenCover(isPresented: $showPauseMenu) {
       PauseMenuView(

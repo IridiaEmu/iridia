@@ -52,8 +52,6 @@ enum GraphicsGeneralModelBuilder {
     #if os(iOS)
     pictureRows.append(SettingsRow.custom("power-mode", L("Power Mode"), AnyView(PowerModeRow()),
              L("Battery Saver runs cooler; Max Performance favours speed; Balanced suits this device.")))
-    pictureRows.append(SettingsRow.custom("keep-cool", L("Keep Cool"), AnyView(KeepCoolToggleRow()),
-             L("When your iPhone gets hot, temporarily lowers resolution, then restores it once it cools.")))
     #endif
     let picture = MenuSection(id: "picture", header: L("Picture"), items: pictureRows + [
       SettingsRow.custom("resolution", L("Resolution"), AnyView(ResolutionSliderRow()),

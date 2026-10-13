@@ -83,9 +83,26 @@ enum GCEmuBenchmark {
     }
   }
 
+  private static var perfObserver: NSObjectProtocol?
+
+  /// Test hook: -gcemuShowPerformanceAfter <seconds> opens the in-game Performance panel (resolution
+  /// slider) that long after a game starts. Does nothing unless passed.
+  static func armPerformancePanelIfRequested() {
+    let delay = UserDefaults.standard.double(forKey: "gcemuShowPerformanceAfter")
+    guard delay > 0, perfObserver == nil else { return }
+    perfObserver = NotificationCenter.default.addObserver(
+      forName: Notification.Name("DOLEmulationDidStartNotification"), object: nil, queue: .main
+    ) { _ in
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        NotificationCenter.default.post(name: Notification.Name("DOLShowPerformancePanel"), object: nil)
+      }
+    }
+  }
+
   /// Call once at launch. Does nothing unless -gcemuBench is set.
   static func armIfRequested() {
     armPauseMenuIfRequested()
+    armPerformancePanelIfRequested()
     let d = UserDefaults.standard
     let duration = d.double(forKey: "gcemuBench")
     guard duration > 0, observer == nil else { return }

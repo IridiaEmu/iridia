@@ -18,8 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     ControlOptions.apply()      // gc-emu: camera-stick inversion into the core
     #endif
     // gc-emu: games reopen where you left off (an automatic save state) instead of at the title screen.
-    UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true,
-                                              "thermal_auto_enable": true])  // gc-emu: Keep Cool on by default
+    UserDefaults.standard.register(defaults: [SaveStateService.resumeDefaultsKey: true])
+    // gc-emu: Keep Cool (lowering resolution when the phone is hot) is removed; clear any saved "on".
+    UserDefaults.standard.removeObject(forKey: "thermal_auto_enable")
     MotionSettings.registerDefaults()
     DSUSettings.registerDefaults()
 

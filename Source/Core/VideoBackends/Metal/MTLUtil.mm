@@ -341,6 +341,11 @@ void Metal::Util::PopulateBackendInfoFeatures(const VideoConfig& config, Backend
   }
 
   backend_info->bSupportsFramebufferFetch = [device supportsFamily:MTLGPUFamilyApple1];
+#if TARGET_OS_SIMULATOR
+  // gc-emu: the iOS Simulator's GPU reports Apple family support but can't read the render target in a
+  // shader, so every ubershader pipeline failed with "reading from a rendertarget is not supported".
+  backend_info->bSupportsFramebufferFetch = false;
+#endif
 #if TARGET_OS_OSX
   if (vendor == DriverDetails::VENDOR_INTEL)
     backend_info->bSupportsFramebufferFetch |= DetectIntelGPUFBFetch(device);

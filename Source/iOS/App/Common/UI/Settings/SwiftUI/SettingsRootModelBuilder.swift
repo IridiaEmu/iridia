@@ -60,10 +60,10 @@ enum SettingsRootModelBuilder {
     #endif
     return [
       SettingsRootSection(id: "general", header: L("General"), entries: [
-        SettingsLeafEntry(id: "general", title: L("General"), icon: "gear", description: L("Dual core, cheats, speed limit and other core options."),
+        SettingsLeafEntry(id: "general", title: L("General"), icon: "gear", description: L("Cheats, speed limit and other emulation options."),
                           hostsMenuScreen: true,
                           makeModel: { ConfigGeneralModelBuilder.make(state: ConfigGeneralState(), apply: { _ in }) }) { ConfigGeneralView() },
-        SettingsLeafEntry(id: "interface", title: L("Interface"), icon: "menubar.rectangle", description: L("On-screen messages, confirmations and panic handling."),
+        SettingsLeafEntry(id: "interface", title: L("Interface"), icon: "menubar.rectangle", description: L("On-screen messages and confirmations."),
                           hostsMenuScreen: true,
                           makeModel: { ConfigInterfaceModelBuilder.make(state: ConfigInterfaceState(), apply: { _ in }) }) { ConfigInterfaceView() },
         SettingsLeafEntry(id: "advanced", title: L("Advanced"), icon: "cpu", description: L("Clock overrides and other expert options."),
@@ -72,25 +72,25 @@ enum SettingsRootModelBuilder {
       ]),
       SettingsRootSection(id: "graphics", header: L("Graphics"), entries: [
         SettingsLeafEntry(id: "graphics-video", title: L("Video"), icon: "display",
-                          description: L("Resolution, power mode, Keep Cool, aspect ratio, FPS overlay and advanced options."),
+                          description: L("Resolution, power mode, aspect ratio and the FPS readout."),
                           hostsMenuScreen: true,
                           makeModel: { GraphicsGeneralModelBuilder.make(state: GraphicsGeneralState(isIOS: isIOS), apply: { _ in }) }) { GraphicsGeneralView() },
         SettingsLeafEntry(id: "graphics-enhancements", title: L("Enhancements"), icon: "sparkles",
-                          description: L("Internal resolution, anti-aliasing, filtering and colour."),
+                          description: L("Sharpness, anti-aliasing, filtering and colour."),
                           hostsMenuScreen: true,
                           makeModel: { GraphicsEnhancementsModelBuilder.make(state: GraphicsEnhancementsState(), apply: { _ in }) }) { GraphicsEnhancementsView() },
         SettingsLeafEntry(id: "graphics-hacks", title: L("Hacks"), icon: "wrench.and.screwdriver",
-                          description: L("Speed-for-accuracy trade-offs in the GPU pipeline."),
+                          description: L("Trade a little accuracy for speed."),
                           hostsMenuScreen: true,
                           makeModel: { GraphicsHacksModelBuilder.make(state: GraphicsHacksState(), apply: { _ in }) }) { GraphicsHacksView() },
         SettingsLeafEntry(id: "graphics-advanced", title: L("Graphics Advanced"), icon: "slider.horizontal.3",
-                          description: L("Performance overlays, shader threads, textures, rendering and Metal options."),
+                          description: L("Overlays, shaders, texture packs and other rendering options."),
                           hostsMenuScreen: true,
                           makeModel: { GraphicsAdvancedModelBuilder.make(state: GraphicsAdvancedState(), apply: { _ in }) }) { GraphicsAdvancedView() },
         SettingsLeafEntry(id: "shaders", title: L("Shaders"), icon: "paintbrush", description: L("Post-processing presets and their parameters.")) { ShaderSettingsView() },
       ]),
       SettingsRootSection(id: "audio", header: L("Audio"), entries: [
-        SettingsLeafEntry(id: "audio", title: L("Audio"), icon: "speaker.wave.3", description: L("Volume, DSP engine, stretching and effects."),
+        SettingsLeafEntry(id: "audio", title: L("Audio"), icon: "speaker.wave.3", description: L("Volume, audio stretching and effects."),
                           hostsMenuScreen: true,
                           makeModel: { ConfigAudioModelBuilder.make(state: ConfigAudioState(), apply: { _ in }) }) { ConfigAudioView() },
       ]),
@@ -108,11 +108,11 @@ enum SettingsRootModelBuilder {
       ]),
       SettingsRootSection(id: "performance", header: L("Performance"), entries: [
         SettingsLeafEntry(id: "performance-tuning", title: L("Performance Tuning"), icon: "gauge.with.dots.needle.67percent",
-                          description: L("CPU engine, optimisations, clock overrides. The CPU is the bottleneck on Iridia."),
+                          description: L("Expert options for the emulated CPU, which sets how fast games run."),
                           hostsMenuScreen: true,
                           // showValidation: true so the correctness-validation rows are searchable.
                           makeModel: { PerformanceTuningModelBuilder.make(state: PerformanceTuningState(), showValidation: true, apply: { _ in }) }) { PerformanceTuningView() },
-        SettingsLeafEntry(id: "debug", title: L("Debug"), icon: "ladybug", description: L("Developer switches: fastmem, JIT, logging, stall metrics."),
+        SettingsLeafEntry(id: "debug", title: L("Debug"), icon: "ladybug", description: L("Tools for developers."),
                           hostsMenuScreen: true,
                           makeModel: { DebugRootModelBuilder.make(state: DebugRootState(isIOS: isIOS), apply: { _ in }) }) { DebugRootView() },
       ]),
@@ -122,7 +122,7 @@ enum SettingsRootModelBuilder {
         SettingsLeafEntry(id: "nearby", title: L("Nearby Devices"), icon: "antenna.radiowaves.left.and.right", description: L("Continue a game from another device, and manage paired ones.")) { ContinuityBrowseView() },
       ]),
       SettingsRootSection(id: "about", header: L("About"), entries: [
-        SettingsLeafEntry(id: "about", title: L("About"), icon: "info.circle", description: L("Version, core, blog, help and Reset All Settings.")) { AboutView() },
+        SettingsLeafEntry(id: "about", title: L("About"), icon: "info.circle", description: L("Version, help and Reset All Settings.")) { AboutView() },
       ]),
     ]
   }

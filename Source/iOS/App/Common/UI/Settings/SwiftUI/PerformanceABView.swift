@@ -140,15 +140,15 @@ struct PerformanceABView: View {
   var body: some View {
     List {
       Section(header: Text(L("Honest Benchmarking")),
-              footer: Text(L("The adaptive clock auto-tunes the emulated clock to hold a fixed speed%, which hides (and absorbs) CPU optimizations. Apply the benchmark base first so speed% in the perf HUD reflects raw interpreter throughput, then flip ONE optimization and relaunch the game to compare. Changes take effect on the next game launch."))) {
-        Button(L("Apply Benchmark Base (adaptive OFF, 100% clocks)")) {
-          PerfAB.applyBenchmarkBase(); lastAction = L("Benchmark base applied — relaunch the game.")
+              footer: Text(L("To compare options fairly, apply the benchmark settings first, change one option, then restart the game. Changes take effect the next time you start a game."))) {
+        Button(L("Apply Benchmark Settings")) {
+          PerfAB.applyBenchmarkBase(); lastAction = L("Benchmark settings applied. Restart the game.")
         }
-        Button(L("All Optimizations ON (recommended)")) {
-          PerfAB.applyAllOptimizationsOn(); lastAction = L("Recommended optimizations on — relaunch the game.")
+        Button(L("Turn Recommended Options On")) {
+          PerfAB.applyAllOptimizationsOn(); lastAction = L("Recommended options on. Restart the game.")
         }
-        Button(L("All Optimizations OFF (bare baseline)")) {
-          PerfAB.applyAllOptimizationsOff(); lastAction = L("All optimizations off — relaunch the game.")
+        Button(L("Turn All Options Off")) {
+          PerfAB.applyAllOptimizationsOff(); lastAction = L("All options off. Restart the game.")
         }
         if !lastAction.isEmpty {
           Text(lastAction).font(.caption).foregroundStyle(.secondary)
@@ -168,7 +168,7 @@ struct PerformanceABView: View {
           .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         if snapshots.isEmpty {
-          Text(L("No snapshots yet. Save your current settings to compare configurations quickly."))
+          Text(L("Nothing saved yet. Save your current settings to compare them later."))
             .font(.caption).foregroundStyle(.secondary)
         }
         ForEach(snapshots) { snap in
@@ -178,7 +178,7 @@ struct PerformanceABView: View {
               Text(snapshotSummary(snap)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Button(L("Apply")) { PerfAB.apply(snap); lastAction = L("Applied: ") + snap.name + L(" — relaunch the game.") }
+            Button(L("Apply")) { PerfAB.apply(snap); lastAction = L("Applied: ") + snap.name + L(". Restart the game.") }
               .buttonStyle(.borderless)
           }
         }

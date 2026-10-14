@@ -241,7 +241,7 @@ public enum SaveStateService {
       skipResumeOnce = false
       NotificationCenter.default.post(
         name: NSNotification.Name("DOLShowSnackbar"), object: nil,
-        userInfo: ["text": L("Skipped resuming — the last attempt didn't finish loading.")]
+        userInfo: ["text": L("Didn't resume, because the last try didn't finish loading.")]
       )
       return false
 

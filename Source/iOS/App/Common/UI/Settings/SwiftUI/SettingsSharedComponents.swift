@@ -225,7 +225,7 @@ struct SettingsResetAllButton<Label: View>: View {
         Button(L("Cancel"), role: .cancel) {}
         Button(L("Reset"), role: .destructive) { DOLConfigBridge.resetAllToDefaults() }
       } message: {
-        Text(L("This will reset all settings to factory defaults. This may require restarting emulation."))
+        Text(L("All settings go back to their defaults. A running game may need a restart."))
       }
   }
 }

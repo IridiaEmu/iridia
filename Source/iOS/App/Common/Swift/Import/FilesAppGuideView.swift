@@ -86,7 +86,7 @@ struct FilesAppGuideView: View {
               Text(FilesAppNames.gamesPath)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(IridiaGlass.ink)
-              Text(L("ISO, RVZ, GCM and CISO files work. ZIP and 7Z archives are unpacked automatically; a big one can take a minute or two."))
+              Text(L("ISO, RVZ, GCM and CISO files work. ZIP and 7Z files are unpacked for you, which can take a minute or two for a big game."))
                 .font(.footnote)
                 .foregroundStyle(IridiaGlass.dim)
                 .fixedSize(horizontal: false, vertical: true)

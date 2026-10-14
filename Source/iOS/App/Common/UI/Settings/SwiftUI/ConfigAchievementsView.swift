@@ -107,7 +107,7 @@ struct ConfigAchievementsView: View {
             Spacer()
             Toggle("", isOn: $spectator.onSet { DOLConfigBridge.setRaSpectatorEnabled($0) })
           },
-          L("Tracks achievements without earning them — view progress without affecting your record."))
+          L("Shows achievement progress without counting it toward your record."))
       }
 
       Section(header: Text(L("Interface & Sharing"))) {

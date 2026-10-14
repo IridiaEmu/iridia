@@ -17,7 +17,7 @@ enum ConfigGameCubeModelBuilder {
     // The old screen's section header was the row's own label, so it is the row's title here.
     let language = MenuSection(id: "system-language", items: [
       SettingsRow.cycle("language", L("System Language"), languageOptions(including: state.language), state.language,
-                        L("Language the emulated GameCube reports to games. The GameCube supports English, German, French, Spanish, Italian, and Dutch only. Defaults to your device language where supported, otherwise English."),
+                        L("The language games use. The GameCube supports English, German, French, Spanish, Italian and Dutch. Iridia matches your device when it can, and uses English otherwise."),
                         set: { apply(.language($0)) }),
     ])
     return MenuModel(sections: [language])

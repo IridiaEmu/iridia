@@ -296,7 +296,7 @@ internal struct PauseMenuView: View {
                          model: resetConfirmModel, onBack: { showResetDialog = false })
         }
         if showExitDialog {
-          confirmOverlay(title: L("Exit Game"), message: L("Do you want to quit the game? Unsaved progress will be lost."),
+          confirmOverlay(title: L("Exit Game"), message: L("Quit the game? Anything you haven't saved will be lost."),
                          model: exitConfirmModel, onBack: { showExitDialog = false })
         }
         EmulationToastOverlay(barHeight: 0, barVisible: false)
@@ -930,19 +930,19 @@ enum PauseMenuModelBuilder {
       // gc-emu: resumes the game and opens the live panel, so changes show while it runs.
       quickSection.items.insert(
         MenuItem(id: "performance", title: L("Performance"), icon: "speedometer", tint: .orange, role: .action(openPerformance),
-                 description: L("Live sliders for internal resolution, frame rate and CPU clock.")),
+                 description: L("Resolution, frame rate and CPU speed, while you play.")),
         at: min(4, quickSection.items.count))
     }
 
     var game: [MenuItem] = [
       MenuItem(id: "save-states", title: L("Save States"), icon: "square.stack.3d.up", tint: .purple, role: .action(actions.openSaveStates),
-               description: L("Save, load and browse every slot.")),
+               description: L("See all your save states.")),
       MenuItem(id: "cheats", title: L("Cheats"), icon: "star.circle", tint: .yellow, role: .action(actions.openCheats),
                badge: state.activeCheatCount > 0 ? "\(state.activeCheatCount)" : nil,
                description: L("Enable Gecko and Action Replay codes for this game.")),
       shadersItem(state: state, bindings: bindings, actions: actions),
       MenuItem(id: "controllers", title: L("Controllers"), icon: "gamecontroller", tint: .green, role: .action(actions.openControllers),
-               description: L("Players, devices and what each one plays as.")),
+               description: L("Choose controllers and set up buttons.")),
       MenuItem(id: "continuity", title: L("Continue Elsewhere"), icon: "arrow.triangle.branch", tint: .teal, role: .action(actions.openContinuity),
                description: L("Hand this game to a nearby device.")),
     ]

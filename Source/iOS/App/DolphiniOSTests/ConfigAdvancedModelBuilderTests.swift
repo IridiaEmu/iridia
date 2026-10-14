@@ -24,7 +24,7 @@ final class ConfigAdvancedModelBuilderTests: XCTestCase {
     #endif
     XCTAssertEqual(model().allItems.map(\.id), ids)
     XCTAssertEqual(model().sections.map(\.header), ["Memory Override", "Custom RTC Options"])
-    XCTAssertEqual(model().sections[0].footer, "For CPU and interpreter performance options, see Performance Tuning in Settings or Config.")
+    XCTAssertEqual(model().sections[0].footer, "CPU speed options are in Settings > Performance Tuning.")
   }
 
   func test_everyRow_hasADescription() {

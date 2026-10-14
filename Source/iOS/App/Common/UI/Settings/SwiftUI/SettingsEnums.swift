@@ -72,7 +72,7 @@ enum CpuEngine: Int, CaseIterable {
     // "(slower)" was upstream's wording relative to the JIT, which non-jailbroken iOS never gets;
     // on device this engine measured ~1.7x faster than the IR one (2026-09-16 A/B).
     case .cachedInterpreter: return L("Cached Interpreter (recommended)")
-    case .cachedInterpreterIR: return L("Cached Interpreter IR (experimental, usually slower)")
+    case .cachedInterpreterIR: return L("Cached Interpreter IR (experimental)")
     #if GCEMU_NO_JIT
     case .jit64, .jitARM64: return L("Unavailable")  // gc-emu: never offered in App Store builds
     #else

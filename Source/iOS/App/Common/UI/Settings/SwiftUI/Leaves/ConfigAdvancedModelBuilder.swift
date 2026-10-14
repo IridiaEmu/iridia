@@ -8,10 +8,10 @@ enum ConfigAdvancedModelBuilder {
   static func make(state: ConfigAdvancedState, apply: @escaping (ConfigAdvancedChange) -> Void) -> MenuModel {
     let memory = MenuSection(
       id: "memory-override", header: L("Memory Override"),
-      footer: L("For CPU and interpreter performance options, see Performance Tuning in Settings or Config."),
+      footer: L("CPU speed options are in Settings > Performance Tuning."),
       items: [
         SettingsRow.toggle("mem-override", L("Enable Emulated Memory Size Override"), state.memOverride,
-                           L("Changes the emulated console's RAM. MEM1 is main memory (24–64 MB); MEM2 is Wii extended memory (64–128 MB). ⚠️ Enabling this breaks many games and invalidates save states made at a different size."),
+                           L("Changes how much memory the GameCube has. Breaks many games, and save states made with another size won't load."),
                            set: { apply(.memOverride($0)) }),
         SettingsRow.stepper("mem1", L("MEM1"), Double(state.mem1MB), range: ConfigAdvancedLimits.mem1MB, step: 1, format: megabytes,
                             L("Main memory. The real console has 24 MB."),
@@ -22,7 +22,7 @@ enum ConfigAdvancedModelBuilder {
       ])
 
     let rtcToggle = SettingsRow.toggle("rtc-enabled", L("Enable Custom RTC"), state.rtcEnabled,
-                                       L("Sets a custom real-time clock for the emulated console, separate from your device clock. Useful for time-based game events. If unsure, leave off."),
+                                       L("Gives the GameCube its own clock, separate from your device. Handy for games with timed events."),
                                        set: { apply(.rtcEnabled($0)) })
     return MenuModel(sections: [memory, MenuSection(id: "custom-rtc", header: L("Custom RTC Options"), items: [rtcToggle] + rtcDateRow(state, apply))])
   }

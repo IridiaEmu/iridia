@@ -49,7 +49,7 @@ final class FreePlaySession: ObservableObject {
     guard !IridiaUnlock.isUnlocked, !benchmarking, ticker == nil else { return }
     timer = FreePlayTimer(limit: Self.limitOverride ?? FreePlayTimer.defaultLimit)
     last = Date()
-    EmulationToast.post(L("Free play session: 10 minutes. Unlock the full version for unlimited play."))
+    EmulationToast.post(L("Free play: 10 minutes. Unlock the full version to play as long as you like."))
     ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
       MainActor.assumeIsolated { self?.tick() }
     }

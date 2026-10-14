@@ -492,7 +492,7 @@ struct EmulationScreen: View {
             .disabled(vbiOverride != .none)
             autoBadge(vbiOverride)
           }
-          Text(L("Heads up: raising the refresh rate can make some games run faster than normal, not just smoother."))
+          Text(L("Raising this can make some games run faster than normal, not just smoother."))
             .font(.caption)
             .foregroundColor(.orange.opacity(0.9))
             .fixedSize(horizontal: false, vertical: true)
@@ -936,7 +936,7 @@ struct EmulationScreen: View {
                       .disabled(vbiOverride != .none)
                       autoBadge(vbiOverride)
                     }
-                    Text(L("Heads up: raising the refresh rate can make some games run faster than normal, not just smoother."))
+                    Text(L("Raising this can make some games run faster than normal, not just smoother."))
                       .font(.caption)
                       .foregroundColor(.orange.opacity(0.9))
                       .fixedSize(horizontal: false, vertical: true)
@@ -1025,7 +1025,7 @@ struct EmulationScreen: View {
                   .disabled(vbiOverride != .none)
                   autoBadge(vbiOverride)
                 }
-                Text(L("Heads up: raising the refresh rate can make some games run faster than normal, not just smoother."))
+                Text(L("Raising this can make some games run faster than normal, not just smoother."))
                   .font(.caption)
                   .foregroundColor(.orange.opacity(0.9))
                   .fixedSize(horizontal: false, vertical: true)
@@ -1131,7 +1131,7 @@ struct EmulationScreen: View {
       Button(L("Continue")) { answerResumePrompt(true) }
       Button(L("Title Screen")) { answerResumePrompt(false) }
     } message: {
-      Text(L("Continue picks up exactly where you stopped. Title Screen starts the game normally so you can load your in-game save."))
+      Text(L("Continue picks up right where you stopped. Title Screen starts the game fresh, so you can load your in-game save."))
     }
     .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DOLShowPerformancePanel"))) { _ in
       refreshPerfOverlayState()   // gc-emu: test hook (-gcemuShowPerformanceAfter)
@@ -1485,7 +1485,7 @@ struct EmulationScreen: View {
         withAnimation(TopBarStyle.transition) { topBar.hideNow() }
       }
     } message: {
-      Text("Do you want to stop the current game and return to the library?")
+      Text("Stop this game and go back to your library?")
     }
     // Claim controller ownership for as long as the game is on screen. The
     // library is only *covered*, not dismissed, so SwiftUI never sends it an

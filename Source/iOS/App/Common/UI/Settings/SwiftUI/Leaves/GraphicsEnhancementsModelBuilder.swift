@@ -11,47 +11,47 @@ enum GraphicsEnhancementsModelBuilder {
     // Resolver step #3: while an auto controller or the game drives the key, the manual choice would not apply until the override clears.
     let resolution = MenuSection(id: "internal-resolution", header: L("Internal Resolution"), items: [
       SettingsRow.cycle("efb-scale", L("Internal Resolution"), efbScaleOptions(maxScale: max(state.efbMaxScale, state.efbScale)), state.efbScale,
-            L("Renders the game above native resolution for a sharper image. Higher costs more GPU; on the CPU-bound path 1x–2x is usually plenty."),
+            L("Draws the game at a higher resolution for a sharper picture. Higher settings use more battery."),
             enabled: state.efbOverride == .none, badge: ConfigOverrideBadge.title(for: state.efbOverride), set: { apply(.efbScale($0)) }),
     ])
     let filtering = MenuSection(id: "texture-filtering", header: L("Texture Filtering"), items: [
       SettingsRow.cycle("anisotropy", L("Anisotropic Filtering"), GraphicsEnhancementsState.anisotropyLadder.map { (multiplier($0), $0) }, state.anisotropy,
-            L("Sharpens textures viewed at steep angles (floors, walls). Cheap on modern GPUs; 4x–16x is a safe quality win."), set: { apply(.anisotropy($0)) }),
+            L("Keeps floors and walls sharp when seen at an angle. Costs very little."), set: { apply(.anisotropy($0)) }),
       SettingsRow.cycle("msaa", L("Anti-Aliasing (MSAA)"), MsaaSamples.allCases.map { ($0 == .none ? L("None") : multiplier($0.rawValue), $0.rawValue) }, state.msaa,
-            L("Multisample anti-aliasing smooths jagged polygon edges. Higher costs more GPU. The Metal backend clamps unsupported sample counts automatically."),
+            L("Smooths jagged edges. Higher settings use more battery."),
             set: { apply(.msaa($0)) }),
       SettingsRow.toggle("ssaa", L("Supersampling (SSAA)"), state.ssaa,
-             msaaOn ? L("Supersampling renders MSAA samples at full shading for the sharpest result, at a heavy GPU cost. Requires MSAA above None.")
+             msaaOn ? L("Sharpest anti-aliasing, but very demanding. Needs anti-aliasing turned on first.")
                     : L("Enable MSAA (above None) first to use supersampling."),
              enabled: msaaOn, set: { apply(.ssaa($0)) }),
       SettingsRow.cycle("output-resampling", L("Output Resampling"), OutputResamplingChoice.allCases.map { ($0.title, $0.rawValue) }, state.outputResampling,
-            L("How the final image is resampled to the screen. Default matches the backend; Sharp Bilinear and Area Sampling can look cleaner when up/down-scaling."),
+            L("How the picture is scaled to fit the screen. Sharp Bilinear and Area Sampling can look cleaner."),
             set: { apply(.outputResampling($0)) }),
     ])
     let enhancements = MenuSection(id: "enhancements", header: L("Enhancements"), items: [
       SettingsRow.toggle("true-color", L("Force 24-bit Color"), state.trueColor,
-             L("Forces full 24-bit color instead of the GameCube/Wii's banded 16/18-bit output. Reduces gradient banding at negligible cost. Recommended ON."),
+             L("Smoother colour gradients than the original hardware, at almost no cost."),
              set: { apply(.trueColor($0)) }),
       SettingsRow.toggle("disable-copy-filter", L("Disable Copy Filter"), state.disableCopyFilter,
-             L("Disables the deflicker/blur the console applied to copies. Gives a sharper image; may slightly change how a few games look."),
+             L("Removes the slight blur the console added. Sharper, but a few games may look a little different."),
              set: { apply(.disableCopyFilter($0)) }),
       SettingsRow.toggle("widescreen-hack", L("Widescreen Hack"), state.widescreenHack,
-             L("Forces 16:9 in games that only render 4:3. Can stretch HUDs or break some games; leave off for natively-widescreen titles."),
+             L("Makes 4:3 games widescreen. Can stretch menus or break some games."),
              set: { apply(.widescreenHack($0)) }),
       SettingsRow.toggle("hdr-output", L("HDR Output"), state.hdrOutput,
-             L("Outputs in HDR on capable displays. Most games are SDR, so the effect is subtle; harmless to leave off."),
+             L("Uses HDR on screens that support it. The difference is small in most games."),
              set: { apply(.hdrOutput($0)) }),
       SettingsRow.toggle("gpu-texture-decoding", L("GPU Texture Decoding"), state.gpuTextureDecoding,
-             L("Decodes textures on the GPU instead of the CPU. Moves work off the bottleneck thread, so it can help CPU-bound titles that stream many textures. Iridia already ships a NEON CPU decoder (Config ▸ Advanced) as the default fast path."),
+             L("Decodes textures on the GPU instead of the CPU. Can help games that load a lot of textures."),
              set: { apply(.gpuTextureDecoding($0)) }),
     ])
 
     var compatibilityItems = [
       SettingsRow.toggle("disable-fog", L("Disable Fog"), state.disableFog,
-             L("Removes distance fog. Can improve visibility but breaks the intended look and a few effects. Leave off normally."),
+             L("Removes distance fog. You can see further, but some scenes won't look as intended."),
              set: { apply(.disableFog($0)) }),
       SettingsRow.toggle("arbitrary-mipmap", L("Arbitrary Mipmap Detection"), state.arbitraryMipmapDetection,
-             L("Detects games that abuse mipmaps for special effects and renders them correctly. Leave on unless a game looks wrong."),
+             L("Fixes special effects in games that use textures in unusual ways. Leave on unless a game looks wrong."),
              set: { apply(.arbitraryMipmapDetection($0)) }),
     ]
     // Hidden, not disabled, while detection is off: the old screen only showed it then.

@@ -316,7 +316,7 @@ private struct ContinuityLibraryPullPromptModifier: ViewModifier {
             Button(L("Not Now"), role: .cancel) { prompt.respond(.denyOnce) }
         } message: { prompt in
             Text(String(
-                format: L("%@ wants to copy %@ from this device. Only the game is sent — your saves stay here.\n\n%@"),
+                format: L("%@ wants to copy %@ from this device. Only the game is sent. Your saves stay here.\n\n%@"),
                 prompt.peerName,
                 prompt.gameName,
                 ContinuityManager.transportSecurityNotice

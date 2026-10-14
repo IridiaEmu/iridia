@@ -54,7 +54,7 @@ struct ResolutionSliderRow: View {
   static let hotScale = 5
 
   static var hotWarning: some View {
-    Label(L("Runs hot: little visible difference on this screen. 4x looks about the same and keeps your device cooler."),
+    Label(L("This runs hot, and on this screen it looks about the same as 4x."),
           systemImage: "thermometer.high")
       .font(.caption)
       .foregroundStyle(.orange)

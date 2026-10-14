@@ -1238,7 +1238,7 @@ struct TVLibraryView: View {
       VStack(spacing: 20) {
         DolphinErrorView(
           title: L("Library Empty"),
-          message: L("No games found. Add GameCube & Wii ROMs to your library to get started with Iridia! 🎮")
+          message: L("No games yet. Add a GameCube game to start playing.")
         )
         emptyLibraryUploadAddress
         emptyLibraryActions
@@ -1608,7 +1608,7 @@ struct TVLibraryView: View {
         // gc-emu: the second Text shows as the menu item's subtitle.
         Label {
           Text(L("Import Game"))
-          Text(L("ISO, RVZ, GCM, CISO, or a ZIP/7Z (unpacked automatically)"))
+          Text(L("ISO, RVZ, GCM or CISO. ZIP and 7Z files are unpacked for you."))
         } icon: {
           Image(systemName: "doc.badge.plus")
         }
@@ -1886,7 +1886,7 @@ struct TVLibraryView: View {
       NavigationStack {
         Form {
           Section(header: Text(L("Search Games"))) {
-            TextField(L("Search by title, maker, ID, filename…"), text: $searchText)
+            TextField(L("Search games"), text: $searchText)
               .textInputAutocapitalization(.never)
               .autocorrectionDisabled(true)
           }
@@ -1939,7 +1939,7 @@ struct TVLibraryView: View {
         if let current = model.currentGame { navigateTo = current }
       }
       Button(L("Cancel")) { SaveStateService.skipResumeOnce = false }
-    } message: { Text(L("Do you want to stop the current game and launch the new one?")) }
+    } message: { Text(L("Stop this game and start the other one?")) }
       .sheet(item: $showPropertiesFor) { TVSoftwarePropertiesView(item: $0).claimsController() }
       .sheet(item: $showCheatListFor) { TVCheatListView(item: $0).claimsController() }
       // D17: while this sheet is up, `.claimsController()` pushes a new
@@ -2035,7 +2035,7 @@ struct TVLibraryView: View {
           }
         }
         Button(L("Cancel"), role: .cancel) { itemPendingDelete = nil }
-      } message: { if let item = itemPendingDelete { Text(L("This will delete \(item.title). This action cannot be undone.")) } }
+      } message: { if let item = itemPendingDelete { Text(L("Delete \(item.title)? You can't undo this.")) } }
       .alert(L("Delete Selected Games?"), isPresented: $showBatchDeleteConfirm) {
         Button(L("Delete"), role: .destructive) {
           performBatchDelete(paths: pendingBatchDeletePaths)
@@ -2045,7 +2045,7 @@ struct TVLibraryView: View {
           pendingBatchDeletePaths.removeAll()
         }
       } message: {
-        Text("\(pendingBatchDeletePaths.count) \(L("selected games will be deleted. This cannot be undone."))")
+        Text("\(pendingBatchDeletePaths.count) \(L("selected games will be deleted. You can't undo this."))")
       }
     // Storage error alert
       .alert(L("Storage Error"), isPresented: $showStorageErrorAlert) {
@@ -2224,7 +2224,7 @@ struct TVLibraryView: View {
           Spacer().frame(height: 8)
           HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(.white)
-            Text(L("No results. Try title, maker, Game ID, or filename."))
+            Text(L("Nothing found. You can search by title, publisher, game ID or file name."))
               .foregroundStyle(.white)
               .lineLimit(2)
             Spacer(minLength: 8)
@@ -2339,7 +2339,7 @@ struct TVLibraryView: View {
           }
 
           // Subtitle
-          Text(String(format: L("Import a game, or move it into %@. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z archives are unpacked automatically."), FilesAppNames.gamesPath))
+          Text(String(format: L("Import a game, or move it into %@. ISO, RVZ, GCM and CISO files work, and ZIP or 7Z files are unpacked for you."), FilesAppNames.gamesPath))
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.85))
             .multilineTextAlignment(.center)
@@ -2379,7 +2379,7 @@ struct TVLibraryView: View {
           }
 
 #if os(iOS)
-          Button(L("Import stuck on \"Loading\"? Use the Files app")) {
+          Button(L("Import stuck on \"Loading\"? Add games with the Files app instead")) {
             showFilesAppGuide = true
           }
           .font(.footnote.weight(.semibold))
@@ -3242,7 +3242,7 @@ struct ScreenshotDemoUnavailableView: View {
         .foregroundStyle(.secondary)
       Text(title)
         .font(.title2.weight(.semibold))
-      Text("Demo entry — screenshot mode has no disc image to boot.")
+      Text("Demo entry. Screenshot mode has no game to start.")
         .font(.callout)
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)

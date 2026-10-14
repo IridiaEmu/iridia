@@ -97,7 +97,7 @@ final class ThermalManager {
       DOLConfigBridge.setGfxEfbScaleAuto(efb)
       DOLConfigBridge.setGfxEnhanceAnisotropySamples(max(1, baselineAnisotropy / 2))
       TVEmulationBridge.resizeSurfaceNow()
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Your iPhone is warm: lowering resolution a little")])
+      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Your iPhone is warm, so resolution is a little lower")])
     case .critical:
       captureBaselineIfNeeded()
       throttled = true
@@ -109,7 +109,7 @@ final class ThermalManager {
         NotificationCenter.default.post(name: Notification.Name("DOLShaderSettingsDidChange"), object: nil)
       }
       TVEmulationBridge.resizeSurfaceNow()
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Your iPhone is hot: power saving on")])
+      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Your iPhone is hot, so power saving is on")])
     @unknown default:
       break
     }

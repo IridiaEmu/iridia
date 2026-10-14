@@ -60,7 +60,7 @@ enum PlayerScreenHelp {
 
   static var device: String { L("The controller that plays as this player.") }
   static var devicePinned: String {
-    L("Pinned: you chose this device, so controllers that connect leave this player alone. Choose Auto to undo.")
+    L("You picked this device, so newly connected controllers won't take over this player. Choose Auto to change that.")
   }
 
   static var loadProfile: String { L("Replaces this player's buttons with a saved profile.") }

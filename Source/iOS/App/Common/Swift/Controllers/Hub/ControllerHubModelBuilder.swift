@@ -38,7 +38,7 @@ enum ControllerHubModelBuilder {
         id: player.id, title: player.title, icon: player.kind == .gameCube ? "gamecontroller" : "wand.and.rays",
         role: .destination(actions.playerDestination(player)),
         badge: player.isBound ? playsAs.title : nil,
-        description: L("Remap buttons, profiles, motion and advanced settings.")))
+        description: L("Buttons, profiles and more.")))
       items.append(deviceRow(for: player, state: state, actions: actions, platform: platform))
       // An unbound port has nothing to play as and no pointer: title and Device only.
       guard player.isBound else { continue }
@@ -148,11 +148,11 @@ enum ControllerHubModelBuilder {
     items.append(MenuItem(
       id: "touch-game-rumble", title: L("Game Rumble"), icon: "iphone.radiowaves.left.and.right",
       role: .toggle(Binding(get: { state.gameRumble }, set: { actions.setGameRumble($0) })),
-      description: L("Let games vibrate your device when they rumble the controller. A connected controller with rumble still rumbles either way.")))
+      description: L("Lets games vibrate your device when they rumble. A controller with rumble still rumbles either way.")))
     items.append(MenuItem(
       id: "touch-editable", title: L("Editable Controls"), icon: "slider.horizontal.below.rectangle",
       role: .toggle(Binding(get: { state.touchOverlayProgrammatic }, set: { actions.setTouchOverlayProgrammatic($0) })),
-      description: L("On by default: controls you can move and resize from Edit Layout or with a long press in-game. Off uses the older fixed pads.")))
+      description: L("Controls you can move and resize with Edit Layout, or by pressing and holding in a game. Turn off to use the older fixed controls.")))
     items.append(MenuItem(
       id: "touch-edit-layout", title: L("Edit Layout…"), icon: "rectangle.and.pencil.and.ellipsis", role: .action(actions.editLayout),
       description: L("Move and resize the on-screen controls on the game's own screen.")))

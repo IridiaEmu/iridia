@@ -97,7 +97,7 @@ final class GraphicsEnhancementsModelBuilderTests: XCTestCase {
     XCTAssertEqual(off?.description, "Enable MSAA (above None) first to use supersampling.")
     let on = model(state { $0.msaa = 4 }).item(id: "ssaa")
     XCTAssertEqual(on?.isEnabled, true)
-    XCTAssertTrue(on!.description!.hasPrefix("Supersampling renders MSAA samples"))
+    XCTAssertTrue(on!.description!.hasPrefix("Sharpest anti-aliasing"))
   }
 
   func test_thresholdRow_isAStepperWithTheOldRangeAndFormat() {

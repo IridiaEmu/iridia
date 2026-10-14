@@ -69,10 +69,10 @@ final class PerformanceTuningModelBuilderTests: XCTestCase {
   }
 
   func test_footers_followTheEngineAndJIT() {
-    XCTAssertTrue(model(cir).sections[1].footer!.hasPrefix("Optimizations for the Cached Interpreter engine."))
-    XCTAssertTrue(model(ir).sections[1].footer!.hasPrefix("Optimizations for the Cached Interpreter (IR) engine."))
+    XCTAssertTrue(model(cir).sections[1].footer!.hasPrefix("Speed options for the CPU engine."))
+    XCTAssertTrue(model(ir).sections[1].footer!.hasPrefix("Speed options for the IR engine."))
     XCTAssertTrue(model(cir).sections[0].footer!.hasPrefix("These options control"))
-    XCTAssertTrue(model(state { $0.engine = .cachedInterpreter }).sections[0].footer!.hasPrefix("This build runs without JIT"))
+    XCTAssertTrue(model(state { $0.engine = .cachedInterpreter }).sections[0].footer!.hasPrefix("Iridia always uses the Cached Interpreter"))
   }
 
   func test_performanceAB_isADestination_andResetIsAnAction() {

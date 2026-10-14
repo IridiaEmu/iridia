@@ -26,7 +26,7 @@ enum GraphicsAdvancedModelBuilder {
     let statistics = MenuSection(id: "performance-statistics", header: L("Performance Statistics"),
                                  footer: L("These overlays can also be toggled in-game from the pause menu."), items: [
       flag("show-fps", L("Show FPS"), .showFPS, L("Frames per second actually presented to the display.")),
-      flag("show-vps", L("Show VPS"), .showVPS, L("Emulated video interrupts per second — the game's internal frame rate.")),
+      flag("show-vps", L("Show VPS"), .showVPS, L("The game's own frame rate.")),
       flag("show-speed", L("Show Speed"), .showSpeed, L("Emulation speed as a percentage of full speed.")),
       flag("show-frame-times", L("Show Frame Times"), .showFrameTimes, L("Per-frame render time in milliseconds. Useful for spotting hitches.")),
       flag("show-vblank-times", L("Show VBlank Times"), .showVBlankTimes, L("Time between emulated vertical-blank interrupts.")),
@@ -37,14 +37,14 @@ enum GraphicsAdvancedModelBuilder {
 
     let debugging = MenuSection(id: "debugging", header: L("Debugging"), items: [
       flag("overlay-stats", L("Overlay Stats"), .overlayStats, L("Detailed rendering statistics overlay for developers.")),
-      flag("api-validation-layer", L("API Validation Layer"), .validationLayer, L("Extra graphics-API error checking. For debugging only — reduces performance. Leave off.")),
+      flag("api-validation-layer", L("API Validation Layer"), .validationLayer, L("Extra error checking for debugging. Slows things down.")),
     ])
 
     let threadRange = 1 ... Double(state.maxThreads)
     let threads = MenuSection(id: "shader-threads", header: L("Shader Threads"), items: [
       SettingsRow.stepper("compiler-threads", L("Compiler Threads"), Double(state.compilerThreads), range: threadRange, step: 1,
                           format: { "\(Int($0))" },
-                          L("CPU threads used to compile shaders on demand. More can reduce stutter but competes with the emulated CPU. 2–4 is a good range."),
+                          L("How many threads build shaders while you play. 2 to 4 works well."),
                           set: { apply(.compilerThreads(Int($0))) }),
       SettingsRow.stepper("precompiler-threads", L("Precompiler Threads"), Double(state.precompilerThreads), range: threadRange, step: 1,
                           format: { "\(Int($0))" },
@@ -63,7 +63,7 @@ enum GraphicsAdvancedModelBuilder {
       utilityItems.append(SettingsRow.custom("texture-pack-warning", text, AnyView(TexturePackWarningRow(text: text)), text, enabled: false))
     }
     utilityItems += [
-      flag("disable-efb-copy-to-vram", L("Disable EFB Copy to VRAM"), .disableEfbToVRAM, L("Forces framebuffer copies through RAM instead of VRAM. Slower; only for rare compatibility cases.")),
+      flag("disable-efb-copy-to-vram", L("Disable EFB Copy to VRAM"), .disableEfbToVRAM, L("Slower. Only for the rare game that needs it.")),
       flag("graphics-mods", L("Enable Graphics Mods"), .graphicsMods, L("Enables community-created graphics mods for supported games.")),
     ]
     let utility = MenuSection(id: "utility", header: L("Utility"), items: utilityItems)
@@ -74,26 +74,26 @@ enum GraphicsAdvancedModelBuilder {
     ])
 
     let rendering = MenuSection(id: "rendering", header: L("Rendering"), items: [
-      flag("fast-depth", L("Fast Depth Calculation"), .fastDepth, L("Uses a faster, less precise depth formula. Small speed win; can cause depth glitches in a few games. Recommended on.")),
-      flag("per-pixel-lighting", L("Per-Pixel Lighting"), .pixelLighting, L("Computes lighting per pixel for smoother shading, at a GPU cost. Off matches original hardware.")),
+      flag("fast-depth", L("Fast Depth Calculation"), .fastDepth, L("Slightly faster. Can cause small depth glitches in a few games.")),
+      flag("per-pixel-lighting", L("Per-Pixel Lighting"), .pixelLighting, L("Smoother lighting than the original hardware. Uses more battery.")),
       flag("backend-multithreading", L("Backend Multithreading"), .backendMT,
-           L("Lets the Metal video backend record/submit draw commands on a worker thread (host-side rendering optimization; unrelated to emulation threading).")),
-      flag("shader-cache", L("Enable Shader Cache"), .shaderCache, L("Saves compiled shaders to disk so they aren't rebuilt every launch. Recommended on.")),
-      flag("save-texture-cache-to-state", L("Save Texture Cache to State"), .saveTexCache, L("Includes the texture cache in save states for more accurate restores, at larger state files.")),
+           L("Prepares drawing work on a separate thread. Usually faster.")),
+      flag("shader-cache", L("Enable Shader Cache"), .shaderCache, L("Keeps built shaders so they don't have to be rebuilt each time.")),
+      flag("save-texture-cache-to-state", L("Save Texture Cache to State"), .saveTexCache, L("More accurate save states, but bigger files.")),
       flag("prefer-vs-for-lines", L("Prefer Vertex Shader for Line/Point Expansion"), .preferVSForLines,
-           L("Expands lines and points in a vertex shader instead of a geometry shader. Can be faster on some GPUs.")),
-      flag("cpu-culling", L("CPU Culling"), .cpuCull, L("Culls off-screen geometry on the CPU. Usually a net loss on the CPU-bound path; leave off unless GPU-limited.")),
+           L("Another way of drawing lines and points. Can be faster on some devices.")),
+      flag("cpu-culling", L("CPU Culling"), .cpuCull, L("Skips drawing things that are off screen. Usually makes Iridia slower, so leave it off.")),
     ])
 
     let experimental = MenuSection(id: "experimental", header: L("Experimental"),
-                                   footer: L("⚠️ Experimental — may cause instability or glitches in some games."), items: [
+                                   footer: L("Experimental. May cause glitches in some games."), items: [
       flag("defer-efb-invalidation", L("Defer EFB Cache Invalidation"), .deferEfbInvalidation,
-           L("Delays invalidating cached framebuffer copies. Can speed things up but may show stale graphics.")),
+           L("Can speed things up, but may show out-of-date graphics.")),
       SettingsRow.cycle("use-present-drawable", L("Use Present Drawable"), triStateOptions(including: state.usePresentDrawable), state.usePresentDrawable,
-                        L("Metal present path. Auto uses the presentDrawable path when VSync is active (correct for most). Force On/Off to A/B present latency vs stability."),
+                        L("Leave on Auto."),
                         set: { apply(.presentDrawable($0)) }),
       SettingsRow.cycle("manually-upload-buffers", L("Manually Upload Buffers"), triStateOptions(including: state.manuallyUploadBuffers), state.manuallyUploadBuffers,
-                        L("Metal buffer upload strategy (managed vs shared). Auto detects unified memory and is correct on Apple Silicon; override only for benchmarking."),
+                        L("Leave on Auto."),
                         set: { apply(.manuallyUploadBuffers($0)) }),
     ])
 

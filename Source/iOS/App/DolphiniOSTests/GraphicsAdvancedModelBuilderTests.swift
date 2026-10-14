@@ -57,7 +57,7 @@ final class GraphicsAdvancedModelBuilderTests: XCTestCase {
     XCTAssertEqual(m.sections.map(\.id), ["performance-statistics", "debugging", "shader-threads", "utility", "misc", "rendering", "experimental"])
     XCTAssertEqual(m.sections.map(\.header), ["Performance Statistics", "Debugging", "Shader Threads", "Utility", "Misc", "Rendering", "Experimental"])
     XCTAssertEqual(m.sections.map(\.footer), ["These overlays can also be toggled in-game from the pause menu.", nil, nil, nil, nil, nil,
-                                              "⚠️ Experimental — may cause instability or glitches in some games."])
+                                              "Experimental. May cause glitches in some games."])
   }
 
   func test_rowOrder() {

@@ -99,7 +99,7 @@ struct CheatsMenuView: View {
       Button(L("Turn On Cheats")) { confirmEnableCheats() }
       Button(L("Cancel"), role: .cancel) { cancelEnableCheats() }
     } message: {
-      Text(L("Cheats can affect performance and stability. Enable global cheats to apply this code?"))
+      Text(L("Cheats can make games slower or less stable. Turn on cheats to use this code?"))
     }
     #else
     ZStack {
@@ -182,7 +182,7 @@ struct CheatsMenuView: View {
       Button(L("Turn On Cheats")) { confirmEnableCheats() }
       Button(L("Cancel"), role: .cancel) { cancelEnableCheats() }
     } message: {
-      Text(L("Cheats can affect performance and stability. Enable global cheats to apply this code?"))
+      Text(L("Cheats can make games slower or less stable. Turn on cheats to use this code?"))
     }
     #endif
   }

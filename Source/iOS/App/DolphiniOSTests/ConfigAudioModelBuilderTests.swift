@@ -30,11 +30,11 @@ final class ConfigAudioModelBuilderTests: XCTestCase {
     let core = model(state { $0.backend = "CoreAudio" })
     XCTAssertEqual(core.allItems.map(\.id), ["backend", "coreaudio-effects"] + tail)
     XCTAssertEqual(core.section(containing: "coreaudio-effects")?.header, "CoreAudio Effects")
-    XCTAssertEqual(core.section(containing: "coreaudio-effects")?.footer, "Built‑in echo, EQ, and bitcrush. Does not support AUv3 plugins.")
+    XCTAssertEqual(core.section(containing: "coreaudio-effects")?.footer, "Built-in echo, EQ and bitcrush effects.")
     let av = model(state { $0.backend = "AVAudioEngine" })
     XCTAssertEqual(av.allItems.map(\.id), ["backend", "effects-chain"] + tail)
     XCTAssertEqual(av.section(containing: "effects-chain")?.header, "Master Effects Chain")
-    XCTAssertEqual(av.section(containing: "effects-chain")?.footer, "Effects apply post‑environment. Requires AVAudioEngine backend.")
+    XCTAssertEqual(av.section(containing: "effects-chain")?.footer, "Needs the AVAudioEngine audio backend.")
     #else
     for backend in ["CoreAudio", "AVAudioEngine"] {
       XCTAssertEqual(model(state { $0.backend = backend }).allItems.map(\.id), ["backend"] + tail, backend)

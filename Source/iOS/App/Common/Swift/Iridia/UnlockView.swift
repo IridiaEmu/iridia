@@ -38,8 +38,8 @@ struct UnlockView: View {
               .foregroundStyle(.white)
               .multilineTextAlignment(.center)
             Text(context == .sessionEnded
-                 ? L("Your progress is saved. Unlock the full version to keep playing, or start another free 10-minute session any time.")
-                 : L("Free play sessions are 10 minutes each, as many as you like. Unlock once to remove the limit."))
+                 ? L("Your progress is saved. Unlock the full version to keep going, or start another free 10-minute session whenever you like.")
+                 : L("Free play sessions last 10 minutes, and you can start as many as you like. Unlock once to remove the limit."))
               .font(.system(size: 15))
               .foregroundStyle(IridiaGlass.soft)
               .multilineTextAlignment(.center)
@@ -49,7 +49,7 @@ struct UnlockView: View {
           VStack(alignment: .leading, spacing: 12) {
             benefit("infinity", L("Unlimited play time in every game"))
             benefit("gauge.with.dots.needle.67percent", L("Hide the FPS and speed readout"))
-            benefit("sparkles", L("Every feature, and all future updates"))
+            benefit("sparkles", L("Every feature, plus future updates"))
             benefit("checkmark.seal", L("One-time purchase. No subscription, no ads."))
           }
           .padding(18)

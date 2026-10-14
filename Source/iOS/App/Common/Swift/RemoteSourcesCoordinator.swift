@@ -172,7 +172,7 @@ class RemoteSourcesCoordinator: ObservableObject {
         print("Reachability: Online detected, refreshing remote sources")
         self.refreshWebDAVSources()
         self.pushCacheUpdate(forceUpdate: true)
-        NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Back online — refreshing library…")])
+        NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Back online. Refreshing your library…")])
       }
     } else {
       // Every offline callback is recorded: the first callback of the launch can be unsatisfied, and
@@ -187,7 +187,7 @@ class RemoteSourcesCoordinator: ObservableObject {
       let quiet = isEmulationActive()
       pushCacheUpdate(forceUpdate: true)
       if !quiet {
-        NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Offline — some sources unavailable")])
+        NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("Offline. Some sources are unavailable")])
       }
     }
   }

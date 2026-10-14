@@ -167,7 +167,7 @@ struct SaveStateFilmstripView: View {
         deleteTarget = nil
       }
     } message: {
-      Text(L("This save state will be permanently deleted. This cannot be undone."))
+      Text(L("This save state will be deleted. You can't undo this."))
     }
     // tvOS note: `UIAlertController`/`.alert` does not support an embedded
     // text field on tvOS (only iOS/macOS do), so a TextField-in-alert is a

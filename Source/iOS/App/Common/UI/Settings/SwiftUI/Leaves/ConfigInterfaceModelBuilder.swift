@@ -11,13 +11,13 @@ enum ConfigInterfaceModelBuilder {
                          L("Replaces raw disc IDs with proper game titles from the built-in database."),
                          set: { apply(.useNamesDB($0)) }),
       SettingsRow.toggle("covers", L("Download Game Covers from GameTDB.com"), state.useCovers,
-                         L("Fetches box art from GameTDB.com over the network (once per game) for grid view. Turn off to stay fully offline."),
+                         L("Downloads box art from GameTDB.com, once per game. Turn off to stay offline."),
                          set: { apply(.useCovers($0)) }),
     ])
 
     let libraryUI = MenuSection(id: "library-ui", header: L("Library UI"), items: [
       SettingsRow.cycle("background-style", L("Background Style"), LibraryBackgroundStyle.allCases.map { ($0.label, $0) }, state.backgroundStyle,
-                        L("Backdrop behind the game library. Animated adds full effects; Clean is the lightest."),
+                        L("The background behind your library."),
                         icon: "paintbrush.fill", set: { apply(.backgroundStyle($0)) }),
       SettingsRow.toggle("show-subtitles", L("Show Game ID Subtitles"), state.showSubtitles,
                          L("Shows each game's disc ID under its title in the library."),
@@ -29,10 +29,10 @@ enum ConfigInterfaceModelBuilder {
                          L("Asks before quitting a running game so you don't lose unsaved progress."),
                          set: { apply(.confirmOnStop($0)) }),
       SettingsRow.toggle("panic-handlers", L("Use Panic Handlers"), state.usePanicHandlers,
-                         L("Shows a dialog when the core hits an internal error instead of failing silently."),
+                         L("Shows a message when the emulator hits an internal error."),
                          set: { apply(.usePanicHandlers($0)) }),
       SettingsRow.toggle("osd-messages", L("Show On-Screen Display Messages"), state.osdMessages,
-                         L("Transient status overlays drawn over the game (save-state notices, performance toggles)."),
+                         L("Short messages over the game, like \"State saved\"."),
                          set: { apply(.osdMessages($0)) }),
     ])
 

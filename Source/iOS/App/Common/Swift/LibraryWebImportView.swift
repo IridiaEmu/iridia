@@ -33,7 +33,7 @@ struct LibraryWebImportView: View {
             }
           }
         } footer: {
-          Text(L("Drop GameCube and Wii files onto Iridia from a computer or phone on the same Wi-Fi. Open the address in a browser, or in Finder choose Go › Connect to Server and enter the same address as Guest."))
+          Text(L("Send games to Iridia from a computer on the same Wi-Fi. Open the address in a browser, or in Finder choose Go › Connect to Server and enter it as Guest."))
         }
 
 #if os(iOS)

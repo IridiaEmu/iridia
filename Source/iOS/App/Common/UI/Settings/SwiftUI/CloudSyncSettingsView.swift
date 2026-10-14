@@ -81,7 +81,7 @@ struct CloudSyncSettingsView: View {
         } else if let error = coordinator.lastError {
             Text(error).foregroundStyle(.red)
         } else {
-            Text(L("Save states, memory cards, Wii saves and settings are kept in step across your devices. Games are never uploaded."))
+            Text(L("Keeps save states, memory cards and settings the same on all your devices. Games are never uploaded."))
         }
     }
 
@@ -197,7 +197,7 @@ struct CloudSyncSettingsView: View {
             Label(L("Settings, per-game settings and cheats"), systemImage: "checkmark")
             Label(L("Games are never uploaded"), systemImage: "xmark")
                 .foregroundStyle(.secondary)
-            Label(L("Cover art is not uploaded — it is re-downloaded instead"), systemImage: "xmark")
+            Label(L("Cover art isn't uploaded. It's downloaded again instead."), systemImage: "xmark")
                 .foregroundStyle(.secondary)
             Label(L("System firmware is never uploaded"), systemImage: "xmark")
                 .foregroundStyle(.secondary)

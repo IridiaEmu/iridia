@@ -30,9 +30,7 @@ class ServiceManager {
   let services: [UIApplicationDelegate] = [
     DefaultsInitService(),
     WebUploadImportService(),
-    WebServerLifecycleService(),
-    CloudSyncLifecycleService(),
-    ContinuityService(),
+    // gc-emu: no web server, iCloud sync or Nearby Devices in version 1 (IridiaFeatures.networkSharing).
     DolphinCoreService(),
     FirstRunInitializationService(),
     LegacyInputConfigMigrationService(),

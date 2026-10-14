@@ -142,7 +142,13 @@ struct SaveStateFilmstripView: View {
     }
     .sheet(isPresented: $showIncompatibleHelp) {
       NavigationStack {
-        WikiPageView(path: WikiConstants.Paths.saveStateCompatibility, title: L("Save State Compatibility"))
+        Group {
+          #if os(iOS)
+          IridiaHelpView(topic: .saveStates)   // gc-emu: built-in help, not iCube's online wiki
+          #else
+          WikiPageView(path: WikiConstants.Paths.saveStateCompatibility, title: L("Save State Compatibility"))
+          #endif
+        }
           .toolbar {
             ToolbarItem(placement: .cancellationAction) {
               Button(L("Close")) { showIncompatibleHelp = false }

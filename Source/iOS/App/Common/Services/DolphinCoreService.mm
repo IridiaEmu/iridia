@@ -55,7 +55,13 @@ static inline void SetBaseIfUnspecified(const Config::Info<T>& info, const T& va
 
 + (void)seedLaunchDefaultsWithFastmemAvailable:(BOOL)fastmemAvailable
 {
-  SetBaseIfUnspecified(Config::MAIN_USE_GAME_COVERS, true);
+  // gc-emu: no cover downloads (publisher box art is copyrighted); Iridia draws its own covers or
+  // uses the player's own pictures. Delete covers GameTDB already put on the device, once.
+  Config::SetBase(Config::MAIN_USE_GAME_COVERS, false);
+  if (![NSUserDefaults.standardUserDefaults boolForKey:@"iridia_gametdb_covers_removed_v1"]) {
+    File::DeleteDirRecursively(File::GetUserPath(D_COVERCACHE_IDX));
+    [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"iridia_gametdb_covers_removed_v1"];
+  }
 
   const bool fastmem = fastmemAvailable;
   SetBaseIfUnspecified(Config::MAIN_FASTMEM, fastmem);

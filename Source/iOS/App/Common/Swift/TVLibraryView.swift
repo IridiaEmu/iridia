@@ -1624,6 +1624,7 @@ struct TVLibraryView: View {
       }
       // gc-emu: Wii-only imports removed (BootMii NAND backup, Skylander figures): GameCube only.
 #endif
+      if IridiaFeatures.networkSharing {
 #if os(iOS)
       Divider()
 #endif
@@ -1635,6 +1636,7 @@ struct TVLibraryView: View {
 #endif
       Button(action: { libraryMenuAction { showSources = true } }) {
         Label(L("Manage Sources"), systemImage: "externaldrive.badge.plus")
+      }
       }
     }
   }
@@ -2363,6 +2365,7 @@ struct TVLibraryView: View {
             .buttonStyle(.borderedProminent)
             .tint(Color("DolphinTint"))
 
+            if IridiaFeatures.networkSharing {
             Button(action: {
               showSources = true
               UserDefaults.standard.set(true, forKey: "onboarding_seen_v1")
@@ -2376,6 +2379,7 @@ struct TVLibraryView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.green)
+            }
           }
 
 #if os(iOS)

@@ -224,6 +224,9 @@ bool GameFile::CustomCoverChanged()
 
 void GameFile::DownloadDefaultCover()
 {
+#ifdef IPHONEOS
+  return;  // gc-emu: Iridia never downloads covers (publisher box art is copyrighted).
+#endif
   if (!m_default_cover.buffer.empty() || !UseGameCovers() || m_gametdb_id.empty())
     return;
 

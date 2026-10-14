@@ -8,7 +8,7 @@ import XCTest
 final class SettingsRootModelBuilderTests: XCTestCase {
   func test_sections_inSpecOrder() {
     let sections = SettingsRootModelBuilder.sections(isIOS: true, achievements: true)
-    XCTAssertEqual(sections.map(\.id), ["general", "graphics", "audio", "consoles", "controllers", "performance", "sync-network", "about"])
+    XCTAssertEqual(sections.map(\.id), ["general", "graphics", "audio", "consoles", "controllers", "performance", "about"])   // gc-emu: Sync & Network held back from v1
   }
 
   func test_everyEntry_hasDescriptionAndUniqueID() {

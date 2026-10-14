@@ -943,9 +943,11 @@ enum PauseMenuModelBuilder {
       shadersItem(state: state, bindings: bindings, actions: actions),
       MenuItem(id: "controllers", title: L("Controllers"), icon: "gamecontroller", tint: .green, role: .action(actions.openControllers),
                description: L("Choose controllers and set up buttons.")),
-      MenuItem(id: "continuity", title: L("Continue Elsewhere"), icon: "arrow.triangle.branch", tint: .teal, role: .action(actions.openContinuity),
-               description: L("Hand this game to a nearby device.")),
     ]
+    if IridiaFeatures.networkSharing {
+      game.append(MenuItem(id: "continuity", title: L("Continue Elsewhere"), icon: "arrow.triangle.branch", tint: .teal, role: .action(actions.openContinuity),
+                           description: L("Hand this game to a nearby device.")))
+    }
     if state.showsRecenterPointer {
       game.append(MenuItem(id: "recenter-pointer", title: L("Recenter Pointer"), icon: "scope", tint: .green, role: .action(actions.recenterPointer),
                            description: L("Center the Wii pointer on how you hold the device.")))

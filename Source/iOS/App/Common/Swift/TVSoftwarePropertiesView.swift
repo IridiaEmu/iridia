@@ -1,6 +1,7 @@
 import SwiftUI
 
 #if os(iOS)
+import PhotosUI
 #endif
 
 struct TVSoftwarePropertiesView: View, Identifiable {
@@ -8,6 +9,10 @@ struct TVSoftwarePropertiesView: View, Identifiable {
   let item: TVGameItem
   @Environment(\.dismiss) private var dismiss
   @State private var profilesVersion: Int = 0
+  #if os(iOS)
+  @State private var coverPick: PhotosPickerItem?
+  @State private var coverVersion = 0
+  #endif
 
   var body: some View {
     #if os(iOS)
@@ -40,6 +45,7 @@ struct TVSoftwarePropertiesView: View, Identifiable {
                     .strokeBorder(LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.08)], startPoint: .top, endPoint: .bottom), lineWidth: 1)
                 )
                 .shadow(color: IridiaGlass.violet.opacity(0.35), radius: 16, y: 8)
+                .id(coverVersion)
 
               VStack(alignment: .leading, spacing: 8) {
                 Text(item.title)
@@ -52,6 +58,13 @@ struct TVSoftwarePropertiesView: View, Identifiable {
                 Toggle(L("Favorite"), isOn: Binding(get: { item.isFavorite }, set: { item.isFavorite = $0 }))
                   .foregroundStyle(IridiaGlass.ink)
                   .padding(.top, 6)
+                // gc-emu: the player's own cover picture, or Iridia's generated one. No downloads.
+                PhotosPicker(selection: $coverPick, matching: .images) {
+                  Label(L("Choose Cover Image…"), systemImage: "photo")
+                }
+                if item.hasCoverArt {
+                  Button { IridiaCovers.remove(for: item) } label: { Label(L("Use Iridia Cover"), systemImage: "rectangle.portrait") }
+                }
               }
               .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -143,6 +156,14 @@ struct TVSoftwarePropertiesView: View, Identifiable {
         }
       }
       .iridiaScreen()
+      .onChange(of: coverPick) { _, pick in
+        guard let pick else { return }
+        Task {
+          if let data = try? await pick.loadTransferable(type: Data.self) { IridiaCovers.set(data, for: item) }
+          coverPick = nil
+        }
+      }
+      .onReceive(NotificationCenter.default.publisher(for: IridiaCovers.changed)) { _ in coverVersion &+= 1 }
       .navigationTitle(L("Game Info"))
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {

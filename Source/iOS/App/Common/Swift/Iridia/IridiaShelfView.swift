@@ -8,6 +8,8 @@
 
 #if os(iOS)
 import GameController
+import IridiaPerformance
+import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -75,6 +77,11 @@ struct IridiaShelfView: View {
   let onDelete: (TVGameItem) -> Void
 
   @State private var centred: String?
+  /// Choosing a cover from Photos: the game it's for, the picked photo, and a redraw counter.
+  @State private var coverTarget: TVGameItem?
+  @State private var coverPick: PhotosPickerItem?
+  @State private var coverVersion = 0
+  @State private var showHelpHook = false   // -iridiaOpen help (test hook)
   @State private var controllerScope = UUID()
   @ObservedObject private var store = IridiaUnlock.store
   @State private var showUnlock = false
@@ -145,10 +152,16 @@ struct IridiaShelfView: View {
       installControllerNavigation()
       // Test hook for UI checks on device: -gcemuOpenSettings YES opens Settings at launch.
       if UserDefaults.standard.bool(forKey: "gcemuOpenSettings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onSettings() } }
+      // Test hook: -iridiaPowerMode batterySaver|balanced|maxPerformance applies that mode, as Settings does.
+      if let raw = UserDefaults.standard.string(forKey: "iridiaPowerMode"), let mode = PowerMode(rawValue: raw) {
+        IridiaPresets.apply(mode: mode)
+        NSLog("[Presets] test hook applied %@", raw)
+      }
       // -iridiaOpen saves|controllers|properties|filesguide opens that screen (the first three for the centred game).
       if let screen = UserDefaults.standard.string(forKey: "iridiaOpen") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
           if screen == "filesguide" { onFilesGuide(); return }
+          if screen == "help" { showHelpHook = true; return }
           guard let item = current else { return }
           switch screen {
           case "saves": onSaves(item)
@@ -287,7 +300,7 @@ struct IridiaShelfView: View {
     ScrollView(.horizontal, showsIndicators: false) {
       LazyHStack(spacing: 18) {
         ForEach(ordered, id: \.filePath) { item in
-          GlassCase(item: item, isCentred: item.filePath == current?.filePath)
+          GlassCase(item: item, isCentred: item.filePath == current?.filePath, coverVersion: coverVersion)
             .scaleEffect(caseScale)
             .frame(width: 214 * caseScale, height: 300 * caseScale)
             .scrollTransition(.interactive, axis: .horizontal) { view, phase in
@@ -307,6 +320,10 @@ struct IridiaShelfView: View {
               Button { play(item, fresh: true) } label: { Label(L("Start at Title Screen"), systemImage: "arrow.counterclockwise") }
               Button { onSaves(item) } label: { Label(L("Save States"), systemImage: "square.stack.3d.up") }
               Button { onProperties(item) } label: { Label(L("Properties"), systemImage: "info.circle") }
+              Button { coverTarget = item } label: { Label(L("Choose Cover Image…"), systemImage: "photo") }
+              if item.hasCoverArt {
+                Button { IridiaCovers.remove(for: item) } label: { Label(L("Use Iridia Cover"), systemImage: "rectangle.portrait") }
+              }
               Button(role: .destructive) { onDelete(item) } label: { Label(L("Delete"), systemImage: "trash") }
             }
         }
@@ -319,6 +336,18 @@ struct IridiaShelfView: View {
     // Half the leftover width on each side, so the first and last case can sit in the centre too.
     .safeAreaPadding(.horizontal, max(16, (geo.size.width - 214 * caseScale) / 2))
     .sensoryFeedback(.selection, trigger: centred) { _, _ in IridiaHaptics.enabled }
+    .photosPicker(isPresented: Binding(get: { coverTarget != nil }, set: { if !$0 { coverTarget = nil } }),
+                  selection: $coverPick, matching: .images)
+    .onChange(of: coverPick) { _, pick in
+      guard let pick, let item = coverTarget else { return }
+      Task {
+        if let data = try? await pick.loadTransferable(type: Data.self) { IridiaCovers.set(data, for: item) }
+        coverPick = nil
+        coverTarget = nil
+      }
+    }
+    .onReceive(NotificationCenter.default.publisher(for: IridiaCovers.changed)) { _ in coverVersion &+= 1 }
+    .sheet(isPresented: $showHelpHook) { NavigationStack { IridiaHelpView() } }
     }
     .frame(height: 300 * caseScale + 24)
   }
@@ -425,11 +454,11 @@ private struct GlassCase: View {
   let item: TVGameItem
   let isCentred: Bool
 
-  private var hasCover: Bool {
-    let img = item.coverImage
-    let desc = img.description.lowercased()
-    return img.size.width > 50 && img.size.height > 50 && !desc.contains("nocover") && !desc.contains("placeholder")
-  }
+  /// Redraws when a cover is chosen or removed (the item's image changes in place).
+  let coverVersion: Int
+
+  /// The player's own picture; otherwise the case shows Iridia's cube and the title.
+  private var hasCover: Bool { item.hasCoverArt }
 
   var body: some View {
     ZStack {

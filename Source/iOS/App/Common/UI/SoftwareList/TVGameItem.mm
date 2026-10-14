@@ -8,6 +8,9 @@
 #import "FoundationStringUtil.h"
 #import "UICommon/GameFile.h"
 #import "DiscIO/Enums.h"
+#import "Common/FileUtil.h"
+
+static UIImage *IridiaGeneratedCover(NSString *title);
 
 @implementation TVGameItem {
     GameFilePtrWrapper *_wrapper;
@@ -70,35 +73,8 @@
         _id = _filePath; // Use filePath as unique identifier
         _isNKit = game.IsNKit();
 
-        const UICommon::GameCover &cover = game.GetCoverImage();
-        _hasCoverArt = !cover.buffer.empty();
-        UIImage *result = nil;
-        if (cover.buffer.empty()) {
-            result = [UIImage imageNamed:@"NoCover"];
-        } else {
-            const size_t maxCoverBytes = 32 * 1024 * 1024; // 32MB sanity cap
-            const size_t len = cover.buffer.size();
-            if (len > 0 && len <= maxCoverBytes) {
-                NSData *data = [NSData dataWithBytes:cover.buffer.data() length:len];
-                result = [UIImage imageWithData:data];
-            } else {
-#ifdef DEBUG
-                NSLog(@"TVGameItem: cover size invalid (%zu), using placeholder", len);
-#endif
-                result = [UIImage imageNamed:@"NoCover"];
-            }
-        }
-
-        if (!result) {
-            const CGSize size = CGSizeMake(200, 300);
-            UIGraphicsBeginImageContextWithOptions(size, YES, 0);
-            [[UIColor colorWithWhite:0.12 alpha:1.0] setFill];
-            UIRectFill(CGRectMake(0, 0, size.width, size.height));
-            result = UIGraphicsGetImageFromCurrentImageContext();
-            UIGraphicsEndImageContext();
-        }
-
-        _coverImage = result;
+        // gc-emu: no downloaded box art (publisher artwork is copyrighted). The cover is a picture the
+        // player chose, or an Iridia cover drawn from the title; set at the end of init (-reloadCover).
 
         // Extract banner image (animated game icon)
         const UICommon::GameBanner &banner = game.GetBannerImage();
@@ -182,6 +158,7 @@
         std::string gametdbID = game.GetGameTDBID();
         if (gametdbID.empty()) gametdbID = "<unknown>";
         _gametdbID = CppToFoundationString(gametdbID);
+        [self reloadCover];
 
         _fileSize = (NSUInteger)game.GetFileSize();
         _platform = (NSInteger)game.GetPlatform();
@@ -214,6 +191,71 @@
 - (NSInteger)platform { return _platform; }
 - (BOOL)isDemoItem { return _demoItem; }
 - (BOOL)hasCoverArt { return _hasCoverArt; }
+
+#pragma mark - Covers (gc-emu)
+
+/// The player's own cover for this game: <user folder>/Covers/<game ID, or file name>.png.
+- (NSString *)customCoverPath {
+    NSString *key = _gameID;
+    if (key.length == 0 || [key isEqualToString:@"<unknown>"])
+        key = [[_filePath lastPathComponent] stringByDeletingPathExtension];
+    NSCharacterSet *bad = [[NSCharacterSet alphanumericCharacterSet] invertedSet];
+    key = [[key componentsSeparatedByCharactersInSet:bad] componentsJoinedByString:@"_"];
+    NSString *dir = [CppToFoundationString(File::GetUserPath(D_USER_IDX)) stringByAppendingPathComponent:@"Covers"];
+    return [dir stringByAppendingPathComponent:[key stringByAppendingPathExtension:@"png"]];
+}
+
+/// Re-reads the player's cover (after one is chosen or removed).
+- (void)reloadCover {
+    UIImage *custom = nil;
+    NSString *path = self.customCoverPath;
+    if ([[NSFileManager defaultManager] fileExistsAtPath:path])
+        custom = [UIImage imageWithContentsOfFile:path];
+    _hasCoverArt = custom != nil;
+    _coverImage = custom ?: IridiaGeneratedCover(_title.length ? _title : @"Unknown Game");
+}
+
+/// Iridia's own cover: the shelf's indigo glass with the title, so every game has one.
+static UIImage *IridiaGeneratedCover(NSString *title) {
+    const CGSize size = CGSizeMake(400, 580);
+    UIGraphicsImageRendererFormat *fmt = [UIGraphicsImageRendererFormat preferredFormat];
+    fmt.opaque = YES;
+    fmt.scale = 1.0;
+    UIGraphicsImageRenderer *r = [[UIGraphicsImageRenderer alloc] initWithSize:size format:fmt];
+    return [r imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+        CGContextRef c = ctx.CGContext;
+        CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+        NSArray *colors = @[(__bridge id)[UIColor colorWithRed:0.55 green:0.47 blue:0.96 alpha:1].CGColor,
+                            (__bridge id)[UIColor colorWithRed:0.24 green:0.17 blue:0.62 alpha:1].CGColor,
+                            (__bridge id)[UIColor colorWithRed:0.07 green:0.04 blue:0.20 alpha:1].CGColor];
+        CGFloat locs[3] = {0.0, 0.5, 1.0};
+        CGGradientRef g = CGGradientCreateWithColors(cs, (__bridge CFArrayRef)colors, locs);
+        CGContextDrawLinearGradient(c, g, CGPointZero, CGPointMake(size.width, size.height), 0);
+        CGGradientRelease(g);
+        // Glass sheen across the top half.
+        NSArray *sheen = @[(__bridge id)[UIColor colorWithWhite:1 alpha:0.22].CGColor,
+                           (__bridge id)[UIColor colorWithWhite:1 alpha:0.0].CGColor];
+        CGFloat locs2[2] = {0.0, 1.0};
+        CGGradientRef g2 = CGGradientCreateWithColors(cs, (__bridge CFArrayRef)sheen, locs2);
+        CGContextDrawLinearGradient(c, g2, CGPointZero, CGPointMake(0, size.height * 0.5), 0);
+        CGGradientRelease(g2);
+        CGColorSpaceRelease(cs);
+
+        NSMutableParagraphStyle *ps = [NSMutableParagraphStyle new];
+        ps.alignment = NSTextAlignmentCenter;
+        ps.lineBreakMode = NSLineBreakByWordWrapping;
+        NSDictionary *attrs = @{
+            NSFontAttributeName: [UIFont systemFontOfSize:40 weight:UIFontWeightBold],
+            NSForegroundColorAttributeName: [UIColor whiteColor],
+            NSParagraphStyleAttributeName: ps,
+        };
+        CGRect box = CGRectInset(CGRectMake(0, 0, size.width, size.height), 32, 0);
+        CGRect fit = [title boundingRectWithSize:CGSizeMake(box.size.width, size.height)
+                                         options:NSStringDrawingUsesLineFragmentOrigin attributes:attrs context:nil];
+        [title drawInRect:CGRectMake(box.origin.x, (size.height - fit.size.height) / 2, box.size.width, fit.size.height + 4)
+           withAttributes:attrs];
+    }];
+}
 
 - (BOOL)isFavorite {
     if (!_gameID) return NO;

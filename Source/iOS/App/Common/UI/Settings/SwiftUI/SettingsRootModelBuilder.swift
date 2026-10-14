@@ -116,7 +116,7 @@ enum SettingsRootModelBuilder {
                           hostsMenuScreen: true,
                           makeModel: { DebugRootModelBuilder.make(state: DebugRootState(isIOS: isIOS), apply: { _ in }) }) { DebugRootView() },
       ]),
-      SettingsRootSection(id: "sync-network", header: L("Sync & Network"), entries: [
+      SettingsRootSection(id: "sync-network", header: L("Sync & Network"), entries: !IridiaFeatures.networkSharing ? [] : [
         SettingsLeafEntry(id: "web-ui", title: L("Web UI & WebDAV"), icon: "network", description: L("Import games from a computer on the same Wi-Fi.")) { WebUISettingsView() },
         SettingsLeafEntry(id: "icloud", title: L("iCloud Sync"), icon: "icloud", description: L("Sync saves, states and settings across your devices.")) { CloudSyncSettingsView() },
         SettingsLeafEntry(id: "nearby", title: L("Nearby Devices"), icon: "antenna.radiowaves.left.and.right", description: L("Continue a game from another device, and manage paired ones.")) { ContinuityBrowseView() },
@@ -124,7 +124,7 @@ enum SettingsRootModelBuilder {
       SettingsRootSection(id: "about", header: L("About"), entries: [
         SettingsLeafEntry(id: "about", title: L("About"), icon: "info.circle", description: L("Version, help and Reset All Settings.")) { AboutView() },
       ]),
-    ]
+    ].filter { !$0.entries.isEmpty }
   }
 
   /// The root as one `MenuModel`: a chevron row per leaf. The iPhone list renders it; the sidebar renders `sections` directly.

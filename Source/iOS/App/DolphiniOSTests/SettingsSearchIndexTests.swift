@@ -63,7 +63,8 @@ final class SettingsSearchIndexTests: XCTestCase {
 
   /// A hand-built leaf has no model, so its title, description and keywords still count.
   func test_handBuiltLeaf_isFoundByItsDescription() {
-    XCTAssertTrue(index.hits(query: "wi-fi").contains(SettingsSearchHit(entryID: "web-ui", rowTitle: nil)))
+    // gc-emu: the Wi-Fi (web-ui) leaf is held back from v1; Control Options is another hand-built leaf.
+    XCTAssertTrue(index.hits(query: "camera").contains { $0.entryID == "control-options" })
   }
 
   func test_debugRows_areFoundByTheirOwnTitles() {

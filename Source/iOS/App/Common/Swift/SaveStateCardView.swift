@@ -150,7 +150,7 @@ struct SaveStateCardView: View {
     #if !os(tvOS)
     .sheet(isPresented: $showIncompatibleHelp) {
       NavigationStack {
-        WikiPageView(path: WikiConstants.Paths.saveStateCompatibility, title: L("Save State Compatibility"))
+        IridiaHelpView(topic: .saveStates)   // gc-emu: built-in help, not iCube's online wiki
           .toolbar {
             ToolbarItem(placement: .cancellationAction) {
               Button(L("Close")) { showIncompatibleHelp = false }

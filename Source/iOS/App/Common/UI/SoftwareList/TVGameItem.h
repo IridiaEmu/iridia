@@ -15,9 +15,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSString *filePath;
 @property (nonatomic, readonly) BOOL isNKit;
 @property (nonatomic, readonly) UIImage *coverImage;
-/// YES when the core has real cover art for this game (custom or GameTDB), NO when
-/// `coverImage` is the NoCover placeholder. The snapshot writer only mirrors real art.
+/// gc-emu: YES when the player chose a cover image for this game; NO when `coverImage` is the
+/// generated Iridia cover. (No downloaded box art.)
 @property (nonatomic, readonly) BOOL hasCoverArt;
+/// Where a player-chosen cover is stored (PNG). Write or delete it, then call -reloadCover.
+@property (nonatomic, readonly) NSString *customCoverPath;
+- (void)reloadCover;
 @property (nonatomic, readonly, nullable) UIImage *bannerImage; // Animated game banner/icon
 @property (nonatomic, readonly) GameFilePtrWrapper *wrapper;
 @property (nonatomic, readonly) NSString *gameID;

@@ -612,6 +612,7 @@ class DolphinBuilder:
             "-DUSE_SYSTEM_BZIP2=OFF",
             "-DIOS=ON",
             "-DENABLE_ANALYTICS=NO",
+            "-DUSE_RETRO_ACHIEVEMENTS=OFF",  # gc-emu: no RetroAchievements in Iridia v1 (no accounts, no data leaves the app)
             "-DUSE_SYSTEM_LIBS=OFF",
             "-DENABLE_TESTS=OFF",
             "-DCMAKE_POLICY_DEFAULT_CMP0080=NEW",

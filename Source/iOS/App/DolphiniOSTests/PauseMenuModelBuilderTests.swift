@@ -39,7 +39,7 @@ final class PauseMenuModelBuilderTests: XCTestCase {
     let model = PauseMenuModelBuilder.make(state: state(), bindings: bindings(), actions: actions())
     XCTAssertEqual(model.sections.map(\.id), ["quick", "game", "system"])
     XCTAssertEqual(model.sections[0].items.map(\.id), ["resume", "quick-save", "quick-load", "fast-forward", "mute", "screenshot"])
-    XCTAssertEqual(model.sections[1].items.map(\.id), ["save-states", "cheats", "shaders", "controllers", "continuity"])
+    XCTAssertEqual(model.sections[1].items.map(\.id), ["save-states", "cheats", "shaders", "controllers"])
     XCTAssertEqual(model.sections[2].items.map(\.id), ["settings", "reset", "exit"])
   }
 
@@ -54,7 +54,7 @@ final class PauseMenuModelBuilderTests: XCTestCase {
     let without = PauseMenuModelBuilder.make(state: state(), bindings: bindings(), actions: actions())
     XCTAssertNil(without.item(id: "recenter-pointer"))
     let with = PauseMenuModelBuilder.make(state: state(recenter: true), bindings: bindings(), actions: actions())
-    XCTAssertEqual(with.sections[1].items.map(\.id), ["save-states", "cheats", "shaders", "controllers", "continuity", "recenter-pointer"])
+    XCTAssertEqual(with.sections[1].items.map(\.id), ["save-states", "cheats", "shaders", "controllers", "recenter-pointer"])
   }
 
   func test_fastForward_isACycle_offFirst_sixOptions() {
@@ -128,7 +128,7 @@ final class PauseMenuModelBuilderTests: XCTestCase {
     XCTAssertEqual(tv.sections[0].items.map(\.id), ["resume", "save-states", "reset", "exit"])
     XCTAssertEqual(tv.sections[1].items.map(\.id),
                    ["quick-save", "quick-load", "fast-forward", "mute", "screenshot", "cheats", "shaders", "controllers",
-                    "continuity", "settings"])
+                    "settings"])
     XCTAssertEqual(Set(tv.sections.flatMap(\.items).map(\.id)), Set(model.sections.flatMap(\.items).map(\.id)))
   }
 }

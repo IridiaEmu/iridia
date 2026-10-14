@@ -133,7 +133,7 @@ struct AboutView: View {
         }
 
         NavigationLink(destination: DolphinBlogView().padBackNavigation()) { Label(L("Dolphin Blog"), systemImage: "newspaper") }
-        NavigationLink(destination: WikiHelpView().padBackNavigation()) { Label(L("Help"), systemImage: "questionmark.circle") }
+        NavigationLink(destination: IridiaHelpView().padBackNavigation()) { Label(L("Help"), systemImage: "questionmark.circle") }
         SettingsResetAllButton(role: .destructive) { Label(L("Reset All Settings"), systemImage: "arrow.counterclockwise") }
 
         Color.clear.frame(height: 0)

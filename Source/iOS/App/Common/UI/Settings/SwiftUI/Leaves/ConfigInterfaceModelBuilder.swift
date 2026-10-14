@@ -10,9 +10,6 @@ enum ConfigInterfaceModelBuilder {
       SettingsRow.toggle("names-db", L("Use Built-In Database of Game Names"), state.useNamesDB,
                          L("Replaces raw disc IDs with proper game titles from the built-in database."),
                          set: { apply(.useNamesDB($0)) }),
-      SettingsRow.toggle("covers", L("Download Game Covers from GameTDB.com"), state.useCovers,
-                         L("Downloads box art from GameTDB.com, once per game. Turn off to stay offline."),
-                         set: { apply(.useCovers($0)) }),
     ])
 
     let libraryUI = MenuSection(id: "library-ui", header: L("Library UI"), items: [

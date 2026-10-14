@@ -14,9 +14,9 @@ final class ConfigInterfaceModelBuilderTests: XCTestCase {
 
   func test_rowOrder_andSections() {
     XCTAssertEqual(model().allItems.map(\.id),
-                   ["names-db", "covers", "background-style", "show-subtitles", "confirm-on-stop", "panic-handlers", "osd-messages"])
+                   ["names-db", "background-style", "show-subtitles", "confirm-on-stop", "panic-handlers", "osd-messages"])
     XCTAssertEqual(model().sections.map(\.header), ["Game List", "Library UI", "General"])
-    XCTAssertEqual(model().sections.map(\.items.count), [2, 2, 3])
+    XCTAssertEqual(model().sections.map(\.items.count), [1, 2, 3])   // gc-emu: no cover downloads
   }
 
   func test_everyRow_hasADescription() {
@@ -25,7 +25,7 @@ final class ConfigInterfaceModelBuilderTests: XCTestCase {
 
   func test_everyToggleRow_emitsItsOwnChange() {
     let expected: [(String, (Bool) -> ConfigInterfaceChange)] = [
-      ("names-db", { .useNamesDB($0) }), ("covers", { .useCovers($0) }), ("show-subtitles", { .showSubtitles($0) }),
+      ("names-db", { .useNamesDB($0) }), ("show-subtitles", { .showSubtitles($0) }),
       ("confirm-on-stop", { .confirmOnStop($0) }), ("panic-handlers", { .usePanicHandlers($0) }), ("osd-messages", { .osdMessages($0) }),
     ]
     let m = model()
@@ -58,7 +58,7 @@ final class ConfigInterfaceModelBuilderTests: XCTestCase {
     s.confirmOnStop = false; s.usePanicHandlers = false; s.osdMessages = false
     let m = model(s)
     let expected: [(String, Bool)] = [
-      ("names-db", true), ("covers", true), ("show-subtitles", false),
+      ("names-db", true), ("show-subtitles", false),
       ("confirm-on-stop", false), ("panic-handlers", false), ("osd-messages", false),
     ]
     for (id, value) in expected {

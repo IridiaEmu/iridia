@@ -23,3 +23,10 @@ enum IridiaHaptics {
     set { UserDefaults.standard.set(newValue, forKey: gameRumbleKey) }
   }
 }
+
+/// gc-emu: features held back from version 1 until they've been tested on a device.
+enum IridiaFeatures {
+  /// iCloud Sync, Wi-Fi upload / WebDAV / remote sources, and Nearby Devices (handing a game to
+  /// another device). Off: their settings and buttons are hidden and none of their services start.
+  static let networkSharing = false
+}

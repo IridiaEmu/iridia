@@ -51,6 +51,7 @@
 
 #include "UICommon/UICommon.h"
 
+#include "VideoCommon/Fifo.h"
 #include "VideoCommon/FrameDumpFFMpeg.h"
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -224,8 +225,42 @@ static bool CheckIfStateLoadIsAllowed(Core::System& system)
   return true;
 }
 
+// iCube: keeps the dual-core GPU thread from reading the FIFO for the whole DoState. A save or load
+// made while the game runs executes as a CPU-thread job with the GPU thread still running, and the
+// video state (FIFO and CP registers) is done first, on the GPU thread, before RAM. On a load, the
+// GPU thread then went on reading the restored FIFO's pending commands from RAM that still held the
+// previous session: "GFX FIFO: Unknown Opcode", a pink or green screen at 0 FPS. It only hit states
+// saved with commands pending (most saves made while running), and only some of the time. A save or
+// load made while paused already ran with the FIFO stopped; this does the same while running.
+namespace
+{
+class ScopedFifoHold
+{
+public:
+  explicit ScopedFifoHold(Core::System& system) : m_fifo(system.GetFifo())
+  {
+    m_held = system.IsDualCoreMode() && !m_fifo.UseDeterministicGPUThread() &&
+             m_fifo.IsEmulatorStateRunning();
+    if (m_held)
+      m_fifo.PauseAndLock();
+  }
+  ~ScopedFifoHold()
+  {
+    if (m_held)
+      m_fifo.RestoreState(true);
+  }
+  ScopedFifoHold(const ScopedFifoHold&) = delete;
+  ScopedFifoHold& operator=(const ScopedFifoHold&) = delete;
+
+private:
+  Fifo::FifoManager& m_fifo;
+  bool m_held = false;
+};
+}  // namespace
+
 static bool LoadFromBuffer(Core::System& system, std::span<u8> buffer)
 {
+  ScopedFifoHold fifo_hold(system);
   u8* ptr = buffer.data();
   PointerWrap p(&ptr, buffer.size(), PointerWrap::Mode::Read);
   DoState(system, p);
@@ -240,7 +275,12 @@ static std::size_t SaveToBuffer(Core::System& system, Common::UniqueBuffer<u8>& 
   //  and then we have our measurement for a second attempt.
   u8* ptr = buffer.data();
   PointerWrap pointer_wrap(&ptr, buffer.size(), PointerWrap::Mode::Write);
-  DoState(system, pointer_wrap);
+  {
+    // Also for saves: EFB copies the GPU thread runs after the video state is written would land
+    // in the saved RAM and run a second time after a load.
+    ScopedFifoHold fifo_hold(system);
+    DoState(system, pointer_wrap);
+  }
   const auto measured_size = pointer_wrap.GetOffsetFromPreviousPosition(buffer.data());
 
   if (pointer_wrap.IsWriteMode())

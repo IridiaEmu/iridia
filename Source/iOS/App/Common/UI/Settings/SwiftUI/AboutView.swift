@@ -31,8 +31,6 @@ struct AboutView: View {
   @State private var sparkleOpacity: Double = 0.3
   @State private var showBugEmailCopied = false
 
-  static let bugReportEmail = "iridiadev@gmail.com"
-
   var body: some View {
     ScrollView {
       VStack(spacing: 20) {
@@ -149,37 +147,12 @@ struct AboutView: View {
     .alert(L("Email Address Copied"), isPresented: $showBugEmailCopied) {
       Button(L("OK"), role: .cancel) {}
     } message: {
-      Text(String(format: L("Send your bug report to %@."), Self.bugReportEmail))
+      Text(String(format: L("Send your bug report to %@."), BugReport.email))
     }
   }
 
-  /// gc-emu: opens a new email to the bug-report address with the version and device filled in.
-  /// Without a mail app to take it, copies the address instead.
   private func reportBug() {
-    var system = utsname()
-    uname(&system)
-    let model = withUnsafeBytes(of: &system.machine) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
-    let body = "\n\n\n" + [
-      "\(L("Version")) \(VersionManager.shared().appVersion.userFacing)",
-      "\(L("Core")) \(VersionManager.shared().coreVersion)",
-      "\(model), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
-    ].joined(separator: "\n")
-    var components = URLComponents()
-    components.scheme = "mailto"
-    components.path = Self.bugReportEmail
-    components.queryItems = [
-      URLQueryItem(name: "subject", value: L("Iridia bug report")),
-      URLQueryItem(name: "body", value: body),
-    ]
-    guard let url = components.url else { return }
-    openURL(url) { accepted in
-      if !accepted {
-        #if os(iOS)
-        UIPasteboard.general.string = Self.bugReportEmail
-        #endif
-        showBugEmailCopied = true
-      }
-    }
+    BugReport.compose { showBugEmailCopied = true }
   }
 
   private func startAboutAnimation() {
@@ -197,6 +170,45 @@ struct AboutView: View {
       withAnimation(.linear(duration: 6.0).repeatForever(autoreverses: false)) {
         orbitAngle = 2 * .pi
       }
+    }
+  }
+}
+
+/// gc-emu: where bug reports go (About, the top of Settings, the one-time notice).
+enum BugReport {
+  static let email = "iridiadev@gmail.com"
+  /// Shown once, the first time the app opens.
+  static let noticeSeenKey = "bug_report_notice_seen_v1"
+
+  /// A new email to `email` with the version and device filled in.
+  static var mailURL: URL? {
+    var system = utsname()
+    uname(&system)
+    let model = withUnsafeBytes(of: &system.machine) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
+    let body = "\n\n\n" + [
+      "\(L("Version")) \(VersionManager.shared().appVersion.userFacing)",
+      "\(L("Core")) \(VersionManager.shared().coreVersion)",
+      "\(model), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
+    ].joined(separator: "\n")
+    var components = URLComponents()
+    components.scheme = "mailto"
+    components.path = email
+    components.queryItems = [
+      URLQueryItem(name: "subject", value: L("Iridia bug report")),
+      URLQueryItem(name: "body", value: body),
+    ]
+    return components.url
+  }
+
+  /// Opens the email. Without a mail app to take it, copies the address and calls `onCopied`.
+  static func compose(onCopied: @escaping () -> Void) {
+    guard let url = mailURL else { return }
+    UIApplication.shared.open(url) { opened in
+      guard !opened else { return }
+      #if os(iOS)
+      UIPasteboard.general.string = email
+      #endif
+      onCopied()
     }
   }
 }

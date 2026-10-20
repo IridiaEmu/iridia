@@ -1868,6 +1868,24 @@ struct TVLibraryView: View {
       if !UserDefaults.standard.bool(forKey: "onboarding_seen_v1") {
         withAnimation { showOnboarding = true }
       }
+      // gc-emu: once, the first time the app opens, say where bug reports go. Marked seen when shown, so it
+      // never comes back even if the app is closed on it. Never during scripted benchmarks.
+      if !UserDefaults.standard.bool(forKey: BugReport.noticeSeenKey),
+         UserDefaults.standard.double(forKey: "gcemuBench") <= 0 {
+        UserDefaults.standard.set(true, forKey: BugReport.noticeSeenKey)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showBugNotice = true }
+      }
+    }
+    .alert(L("Found a Bug?"), isPresented: $showBugNotice) {
+      Button(L("Email Us")) { BugReport.compose { showBugEmailCopied = true } }
+      Button(L("OK"), role: .cancel) {}
+    } message: {
+      Text(String(format: L("Iridia is new, so you may run into problems. Email %@ and tell us what happened. You can also find Report a Bug at the top of Settings."), BugReport.email))
+    }
+    .alert(L("Email Address Copied"), isPresented: $showBugEmailCopied) {
+      Button(L("OK"), role: .cancel) {}
+    } message: {
+      Text(String(format: L("Send your bug report to %@."), BugReport.email))
     }
     .onDisappear {
       func removeAllObservers() {
@@ -2088,6 +2106,8 @@ struct TVLibraryView: View {
   @State private var snackbarText: String = ""
   @State private var snackbarVisible: Bool = false
   @State private var showOnboarding: Bool = false
+  @State private var showBugNotice = false
+  @State private var showBugEmailCopied = false
   @StateObject private var storeForBanner = RemoteSourcesStore.shared
   @State private var offlineBannerDismissed: Bool = false
   // DSU approval banner state

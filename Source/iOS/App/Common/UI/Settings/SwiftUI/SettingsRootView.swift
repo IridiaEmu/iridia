@@ -16,6 +16,7 @@ struct SettingsRootView: View {
   @State private var pushed: SettingsLeafEntry?
   /// Search exists on iOS only, so tvOS never builds the index.
   @State private var searchIndex: SettingsSearchIndex?
+  @State private var showBugEmailCopied = false
   #endif
 
   private static func makeSections() -> [SettingsRootSection] {
@@ -66,8 +67,9 @@ struct SettingsRootView: View {
     NavigationStack {
       Group {
         if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-          MenuScreen(model: SettingsRootModelBuilder.model(sections: sections, onSelect: { pushed = $0 }), style: .list,
-                     onBack: { dismiss() })
+          MenuScreen(model: SettingsRootModelBuilder.model(sections: sections, onSelect: { pushed = $0 },
+                                                           onReportBug: { BugReport.compose { showBugEmailCopied = true } }),
+                     style: .list, onBack: { dismiss() })
         } else {
           SettingsSearchResults(hits: searchIndex?.hits(query: searchText) ?? [], entries: sections.flatMap(\.entries)) { pushed = $0 }
         }
@@ -82,6 +84,11 @@ struct SettingsRootView: View {
       .navigationDestination(item: $pushed) { entry in entry.pushedView() }
       // DSU-add deep link (dolphinios://dsu/add, legacy dsu://) opens the DSU server list, where the server it just added shows.
       .navigationDestination(isPresented: $jumpToControllersRequested) { DSUSettingsView().padBackNavigation() }
+      .alert(L("Email Address Copied"), isPresented: $showBugEmailCopied) {
+        Button(L("OK"), role: .cancel) {}
+      } message: {
+        Text(String(format: L("Send your bug report to %@."), BugReport.email))
+      }
     }
   }
   #endif

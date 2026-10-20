@@ -59,6 +59,12 @@ enum SettingsRootModelBuilder {
     }
     #endif
     return [
+      // gc-emu: first, so bug reports are easy to find. On iPhone the row opens the email directly (see model(sections:)).
+      SettingsRootSection(id: "support", header: L("Support"), entries: [
+        SettingsLeafEntry(id: BugReportEntry.id, title: L("Report a Bug"), icon: "envelope",
+                          description: String(format: L("Email %@."), BugReport.email),
+                          keywords: [L("bug"), L("email"), L("contact"), L("feedback")]) { BugReportView() },
+      ]),
       SettingsRootSection(id: "general", header: L("General"), entries: [
         SettingsLeafEntry(id: "general", title: L("General"), icon: "gear", description: L("Cheats, speed limit and other emulation options."),
                           hostsMenuScreen: true,
@@ -129,12 +135,51 @@ enum SettingsRootModelBuilder {
 
   /// The root as one `MenuModel`: a chevron row per leaf. The iPhone list renders it; the sidebar renders `sections` directly.
   /// Rows stay `.action` (not `.destination`) because the sidebar must select a leaf into its pane instead of pushing it.
-  static func model(sections: [SettingsRootSection], onSelect: @escaping (SettingsLeafEntry) -> Void) -> MenuModel {
+  static func model(sections: [SettingsRootSection], onSelect: @escaping (SettingsLeafEntry) -> Void,
+                    onReportBug: @escaping () -> Void = {}) -> MenuModel {
     MenuModel(sections: sections.map { section in
       MenuSection(id: section.id, header: section.header, items: section.entries.map { entry in
-        MenuItem(id: entry.id, title: entry.title, icon: entry.icon, role: .action { onSelect(entry) },
-                 description: entry.description, showsChevron: true)
+        if entry.id == BugReportEntry.id {
+          return MenuItem(id: entry.id, title: entry.title, icon: entry.icon, role: .action { onReportBug() },
+                          description: entry.description, showsChevron: false)
+        }
+        return MenuItem(id: entry.id, title: entry.title, icon: entry.icon, role: .action { onSelect(entry) },
+                        description: entry.description, showsChevron: true)
       })
     })
+  }
+}
+
+enum BugReportEntry {
+  static let id = "report-bug"
+}
+
+/// gc-emu: the Report a Bug page in the iPad and tvOS sidebar, and from search.
+struct BugReportView: View {
+  @State private var showCopied = false
+
+  var body: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "envelope")
+        .font(.system(size: 44))
+        .foregroundStyle(.secondary)
+      Text(L("Found a bug? Tell us what happened and we will look into it."))
+        .multilineTextAlignment(.center)
+      Button {
+        BugReport.compose { showCopied = true }
+      } label: {
+        Label(String(format: L("Email %@"), BugReport.email), systemImage: "envelope")
+      }
+      .buttonStyle(.borderedProminent)
+      .tint(Color("DolphinTint"))
+    }
+    .padding(24)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .navigationTitle(L("Report a Bug"))
+    .alert(L("Email Address Copied"), isPresented: $showCopied) {
+      Button(L("OK"), role: .cancel) {}
+    } message: {
+      Text(String(format: L("Send your bug report to %@."), BugReport.email))
+    }
   }
 }

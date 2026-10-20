@@ -14,7 +14,7 @@ Iridia includes no games, BIOS, firmware or keys. GameCube is a trademark of Nin
 affiliated with or endorsed by Nintendo or the Dolphin Team.
 
 ## What's different from iCube
-- No JIT anywhere (`GCEMU_NO_JIT`; checked by `scripts/verify_no_jit.sh`), GameCube only.
+- No JIT anywhere, GameCube only.
 - Performance work measured on device: see `BENCHMARKS.md` and `PERFORMANCE_EVAL.md`.
 - New iOS app shell: the "Glass Shelf" library, glass pause sheet, our own touch controls and
   controller mapping (`Packages/GCControls`), a real 3D glass-cube logo (`Common/Swift/Branding`).

@@ -29,6 +29,9 @@ struct AboutView: View {
   @State private var logoScale: CGFloat = 1.0
   @State private var orbitAngle: Double = 0.0
   @State private var sparkleOpacity: Double = 0.3
+  @State private var showBugEmailCopied = false
+
+  static let bugReportEmail = "iridiadev@gmail.com"
 
   var body: some View {
     ScrollView {
@@ -134,6 +137,7 @@ struct AboutView: View {
 
         NavigationLink(destination: DolphinBlogView().padBackNavigation()) { Label(L("Dolphin Blog"), systemImage: "newspaper") }
         NavigationLink(destination: IridiaHelpView().padBackNavigation()) { Label(L("Help"), systemImage: "questionmark.circle") }
+        Button { reportBug() } label: { Label(L("Report a Bug"), systemImage: "envelope") }
         SettingsResetAllButton(role: .destructive) { Label(L("Reset All Settings"), systemImage: "arrow.counterclockwise") }
 
         Color.clear.frame(height: 0)
@@ -142,6 +146,40 @@ struct AboutView: View {
       .frame(maxWidth: .infinity)
     }
     .navigationTitle(L("About Iridia"))
+    .alert(L("Email Address Copied"), isPresented: $showBugEmailCopied) {
+      Button(L("OK"), role: .cancel) {}
+    } message: {
+      Text(String(format: L("Send your bug report to %@."), Self.bugReportEmail))
+    }
+  }
+
+  /// gc-emu: opens a new email to the bug-report address with the version and device filled in.
+  /// Without a mail app to take it, copies the address instead.
+  private func reportBug() {
+    var system = utsname()
+    uname(&system)
+    let model = withUnsafeBytes(of: &system.machine) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
+    let body = "\n\n\n" + [
+      "\(L("Version")) \(VersionManager.shared().appVersion.userFacing)",
+      "\(L("Core")) \(VersionManager.shared().coreVersion)",
+      "\(model), \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
+    ].joined(separator: "\n")
+    var components = URLComponents()
+    components.scheme = "mailto"
+    components.path = Self.bugReportEmail
+    components.queryItems = [
+      URLQueryItem(name: "subject", value: L("Iridia bug report")),
+      URLQueryItem(name: "body", value: body),
+    ]
+    guard let url = components.url else { return }
+    openURL(url) { accepted in
+      if !accepted {
+        #if os(iOS)
+        UIPasteboard.general.string = Self.bugReportEmail
+        #endif
+        showBugEmailCopied = true
+      }
+    }
   }
 
   private func startAboutAnimation() {

@@ -8,10 +8,10 @@ import SwiftUI
 enum IridiaLinks {
   /// Iridia's public source repository (GPL), if one is published. Optional: the written offer
   /// below covers source distribution on its own.
-  static let sourceCode: URL? = URL(string: "https://github.com/zaptrem4/iridia")
+  static let sourceCode: URL? = URL(string: "https://github.com/IridiaEmu/iridia")
 
   /// Where to ask for the source under the written offer (a backup to the public repository).
-  static let sourceRequestContact = "github.com/zaptrem4/iridia/issues"
+  static let sourceRequestContact = "github.com/IridiaEmu/iridia/issues"
 }
 
 struct AcknowledgementsView: View {

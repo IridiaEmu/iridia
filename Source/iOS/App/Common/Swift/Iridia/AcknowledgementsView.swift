@@ -79,8 +79,13 @@ struct AcknowledgementsView: View {
         VStack(alignment: .leading, spacing: 8) {
           Text(L("For at least three years from the date you received this version of Iridia, we will give anyone who asks a complete machine-readable copy of its corresponding source code, under the terms of the GNU General Public License version 2 (section 3(b)). It is sent as a download or on a medium customarily used for software interchange, for no more than our cost of providing it."))
             .font(.subheadline)
-          Text(String(format: L("Write to %@ and include this version: %@."), IridiaLinks.sourceRequestContact, Self.versionString))
-            .font(.subheadline.weight(.semibold))
+          if let url = URL(string: "https://" + IridiaLinks.sourceRequestContact) {
+            Link(IridiaLinks.sourceRequestContact, destination: url)
+              .font(.subheadline.weight(.semibold))
+          }
+          Text(String(format: L("Version %@"), Self.versionString))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
             .textSelection(.enabled)
         }
         .padding(.vertical, 4)

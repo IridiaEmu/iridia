@@ -117,20 +117,24 @@ struct IridiaShelfView: View {
     ZStack {
       IridiaGlass.stage
       if isLandscapePhone {
-        // iPhone landscape: shelf on the left, the selected game and actions on the right.
-        HStack(spacing: 0) {
-          VStack(spacing: 0) {
-            header
-            shelf.frame(height: 300 * caseScale + 30)
-            Spacer(minLength: 0)
+        // iPhone landscape: header across the top (so the title never truncates), then the shelf
+        // on the left and the selected game and actions on the right.
+        VStack(spacing: 0) {
+          header
+          HStack(spacing: 0) {
+            VStack(spacing: 0) {
+              Spacer(minLength: 0)
+              shelf.frame(height: 300 * caseScale + 30)
+              Spacer(minLength: 0)
+            }
+            VStack(spacing: 0) {
+              Spacer(minLength: 0)
+              details
+              Spacer(minLength: 8)
+              tabBar
+            }
+            .frame(width: 380)
           }
-          VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            details
-            Spacer(minLength: 8)
-            tabBar
-          }
-          .frame(width: 380)
         }
       } else {
         VStack(spacing: 0) {
@@ -297,6 +301,7 @@ struct IridiaShelfView: View {
 
   private var shelf: some View {
     GeometryReader { geo in
+    ScrollViewReader { proxy in
     ScrollView(.horizontal, showsIndicators: false) {
       LazyHStack(spacing: 18) {
         ForEach(ordered, id: \.filePath) { item in
@@ -335,6 +340,12 @@ struct IridiaShelfView: View {
     .scrollPosition(id: $centred, anchor: .center)
     // Half the leftover width on each side, so the first and last case can sit in the centre too.
     .safeAreaPadding(.horizontal, max(16, (geo.size.width - 214 * caseScale) / 2))
+    // Rotation changes the width but not the scroll offset, which left the centred case
+    // off-centre and stuck at a tilt until the next swipe. Re-centre it after every resize.
+    .onChange(of: geo.size) { _, _ in
+      guard let id = current?.filePath else { return }
+      DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
+    }
     .sensoryFeedback(.selection, trigger: centred) { _, _ in IridiaHaptics.enabled }
     .photosPicker(isPresented: Binding(get: { coverTarget != nil }, set: { if !$0 { coverTarget = nil } }),
                   selection: $coverPick, matching: .images)
@@ -348,6 +359,7 @@ struct IridiaShelfView: View {
     }
     .onReceive(NotificationCenter.default.publisher(for: IridiaCovers.changed)) { _ in coverVersion &+= 1 }
     .sheet(isPresented: $showHelpHook) { NavigationStack { IridiaHelpView() } }
+    }
     }
     .frame(height: 300 * caseScale + 24)
   }

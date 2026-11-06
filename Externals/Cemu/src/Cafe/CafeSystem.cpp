@@ -424,7 +424,7 @@ void cemu_initForGame()
 		GamePatch_scan();
 	}
 	// Iridia: IRIDIA_DRC_PRIMARY=1 starts on the GamePad picture (app setting "GamePad screen: Instead of TV")
-	LatteGPUState.isDRCPrimary = ActiveSettings::DisplayDRCEnabled() || (getenv("IRIDIA_DRC_PRIMARY") && getenv("IRIDIA_DRC_PRIMARY")[0] == '1');
+	LatteGPUState.isDRCPrimary = ActiveSettings::DisplayDRCEnabled() || (iridia_getenv("IRIDIA_DRC_PRIMARY") && iridia_getenv("IRIDIA_DRC_PRIMARY")[0] == '1');
 	InfoLog_PrintActiveSettings();
 	Latte_Start();
 	// check for debugger entrypoint bp
@@ -930,7 +930,7 @@ namespace CafeSystem
 		if ((ActiveSettings::GetCPUMode() == CPUMode::MulticoreRecompiler || LaunchSettings::ForceMultiCoreInterpreter()) && !LaunchSettings::ForceInterpreter())
 		{
 			// Iridia study: CEMU_CPU_THREADS=2 runs the 3 emulated cores on 2 host threads (1 | 0+2)
-			const char* threads = getenv("CEMU_CPU_THREADS");
+			const char* threads = iridia_getenv("CEMU_CPU_THREADS");
 			coreinit::OSSchedulerBegin((threads && atoi(threads) == 2) ? 2 : 3);
 		}
 		else
@@ -946,9 +946,9 @@ namespace CafeSystem
 	{
 		// CEMU_PGO_FILE=<path>: where the profile goes (iOS: the app's Documents; LLVM_PROFILE_FILE is read at load,
 		// before the app sets its -cafeEnv switches)
-		if (const char* file = getenv("CEMU_PGO_FILE"))
+		if (const char* file = iridia_getenv("CEMU_PGO_FILE"))
 			__llvm_profile_set_filename(file);
-		const char* secs = getenv("CEMU_PGO_SECONDS");
+		const char* secs = iridia_getenv("CEMU_PGO_SECONDS");
 		if (secs)
 		{
 			std::thread([s = atoi(secs)] {
@@ -959,7 +959,7 @@ namespace CafeSystem
 		}
 		// CEMU_PGO_GAMEPLAY=<s>: train on gameplay only: reset the counters when the autopilot run starts, write the
 		// profile <s> seconds later and exit
-		if (const char* g = getenv("CEMU_PGO_GAMEPLAY"))
+		if (const char* g = iridia_getenv("CEMU_PGO_GAMEPLAY"))
 		{
 			std::thread([s = atoi(g)] {
 				while (g_iridiaRunStartMs.load() == 0)
@@ -980,10 +980,10 @@ namespace CafeSystem
 	// busy/idle shares and the hottest guest functions (start found by scanning back for a stwu r1 prologue).
 	static void StartGuestProfiler()
 	{
-		const char* out = getenv("IRIDIA_GUEST_PROF");
+		const char* out = iridia_getenv("IRIDIA_GUEST_PROF");
 		if (!out) return;
-		const int delay = getenv("IRIDIA_GUEST_PROF_DELAY") ? atoi(getenv("IRIDIA_GUEST_PROF_DELAY")) : 15; // after the autopilot run starts
-		const int secs = getenv("IRIDIA_GUEST_PROF_SECS") ? atoi(getenv("IRIDIA_GUEST_PROF_SECS")) : 60;
+		const int delay = iridia_getenv("IRIDIA_GUEST_PROF_DELAY") ? atoi(iridia_getenv("IRIDIA_GUEST_PROF_DELAY")) : 15; // after the autopilot run starts
+		const int secs = iridia_getenv("IRIDIA_GUEST_PROF_SECS") ? atoi(iridia_getenv("IRIDIA_GUEST_PROF_SECS")) : 60;
 		std::thread([path = std::string(out), delay, secs] {
 			while (g_iridiaRunStartMs.load() == 0)
 				std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -991,10 +991,6 @@ namespace CafeSystem
 			std::unordered_map<uint32, uint32> hits[3];
 			uint64 busy[3] = {}, total = 0;
 			PPCInterpreter_tbCountSet(true);
-#ifdef IRIDIA_COUNTERS
-			g_iridiaCntOn = true;
-			const auto cntStart = std::chrono::steady_clock::now();
-#endif
 			auto end = std::chrono::steady_clock::now() + std::chrono::seconds(secs);
 			while (std::chrono::steady_clock::now() < end)
 			{
@@ -1011,17 +1007,7 @@ namespace CafeSystem
 				std::this_thread::sleep_for(std::chrono::microseconds(1000));
 			}
 			PPCInterpreter_tbCountSet(false);
-#ifdef IRIDIA_COUNTERS
-			g_iridiaCntOn = false;
-			std::this_thread::sleep_for(std::chrono::milliseconds(200)); // let in-flight counter updates finish
-			IridiaCounters_dump((path + ".cnt").c_str(), std::chrono::duration<double>(std::chrono::steady_clock::now() - cntStart).count());
-#endif
 			PPCInterpreter_tbCountDump((path + ".mix").c_str());
-			// Iridia AOT: IRIDIA_AOT_GEN=<file> writes the compiled-block source for the hottest code seen
-			// (IRIDIA_AOT_COVER = share of executed instructions, default 0.995; IRIDIA_AOT_MAX blocks, default 30000)
-			if (const char* gen = getenv("IRIDIA_AOT_GEN"))
-				PPCInterpreter_aotGenerate(gen, getenv("IRIDIA_AOT_COVER") ? atof(getenv("IRIDIA_AOT_COVER")) : 0.995,
-					getenv("IRIDIA_AOT_MAX") ? (uint32)atoi(getenv("IRIDIA_AOT_MAX")) : 30000);
 			auto funcStart = [](uint32 ip) -> uint32 {
 				for (uint32 a = ip; a + 0x4000 > ip && a >= 0x01000000; a -= 4)
 				{
@@ -1034,7 +1020,7 @@ namespace CafeSystem
 				return ip;
 			};
 			// IRIDIA_CODE_DUMP=<hex addr>:<hex len>: also write that guest range raw (big-endian) to <file>.code
-			if (const char* cd = getenv("IRIDIA_CODE_DUMP"))
+			if (const char* cd = iridia_getenv("IRIDIA_CODE_DUMP"))
 			{
 				uint32 ca = 0, cl = 0;
 				if (sscanf(cd, "%x:%x", &ca, &cl) == 2)

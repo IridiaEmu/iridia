@@ -132,28 +132,11 @@ option(CEMU_TBI "Threaded block interpreter (decoded blocks, tail-call dispatch,
 if (CEMU_TBI)
 	add_compile_definitions(CEMU_TBI=1)
 endif()
-# Iridia research only: compile a recorded IridiaAotGenerated.inc (translated game code) into the binary. Can not
-# ship (derived from the game's code), so it is off by default and never on in app builds.
-# Iridia: the no-JIT negative control (IRIDIA_NOJIT_TEST_ALLOC=1 maps an anonymous executable page so the runtime
-# self-check must FAIL) is compiled in only with this option (src/CMakeLists.txt, one source file). Off in every
-# normal build; verify_cemu_no_jit.sh fails any binary that contains it.
-option(IRIDIA_NOJIT_NEGATIVE_CONTROL "Test builds only: compile in the no-JIT negative-control hook" OFF)
-option(IRIDIA_AOT_RESEARCH "Research builds: compile the recorded AOT blocks into the binary" OFF) # used in src/Cafe
-option(IRIDIA_DIRTY_COST "Study builds: mark a per-page written byte on every interpreter store (cost probe)" OFF)
-if (IRIDIA_DIRTY_COST)
-	add_compile_definitions(IRIDIA_DIRTY_COST_BUILD=1)
-endif()
-option(IRIDIA_STORE_WATCH "Research builds: IRIDIA_STORE_WATCH=<addr> reports the guest code that stores to a word" OFF)
-if (IRIDIA_STORE_WATCH)
-	add_compile_definitions(IRIDIA_STORE_WATCH_BUILD=1)
-endif()
-option(IRIDIA_COUNTERS "Study builds: per-frame event counts over the IRIDIA_GUEST_PROF window (instruction mix, OS calls, flushes, GX2 words, block lookups)" OFF)
-if (IRIDIA_COUNTERS)
-	add_compile_definitions(IRIDIA_COUNTERS=1)
-endif()
-option(IRIDIA_READ_WATCH "Diagnostic builds: report when the emulated CPU reads texture readback results (slower)" OFF)
-if (IRIDIA_READ_WATCH)
-	add_compile_definitions(IRIDIA_READ_WATCH_BUILD=1)
+# Iridia: App Store builds (IRIDIA_SHIP=ON) read only the player settings among the IRIDIA_* environment switches;
+# every study switch reads as not set (src/Common/IridiaEnv.h).
+option(IRIDIA_SHIP "App Store build: compile out the study switches" OFF)
+if (IRIDIA_SHIP)
+	add_compile_definitions(IRIDIA_SHIP=1)
 endif()
 option(ENABLE_METAL "Enables the Metal backend" ${ENABLE_METAL_DEFAULT})
 option(ENABLE_DISCORD_RPC "Enables the Discord Rich Presence feature" ON)

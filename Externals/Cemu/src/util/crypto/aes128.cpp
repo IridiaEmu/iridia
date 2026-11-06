@@ -928,7 +928,7 @@ void AES128_init()
 	AES128_CBC_decrypt = __soft__AES128_CBC_decrypt;
 	AES128_ECB_encrypt = __soft__AES128_ECB_encrypt;
 	#if defined(__aarch64__)
-	if (const char* v = getenv("IRIDIA_AES_ARM"); !v || v[0] != '0')
+	if (const char* v = iridia_getenv("IRIDIA_AES_ARM"); !v || v[0] != '0')
 	{
 		const bool ok = AES128_armv8SelfTest();
 		fprintf(stderr, "IRIDIA_AES_ARM self-test %s\n", ok ? "PASS (ARMv8 AES on)" : "FAIL (software AES kept)");

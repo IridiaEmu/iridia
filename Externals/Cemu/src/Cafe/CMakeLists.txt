@@ -690,7 +690,3 @@ if(WIN32)
 	target_link_libraries(CemuCafe PRIVATE iphlpapi)
 endif()
 
-# Iridia research only (see IRIDIA_AOT_RESEARCH in the top CMakeLists.txt): only this file includes the recorded blocks
-if (IRIDIA_AOT_RESEARCH)
-	set_source_files_properties(HW/Espresso/Interpreter/PPCInterpreterImpl.cpp PROPERTIES COMPILE_DEFINITIONS IRIDIA_AOT_RESEARCH=1)
-endif()

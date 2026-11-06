@@ -1755,7 +1755,7 @@ IridiaPageBitmap* s_iridiaDCQ = new IridiaPageBitmap();
 IridiaPageBitmap* s_iridiaDCQAlternate = new IridiaPageBitmap();
 static bool IridiaDCQEnabled()
 {
-	static const bool v = !(getenv("IRIDIA_DCQ") && getenv("IRIDIA_DCQ")[0] == '0');
+	static const bool v = !(iridia_getenv("IRIDIA_DCQ") && iridia_getenv("IRIDIA_DCQ")[0] == '0');
 	return v;
 }
 
@@ -1768,10 +1768,6 @@ void LatteBufferCache_notifyDCFlush(MPTR address, uint32 size)
 	uint32 lastPage = (address + size - 1) / CACHE_PAGE_SIZE;
 	IRIDIA_CNT(CNT_DCFLUSH_NOTIFY, 1);
 	IRIDIA_CNT(CNT_DCFLUSH_PAGES, lastPage - firstPage + 1);
-#ifdef IRIDIA_COUNTERS
-	if (g_spinlockDCFlushQueue.is_locked())
-		IRIDIA_CNT(CNT_DCQ_CONTENDED, 1);
-#endif
 	g_spinlockDCFlushQueue.lock();
 	if (IridiaDCQEnabled())
 		s_iridiaDCQ->SetRange(firstPage, lastPage);

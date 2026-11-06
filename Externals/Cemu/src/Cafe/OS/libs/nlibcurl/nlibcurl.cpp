@@ -302,7 +302,11 @@ void CurlWorkerThread(CURL_t* curl, PPCConcurrentQueue<QueueMsg_t>* callerQueue,
 	resultMsg.order = QueueOrder_Result;
 
 	if (msg.order == QueueOrder_Perform)
+#if IRIDIA_SHIP
+		resultMsg.result = CURLE_COULDNT_CONNECT; // Iridia App Store build: games get no network access
+#else
 		resultMsg.result = ::curl_easy_perform(curl->curl);
+#endif
 	else if(msg.order == QueueOrder_Pause)
 		resultMsg.result = ::curl_easy_pause(curl->curl, msg.pause.bitmask);
 	else
@@ -866,6 +870,12 @@ CURL_t* curl_easy_init()
 		memset(result.GetPtr(), 0, sizeof(CURL_t));
 		*result = {};
 		result->curl = ::curl_easy_init();
+#if IRIDIA_SHIP
+		// Iridia App Store build: games get no network access. No protocol is allowed, so every transfer (easy or
+		// multi) fails before it connects.
+		::curl_easy_setopt(result->curl, CURLOPT_PROTOCOLS_STR, "");
+		::curl_easy_setopt(result->curl, CURLOPT_REDIR_PROTOCOLS_STR, "");
+#endif
 		result->curlThread = coreinit::OSGetCurrentThread();
 
 		result->info_contentType = nullptr;

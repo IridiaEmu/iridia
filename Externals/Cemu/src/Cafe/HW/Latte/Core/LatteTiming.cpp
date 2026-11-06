@@ -100,13 +100,13 @@ void LatteTiming_Init()
 	// Iridia study: IRIDIA_VSYNC_HZ=<n> runs the emulated vblank at n Hz. With a fast vblank the game's
 	// swap interval no longer rounds frame times up to 33/50/67 ms, so fps shows the real frame capacity
 	// (the game also runs faster than normal; measurement only).
-	if (const char* hz = getenv("IRIDIA_VSYNC_HZ"))
+	if (const char* hz = iridia_getenv("IRIDIA_VSYNC_HZ"))
 		s_customVsyncFrequency = atoi(hz);
-	if (const char* v = getenv("IRIDIA_VRR"))
+	if (const char* v = iridia_getenv("IRIDIA_VRR"))
 		s_vrrMode = atoi(v);
-	if (const char* v = getenv("IRIDIA_VRR_MAXFPS"); v && atoi(v) > 0)
+	if (const char* v = iridia_getenv("IRIDIA_VRR_MAXFPS"); v && atoi(v) > 0)
 		s_vrrMinGap = HighResolutionTimer::getFrequency() / (uint64)atoi(v);
-	if (const char* v = getenv("IRIDIA_FPS_LOCK"); v && atoi(v) > 0)
+	if (const char* v = iridia_getenv("IRIDIA_FPS_LOCK"); v && atoi(v) > 0)
 	{
 		s_fpsLock = true;
 		s_vrrMode = 1;
@@ -114,7 +114,7 @@ void LatteTiming_Init()
 		fprintf(stderr, "IRIDIA_FPS_LOCK %d fps\n", atoi(v));
 	}
 	if (s_vrrMode)
-		fprintf(stderr, "IRIDIA_VRR max %s fps, mode %d (%s)\n", getenv("IRIDIA_VRR_MAXFPS") ? getenv("IRIDIA_VRR_MAXFPS") : "-", s_vrrMode, s_vrrMode == 1 ? "early vblank uses up the next 60 Hz tick" : "60 Hz timer restarts at the early vblank");
+		fprintf(stderr, "IRIDIA_VRR max %s fps, mode %d (%s)\n", iridia_getenv("IRIDIA_VRR_MAXFPS") ? iridia_getenv("IRIDIA_VRR_MAXFPS") : "-", s_vrrMode, s_vrrMode == 1 ? "early vblank uses up the next 60 Hz tick" : "60 Hz timer restarts at the early vblank");
 	LatteGPUState.timer_frequency = HighResolutionTimer::getFrequency();
 	LatteGPUState.timer_bootUp = HighResolutionTimer::now().getTick();
 	LatteGPUState.timer_nextVSync = LatteGPUState.timer_bootUp + LatteTime_CalculateTimeBetweenVSync();

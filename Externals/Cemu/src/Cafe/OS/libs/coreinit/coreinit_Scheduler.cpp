@@ -116,7 +116,7 @@ namespace coreinit
 #if BOOST_OS_MACOS
 		// Iridia study: IRIDIA_LOCK_FIRSTFIT=1 = first-fit instead of Darwin's default fair-share (FIFO handoff)
 		// policy for the scheduler lock: a releasing thread can take it again without waking a waiter first.
-		if (getenv("IRIDIA_LOCK_FIRSTFIT"))
+		if (iridia_getenv("IRIDIA_LOCK_FIRSTFIT"))
 			pthread_mutexattr_setpolicy_np(&ma, PTHREAD_MUTEX_POLICY_FIRSTFIT_NP);
 #endif
 		pthread_mutex_init(&s_ptmSchedulerLock, &ma);

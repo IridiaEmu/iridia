@@ -21,49 +21,10 @@
 #include "Cafe/HW/Espresso/Debugger/Debugger.h"
 #include "Cafe/HW/Espresso/Debugger/GDBStub.h"
 #include "Cafe/HW/Espresso/IridiaCounters.h"
-#if defined(IRIDIA_COUNTERS) && !defined(IRIDIA_TB_COUNT)
-#define IRIDIA_TB_COUNT // counting builds also record the instruction mix
-#endif
 
 // Iridia AOT verify builds (IRIDIA_AOT_VERIFY_BUILD): every guest store of the user-mode interpreter can be logged
 // (address and the bytes it overwrote), so a block's stores can be undone and compared with another run.
-#ifdef IRIDIA_AOT_VERIFY_BUILD
-struct IridiaStoreLog { std::vector<std::pair<uint32, uint64>> old; std::vector<uint8> sizes; };
-inline thread_local IridiaStoreLog* t_iridiaStoreLog = nullptr;
-inline void IridiaLogStore(uint32 address, uint32 size)
-{
-	if (IridiaStoreLog* l = t_iridiaStoreLog)
-	{
-		uint64 v = 0;
-		memcpy(&v, memory_base + address, size);
-		l->old.emplace_back(address, v);
-		l->sizes.push_back((uint8)size);
-	}
-}
-#define IRIDIA_LOG_STORE(a, n) IridiaLogStore((a), (n))
-#elif defined(IRIDIA_STORE_WATCH_BUILD)
-// Iridia research builds: IRIDIA_STORE_WATCH=<hex addr> prints every distinct guest code address (and LR) that
-// stores to that word, once each, with the stored bytes' new value afterwards visible via IRIDIA_WATCH.
-inline uint32 IridiaStoreWatchAddr() { static const uint32 a = getenv("IRIDIA_STORE_WATCH") ? (uint32)strtoul(getenv("IRIDIA_STORE_WATCH"), nullptr, 16) : 0; return a; }
-inline void IridiaStoreWatch(uint32 address, uint32 size, uint32 ip, uint32 lr)
-{
-	const uint32 w = IridiaStoreWatchAddr();
-	if (!w || address + size <= w || address >= w + 4)
-		return;
-	static std::mutex m; static std::set<uint64> seen;
-	std::lock_guard l(m);
-	if (seen.insert(((uint64)ip << 32) | lr).second)
-		fprintf(stderr, "IRIDIA_STORE_WATCH addr %08x size %u ip %08x lr %08x\n", address, size, ip, lr);
-}
-#define IRIDIA_LOG_STORE(a, n) IridiaStoreWatch((a), (n), hCPU->instructionPointer, hCPU->spr.LR)
-#elif defined(IRIDIA_DIRTY_COST_BUILD)
-// Iridia study (cost probe only, nothing reads it): what marking a per-1 KB-page "written" byte on every
-// interpreter store costs, for the interpreter-assisted dirty tracking idea.
-inline uint8* g_iridiaPageWritten = new uint8[1u << 22]();
-#define IRIDIA_LOG_STORE(a, n) (*(volatile uint8*)(g_iridiaPageWritten + ((uint32)(a) >> 10)) = 1)
-#else
 #define IRIDIA_LOG_STORE(a, n)
-#endif
 
 // Iridia: guest loads and stores are volatile, so the compiler keeps their order (other cores see them in program
 // order); the AOT local-state blocks would otherwise let it reorder them (XenonRecomp does the same).
@@ -539,14 +500,7 @@ struct PPCTBEntry
 namespace
 {
 	constexpr uint32 kTBCacheSize = 4096;
-#if defined(IRIDIA_TB_VICTIM_BUILD)
-	// MORNING11 item 2: a second way per slot, kept in its own array right after the cache (cache[i + kTBCacheSize])
-	// so the hit path still touches only the first array. A lookup that misses way 0 checks way 1 and swaps the two
-	// on a hit; a fill moves way 0 to way 1. Same ip + generation check on both ways, so it is exact.
-	constexpr bool kTBVictim = true;
-#else
 	constexpr bool kTBVictim = false;
-#endif
 	constexpr uint32 kTBCacheAlloc = kTBVictim ? 2 * kTBCacheSize : kTBCacheSize;
 	struct TBCacheEntry { uint32 ip; uint32 generation; const PPCTBEntry* steps; }; // 16 bytes
 	// A block's instruction count sits just before its steps (PPCTBBlock).
@@ -559,7 +513,7 @@ namespace
 	// slot empty / slot held another address (evicted); of the evicted, how many a second way (the last address
 	// pushed out of the slot) would have hit, and how many were returns (blr) or bctr
 	std::atomic<uint64> s_tbMissGen{0}, s_tbMissEmpty{0}, s_tbMissEvict{0}, s_tbMissVictimHit{0};
-	bool tbStatsOn() { static const bool v = getenv("IRIDIA_TB_STATS") && getenv("IRIDIA_TB_STATS")[0] == '1'; return v; }
+	bool tbStatsOn() { static const bool v = iridia_getenv("IRIDIA_TB_STATS") && iridia_getenv("IRIDIA_TB_STATS")[0] == '1'; return v; }
 	void tbStatsReport()
 	{
 		static std::atomic<uint64> s_last{0};
@@ -572,47 +526,16 @@ namespace
 			(unsigned long long)s_tbStatNew.load(), (unsigned long long)s_tbStatStale.load(), (unsigned long long)s_tbStatSame.load(), (unsigned long long)s_tbStatMiss.load(),
 			(unsigned long long)s_tbMissGen.load(), (unsigned long long)s_tbMissEmpty.load(), (unsigned long long)s_tbMissEvict.load(), (unsigned long long)s_tbMissVictimHit.load());
 	}
-#ifdef IRIDIA_TB_COUNT
-	// Iridia study instruction-mix counter: execs[] sits 40 bytes before the steps (see PPCTBBlock).
-	volatile bool s_tbCountOn = false;
-	inline void tbCountExec(PPCInterpreter_t* hCPU, const PPCTBEntry* steps)
-	{
-		if (s_tbCountOn && hCPU->spr.UPIR < 3)
-		{
-			((uint64*)((const char*)steps - 40))[hCPU->spr.UPIR]++;
-			// instructions the previous block on this thread really ran: its length minus the cycles its side exit
-			// refunded (remainingCycles was lowered by the full length on entry). Skipped across time-slice resets.
-			static thread_local PPCInterpreter_t* t_h = nullptr;
-			static thread_local uint64* t_prevInstr = nullptr;
-			static thread_local uint32 t_prevCount = 0;
-			static thread_local sint32 t_rcAfter = 0;
-			const uint32 cnt = ((const uint32*)steps)[-1];
-			const sint32 rcBefore = hCPU->remainingCycles + (sint32)cnt;
-			if (t_prevInstr && t_h == hCPU)
-			{
-				const sint32 refund = rcBefore - t_rcAfter;
-				if (refund >= 0 && refund <= (sint32)t_prevCount)
-					*t_prevInstr += t_prevCount - (uint32)refund;
-			}
-			t_h = hCPU; t_prevInstr = (uint64*)((const char*)steps - 48); t_prevCount = cnt; t_rcAfter = hCPU->remainingCycles;
-		}
-	}
-#else
 	inline void tbCountExec(PPCInterpreter_t*, const PPCTBEntry*) {}
-#endif
 	// Iridia study: IRIDIA_TBI_VERIFY=1 runs every block a second time on the stock interpreter from the same
 	// starting state and reports any difference in registers (use with the single-core interpreter so no other
 	// core changes memory in between). Blocks with HLE calls, sc, lwarx/stwcx. or SPR/timebase reads are skipped.
 	// Iridia AOT verify builds: compiled blocks are checked against the stock interpreter (AotVerifyBlock) and
 	// don't chain, so each one is checked on its own. Set once gameplay starts.
-#ifdef IRIDIA_AOT_VERIFY_BUILD
-	inline bool s_aotVerifyOn = false;
-#else
 	static constexpr bool s_aotVerifyOn = false;
-#endif
 	// read on first use (the app sets study switches after load); a plain byte, no guard: this is on the hottest path
 	static inline sint8 s_tbVerifyFlag = -1;
-	__attribute__((always_inline)) inline bool s_tbVerify() { if (s_tbVerifyFlag < 0) [[unlikely]] s_tbVerifyFlag = getenv("IRIDIA_TBI_VERIFY") != nullptr; return s_tbVerifyFlag != 0; }
+	__attribute__((always_inline)) inline bool s_tbVerify() { if (s_tbVerifyFlag < 0) [[unlikely]] s_tbVerifyFlag = iridia_getenv("IRIDIA_TBI_VERIFY") != nullptr; return s_tbVerifyFlag != 0; }
 
 	// The next block straight from this thread's cache, or nullptr (time slice used up, or not cached:
 	// the run loop takes over). Inlined into each block-ending step, so each has its own jump site.
@@ -620,7 +543,7 @@ namespace
 // AOT and TB blocks, and prints the top TB blocks every 10 s (AOT blocks that chain directly are not seen here)
 static bool s_tbHistOn()
 {
-	static const bool on = getenv("IRIDIA_TB_HIST") != nullptr;
+	static const bool on = iridia_getenv("IRIDIA_TB_HIST") != nullptr;
 	return on;
 }
 static void TBHistAdd(uint32 ip, bool aot, uint32 n)
@@ -642,7 +565,7 @@ static void TBHistAdd(uint32 ip, bool aot, uint32 n)
 	for (size_t i = 0; i < v.size() && i < 40; i++)
 		fprintf(stderr, "IRIDIA_TB_HIST %08x %llu\n", v[i].second, (unsigned long long)v[i].first);
 	++reports;
-	if (const char* path = getenv("IRIDIA_TB_HIST_FILE"); path)
+	if (const char* path = iridia_getenv("IRIDIA_TB_HIST_FILE"); path)
 		if (FILE* f = fopen(fmt::format("{}.{}", path, reports).c_str(), "w"))
 			{
 				for (auto& [c, ad] : v) fprintf(f, "%08x %llu\n", ad, (unsigned long long)c);
@@ -651,53 +574,6 @@ static void TBHistAdd(uint32 ip, bool aot, uint32 n)
 	tb.clear(); aotN = tbN = 0;
 }
 
-#ifdef IRIDIA_TB_SIM_BUILD
-	// MORNING11 item 2 study build: every block lookup (chained and run loop) also goes through simulated cache
-	// layouts, per emulated core: 0 = the real one (direct, 4096), 1 = 2-way LRU 2048 sets, 2 = 2-way LRU 4096 sets,
-	// 3 = direct 4096 with an xor-folded index, 4 = direct 8192, 5 = direct 4096 + 64-entry return stack (blr/bclr
-	// only, filled with the return address of every bl; checked before the main lookup). Misses per variant, 10 s.
-	inline thread_local uint8 t_tbSimKind = 0;
-	inline thread_local uint32 t_tbSimRet = 0;
-	struct TbSim { uint32 d0[4096]; uint32 w2a[2048][2]; uint8 l2a[2048]; uint32 w2b[4096][2]; uint8 l2b[4096]; uint32 dx[4096]; uint32 d8[8192]; uint32 dr[4096]; uint32 ras[64]; uint32 rasTop; uint64 n, m[6]; };
-	inline std::atomic<uint64> s_tbSimN{0}, s_tbSimM[6];
-	inline void tbSim(const void* owner, uint32 ip, uint8 kind, uint32 retAddr)
-	{
-		static thread_local const void* t_owner = nullptr;
-		static thread_local TbSim* t = nullptr;
-		if (t_owner != owner) { t = new TbSim(); t_owner = owner; }
-		const uint32 i = (ip >> 2) & 4095;
-		t->n++;
-		if (t->d0[i] != ip) { t->m[0]++; t->d0[i] = ip; }
-		auto way2 = [&](uint32 (*w)[2], uint8* l, uint32 set, int k) {
-			if (w[set][0] == ip) { l[set] = 1; return; } if (w[set][1] == ip) { l[set] = 0; return; }
-			t->m[k]++; const int v = l[set]; w[set][v] = ip; l[set] = v ^ 1; };
-		way2(t->w2a, t->l2a, (ip >> 2) & 2047, 1);
-		way2(t->w2b, t->l2b, i, 2);
-		const uint32 x = ((ip >> 2) ^ (ip >> 14)) & 4095;
-		if (t->dx[x] != ip) { t->m[3]++; t->dx[x] = ip; }
-		const uint32 e = (ip >> 2) & 8191;
-		if (t->d8[e] != ip) { t->m[4]++; t->d8[e] = ip; }
-		bool rasHit = false;
-		if (kind == 1) // blr: pop
-		{
-			if (t->rasTop && t->ras[(t->rasTop - 1) & 63] == ip) rasHit = true;
-			if (t->rasTop) t->rasTop--;
-		}
-		if (!rasHit && t->dr[i] != ip) { t->m[5]++; t->dr[i] = ip; }
-		if (retAddr) t->ras[(t->rasTop++) & 63] = retAddr; // bl: push the return address
-		if (t->n >= 1000000)
-		{
-			s_tbSimN += t->n; for (int k = 0; k < 6; k++) s_tbSimM[k] += t->m[k];
-			t->n = 0; for (int k = 0; k < 6; k++) t->m[k] = 0;
-			static std::atomic<uint64> s_last{0};
-			const uint64 now = (uint64)std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-			uint64 last = s_last.load();
-			if (now >= last + 10 && s_last.compare_exchange_strong(last, now))
-				fprintf(stderr, "IRIDIA_TB_SIM lookups %llu misses real %llu 2way2048 %llu 2way4096 %llu xor %llu direct8192 %llu ras %llu\n", (unsigned long long)s_tbSimN.load(),
-					(unsigned long long)s_tbSimM[0].load(), (unsigned long long)s_tbSimM[1].load(), (unsigned long long)s_tbSimM[2].load(), (unsigned long long)s_tbSimM[3].load(), (unsigned long long)s_tbSimM[4].load(), (unsigned long long)s_tbSimM[5].load());
-		}
-	}
-#endif
 	// way 1 of the slot (kTBVictim builds): on a hit, swap it into way 0 and return true
 	__attribute__((noinline, cold)) inline bool tbVictimSwap(TBCacheEntry* ce, uint32 ip)
 	{
@@ -709,22 +585,13 @@ static void TBHistAdd(uint32 ip, bool aot, uint32 n)
 	}
 	__attribute__((always_inline)) inline const PPCTBEntry* tbNextBlock(PPCInterpreter_t* hCPU)
 	{
-#ifdef IRIDIA_COUNTERS
-		const uint8 exitKind = t_iridiaExitKind;
-		t_iridiaExitKind = 0;
-		auto cntExit = [&](uint32 result) { if (g_iridiaCntOn.load(std::memory_order_relaxed) && hCPU->spr.UPIR < 3) g_iridiaCntExit[hCPU->spr.UPIR][exitKind][result]++; };
-#else
 		auto cntExit = [](uint32) {};
-#endif
 		if (hCPU->remainingCycles <= 0 || s_tbVerify() || s_aotVerifyOn)
 		{
 			cntExit(2);
 			return nullptr;
 		}
 		const uint32 ip = hCPU->instructionPointer;
-#ifdef IRIDIA_TB_SIM_BUILD
-		tbSim(hCPU->tbCache, ip, t_tbSimKind, t_tbSimRet); t_tbSimKind = 0; t_tbSimRet = 0;
-#endif
 		TBCacheEntry& ce = ((TBCacheEntry*)hCPU->tbCache)[(ip >> 2) & (kTBCacheSize - 1)];
 		if (ce.ip != ip || ce.generation != s_tbGeneration.load(std::memory_order_relaxed))
 		{
@@ -742,9 +609,6 @@ static void TBHistAdd(uint32 ip, bool aot, uint32 n)
 		cntExit(0);
 		hCPU->remainingCycles -= (sint32)tbBlockCount(ce.steps);
 		tbCountExec(hCPU, ce.steps);
-#ifdef IRIDIA_TB_HIST_BUILD
-		TBHistAdd(ip, ce.steps[0].r0 == 0xA0, tbBlockCount(ce.steps));
-#endif
 		return ce.steps;
 	}
 }
@@ -777,24 +641,9 @@ public:
 		if constexpr (F == &PPCInterpreter_BCX || F == &PPCInterpreter_BX || F == &PPCInterpreter_BCLRX || F == &PPCInterpreter_BCCTR)
 		{
 			IRIDIA_CNT_EXITKIND(F == &PPCInterpreter_BCLRX ? 1 : F == &PPCInterpreter_BCCTR ? 2 : 3);
-#ifdef IRIDIA_TB_SIM_BUILD
-			t_tbSimKind = F == &PPCInterpreter_BCLRX ? 1 : 0;
-			t_tbSimRet = (e->opcode & 1) ? e->address + 4 : 0;
-#endif
 			if (const PPCTBEntry* next = tbNextBlock(hCPU))
 				[[clang::musttail]] return next->fn(hCPU, next, hCPU->gpr[1]);
 		}
-#if defined(IRIDIA_HLE_CHAIN_BUILD)
-		// MORNING11 item 3: an OS call goes straight on to the block at the return address (LR) too, instead of
-		// returning to the run loop first. Same checks as the run loop: the slice may be used up (calls that end the
-		// slice set remainingCycles to -1), and tbNextBlock reads the core's cache again (a call that blocked may
-		// have resumed this thread on another core).
-		else if constexpr (F == &PPCInterpreter_virtualHLE)
-		{
-			if (const PPCTBEntry* next = tbNextBlock(hCPU))
-				[[clang::musttail]] return next->fn(hCPU, next, hCPU->gpr[1]);
-		}
-#endif
 	}
 
 	// Specialized steps for very common instructions: operands are decoded once when the block is
@@ -902,11 +751,7 @@ public:
 		else if ((type == 5) || (type == 7)) ppcItpCtrl::ppcMem_writeDataU16(nullptr, ea + 2, quantize((float)b, type, scale));
 		else ppcItpCtrl::ppcMem_writeDataU32(nullptr, ea + 4, quantize((float)b, type, scale));
 	}
-#if !defined(IRIDIA_PSQ_SLOW_STATE)
 	static constexpr bool kPsqByValue = !ppcItpCtrl::allowSupervisorMode; // user mode memory access only
-#else
-	static constexpr bool kPsqByValue = false;
-#endif
 	template<bool Wide>
 	__attribute__((always_inline)) static inline void tbPsqLAt(PPCInterpreter_t* hCPU, const PPCTBEntry* e, uint32 ea)
 	{
@@ -1353,7 +1198,7 @@ public:
 	}
 	static bool tbFcmpuFuseOn() // IRIDIA_FCMPU_FUSE=0 turns the fused fcmpu + bc off (A/B)
 	{
-		static const bool v = !(getenv("IRIDIA_FCMPU_FUSE") && getenv("IRIDIA_FCMPU_FUSE")[0] == '0');
+		static const bool v = !(iridia_getenv("IRIDIA_FCMPU_FUSE") && iridia_getenv("IRIDIA_FCMPU_FUSE")[0] == '0');
 		return v;
 	}
 	// The compare + branch pair at a and a + 4, if it can be fused.
@@ -1383,7 +1228,7 @@ public:
 	// IRIDIA_PS_FAST=0 is the off switch for the paired-single work: stock paired-single handlers and narrow psq_l /
 	// psq_st steps. Read once, when the first block is built (after the phone app's -cafeEnv has set it; a static
 	// initializer would run before that); only the decoder looks at it, never a step.
-	static bool tbPsFastOn() { static const bool v = [] { const char* s = getenv("IRIDIA_PS_FAST"); return !(s && s[0] == '0'); }(); return v; }
+	static bool tbPsFastOn() { static const bool v = [] { const char* s = iridia_getenv("IRIDIA_PS_FAST"); return !(s && s[0] == '0'); }(); return v; }
 	static bool tbSpecializeUnpinned(uint32 opcode, PPCTBEntry& e)
 	{
 		switch (opcode >> 26)
@@ -1584,7 +1429,7 @@ public:
 	TB_CC static void tbTestStop(PPCInterpreter_t*, const PPCTBEntry*, uint32) {}
 	static void tbPsSelfTest(PPCInterpreter_t* live)
 	{
-		const char* env = getenv("IRIDIA_PS_SELFTEST");
+		const char* env = iridia_getenv("IRIDIA_PS_SELFTEST");
 		const uint64 n = (uint64)std::max(1L, strtol(env, nullptr, 10)) * 1000000;
 		uint64 rs = 0x9e3779b97f4a7c15ULL;
 		auto rnd = [&] { rs ^= rs << 13; rs ^= rs >> 7; rs ^= rs << 17; return rs; };
@@ -1726,12 +1571,9 @@ public:
 	{
 		if (!tbSpecializeUnpinned(opcode, e))
 			return false;
-#ifdef IRIDIA_TB_NO_PIN
-		return true;
-#else
 		// IRIDIA_TB_PIN=0 never picks the pinned variants at run time (same as -DIRIDIA_TB_NO_PIN; one binary for
 		// phone A/Bs). Read once; only consulted when a block is built.
-		static const bool s_pin = [] { const char* v = getenv("IRIDIA_TB_PIN"); return !(v && v[0] == '0'); }();
+		static const bool s_pin = [] { const char* v = iridia_getenv("IRIDIA_TB_PIN"); return !(v && v[0] == '0'); }();
 		if (!s_pin)
 			return true;
 		const uint32 primary = opcode >> 26, rD = (opcode >> 21) & 0x1f, rA = (opcode >> 16) & 0x1f;
@@ -1770,7 +1612,6 @@ public:
 		}
 		}
 		return written != 1;
-#endif
 	}
 #include "PPCInterpreterDecode.hpp"
 #endif
@@ -2620,19 +2461,13 @@ public:
 	};
 #endif
 #ifdef CEMU_TBI
-	// Iridia AOT: blocks compiled ahead of time from a game's hot code (generated by PPCInterpreter_aotGenerate on
-	// the Mac, compiled into the app; see IridiaAot.h). Each is one step: the stock handlers with constant opcodes,
-	// then on to the next block. The generated file holds code made from the user's own game, so it is not part of
-	// the source tree; without it the table is empty.
+	// Iridia: hooks left from the AOT research build. That build and its generator are not part of this tree, so
+	// the table below is always empty and `if constexpr (kAotCount == 0)` compiles the lookup out.
 #define AOT_CHAIN { if (const PPCTBEntry* aotNext = tbNextBlock(hCPU)) [[clang::musttail]] return aotNext->fn(hCPU, aotNext, hCPU->gpr[1]); return; }
 	// Iridia AOT direct chaining: an exit whose target is itself a compiled block (table index i, n instructions) goes
 	// straight there when that block was validated in the current block-cache generation and the time slice goes on
 	// (the same checks tbNextBlock makes); otherwise through the cache as usual
-#ifdef IRIDIA_TB_COUNT
-#define AOT_JUMP(i, n, fn) AOT_CHAIN // recording builds: every block entry goes through the counted lookup
-#else
 #define AOT_JUMP(i, n, fn) { if (hCPU->remainingCycles > 0 && s_aotValidGen[i] == s_tbGeneration.load(std::memory_order_relaxed) && !s_tbVerify() && !s_aotVerifyOn) { hCPU->remainingCycles -= (n); [[clang::musttail]] return fn(hCPU, e, hCPU->gpr[1]); } AOT_CHAIN }
-#endif
 	// Inline copies of two stock handlers (PPCInterpreterOPC.cpp / PPCInterpreterFPU.cpp) for the generated blocks:
 	// the stock ones live in another file, and calling them with the state pointer forces a block's local copy of
 	// the state into memory. Same steps, including the instruction pointer step.
@@ -2669,20 +2504,14 @@ public:
 		hCPU->fpscr = (hCPU->fpscr & 0xffff0fff) | (c << 12);
 		PPCInterpreter_nextInstruction(hCPU);
 	}
-#if !defined(IRIDIA_PSQ_SLOW_STATE)
 #define PPCInterpreter_MFCR tbAotMfcr
 #define PPCInterpreter_FCMPU tbAotFcmpu
-#endif
 // research builds only (IRIDIA_AOT_RESEARCH): translated game code can not ship
-#if defined(IRIDIA_AOT_RESEARCH) && __has_include("IridiaAotGenerated.inc")
-#include "IridiaAotGenerated.inc"
-#else
 	struct AotEntry { uint32 address, count, words, nwords; PPCTBFn fn; };
 	static constexpr AotEntry kAotEntries[] = { { 0, 0, 0, 0, nullptr } };
 	static constexpr uint32 kAotWords[] = { 0 };
 	static constexpr uint32 kAotCount = 0;
 	static inline uint32 s_aotValidGen[1] = {};
-#endif
 #undef PPCInterpreter_MFCR
 #undef PPCInterpreter_FCMPU
 #undef AOT_CHAIN
@@ -2706,19 +2535,11 @@ namespace
 
 	struct PPCTBBlock
 	{
-#ifdef IRIDIA_TB_COUNT
-		uint64 instr;        // instructions actually run (block length minus what side exits refunded)
-		uint64 execs[3];     // Iridia study: executions per emulated core while counting is on
-		uint32 nsteps, pad;  // steps in the block (40 bytes before the steps in total)
-#endif
 		uint32 version;      // page version the block was decoded from
 		uint32 count;        // instructions in the block
 		PPCTBEntry steps[1]; // count steps (+ an exit step unless the last one ends the block)
 	};
 	static_assert(offsetof(PPCTBBlock, steps) == offsetof(PPCTBBlock, count) + 4, "tbBlockCount reads count just before steps");
-#ifdef IRIDIA_TB_COUNT
-	static_assert(offsetof(PPCTBBlock, steps) == 48, "tbCountExec finds instr 48 and execs 40 bytes before the steps");
-#endif
 	struct PPCTBPage
 	{
 		std::atomic<uint32> version{0};
@@ -2738,8 +2559,8 @@ namespace
 	// Opt-in, IRIDIA_SZS=1: exact (IRIDIA_SZS_CHECK, 0 mismatches in 3000+ BotW calls) but no measured fps gain:
 	// BotW's slow phase stays CPU-bound on core 2 without it. IRIDIA_SZS_CHECK=1 (implies on): every call also runs
 	// the guest code from the same starting memory and compares output range, context and return value.
-	static bool s_szsOn() { static const bool v = (getenv("IRIDIA_SZS") && atoi(getenv("IRIDIA_SZS")) != 0) || getenv("IRIDIA_SZS_CHECK"); return v; } // read on first use: the app sets study switches after load
-	static bool s_szsCheck() { static const bool v = getenv("IRIDIA_SZS_CHECK") != nullptr; return v; } // read on first use: the app sets study switches after load
+	static bool s_szsOn() { static const bool v = (iridia_getenv("IRIDIA_SZS") && atoi(iridia_getenv("IRIDIA_SZS")) != 0) || iridia_getenv("IRIDIA_SZS_CHECK"); return v; } // read on first use: the app sets study switches after load
+	static bool s_szsCheck() { static const bool v = iridia_getenv("IRIDIA_SZS_CHECK") != nullptr; return v; } // read on first use: the app sets study switches after load
 	thread_local bool t_szsInCheck = false;
 	std::atomic<uint64> s_szsCalls{0}, s_szsChecked{0}, s_szsBad{0};
 	// Check mode: native run, then the guest code from the same memory; compare. false = native didn't apply.
@@ -2802,9 +2623,9 @@ namespace
 	// Iridia: first step of the block at the start of the 64-bit division routine (IridiaDiv64.hpp). IRIDIA_DIV64=1
 	// turns it on; IRIDIA_DIV64_CHECK=1 (implies on) also runs the guest code for every call and compares the
 	// result; IRIDIA_DIV64_CALLERS=1 prints the busiest callers every 5 s.
-	static bool s_div64Check() { static const bool v = getenv("IRIDIA_DIV64_CHECK") != nullptr; return v; } // read on first use: the app sets study switches after load
-	static bool s_div64Callers() { static const bool v = getenv("IRIDIA_DIV64_CALLERS") != nullptr; return v; } // read on first use: the app sets study switches after load
-	static bool s_div64On() { static const bool v = (getenv("IRIDIA_DIV64") && atoi(getenv("IRIDIA_DIV64")) != 0) || s_div64Check() || s_div64Callers(); return v; } // read on first use: the app sets study switches after load
+	static bool s_div64Check() { static const bool v = iridia_getenv("IRIDIA_DIV64_CHECK") != nullptr; return v; } // read on first use: the app sets study switches after load
+	static bool s_div64Callers() { static const bool v = iridia_getenv("IRIDIA_DIV64_CALLERS") != nullptr; return v; } // read on first use: the app sets study switches after load
+	static bool s_div64On() { static const bool v = (iridia_getenv("IRIDIA_DIV64") && atoi(iridia_getenv("IRIDIA_DIV64")) != 0) || s_div64Check() || s_div64Callers(); return v; } // read on first use: the app sets study switches after load
 	thread_local bool t_div64InCheck = false;
 	std::atomic<uint64> s_div64Calls{0}, s_div64Bad{0};
 	__attribute__((noinline)) void tbDiv64Callers(uint32 lr)
@@ -2898,7 +2719,7 @@ namespace
 		using Container = PPCInterpreterContainer<PPCItpCafeOSUsermode>;
 		if constexpr (Container::kAotCount == 0)
 			return nullptr;
-		static const bool s_on = !getenv("IRIDIA_AOT") || atoi(getenv("IRIDIA_AOT")) != 0;
+		static const bool s_on = !iridia_getenv("IRIDIA_AOT") || atoi(iridia_getenv("IRIDIA_AOT")) != 0;
 		if (!s_on)
 			return nullptr;
 		static const std::unordered_map<uint32, uint32>* s_index = [] {
@@ -2924,10 +2745,6 @@ namespace
 		s_aotHits.fetch_add(1, std::memory_order_relaxed);
 		Container::s_aotValidGen[it->second] = s_tbGeneration.load(std::memory_order_relaxed); // for direct chaining (AOT_JUMP)
 		auto* block = (PPCTBBlock*)malloc(sizeof(PPCTBBlock));
-#ifdef IRIDIA_TB_COUNT
-		block->execs[0] = block->execs[1] = block->execs[2] = 0; block->instr = 0; block->instr = 0;
-		block->nsteps = 1;
-#endif
 		block->version = version;
 		block->count = en.count;
 		block->steps[0] = { en.fn, 0, address, it->second, 0xA0, 0, 0, 0 }; // r0 = 0xA0: compiled block (imm = table index)
@@ -2940,7 +2757,7 @@ namespace
 	{
 		using Container = PPCInterpreterContainer<PPCItpCafeOSUsermode>;
 #if defined(__aarch64__)
-		static const bool s_psTest = getenv("IRIDIA_PS_SELFTEST") != nullptr;
+		static const bool s_psTest = iridia_getenv("IRIDIA_PS_SELFTEST") != nullptr;
 		if (s_psTest) [[unlikely]]
 			Container::tbPsSelfTest(hCPU); // exits
 #endif
@@ -2954,7 +2771,7 @@ namespace
 		uint32 a = address;
 		// Iridia: byte copy loop as one step (tbByteCopyLoop). Opt-in, IRIDIA_TB_COPYLOOP=1: correct, but no
 		// measured BotW gain (its LZ matches are short: the decoder's own code dominates).
-		static const bool s_copyLoop = getenv("IRIDIA_TB_COPYLOOP") != nullptr;
+		static const bool s_copyLoop = iridia_getenv("IRIDIA_TB_COPYLOOP") != nullptr;
 		if (s_copyLoop && !s_tbVerify() && address + 12 <= pageEnd &&
 			Container::tbIsByteCopyLoop(PPCItpCafeOSUsermode::memory_readCodeU32(hCPU, address), PPCItpCafeOSUsermode::memory_readCodeU32(hCPU, address + 4),
 				PPCItpCafeOSUsermode::memory_readCodeU32(hCPU, address + 8), steps[0], address))
@@ -3058,7 +2875,7 @@ namespace
 		if (nsteps == 0)
 			return nullptr; // also a block of only folded branches: let the slow path run them
 		// Pair fusion: two neighbouring specialized steps become one (the second entry stays as its data).
-		static const bool s_noPairs = getenv("IRIDIA_TB_NOPAIRS") != nullptr;
+		static const bool s_noPairs = iridia_getenv("IRIDIA_TB_NOPAIRS") != nullptr;
 		for (uint32 k = 0; !s_noPairs && k + 1 < nsteps; k++)
 		{
 			const int ia = Container::tbPairIndex(steps[k].fn);
@@ -3074,11 +2891,6 @@ namespace
 			steps[nsteps] = { &tbExit, 0, a, 0, 0, 0, 0, 0 };
 		const uint32 stepCount = nsteps + (ended ? 0 : 1);
 		auto* block = (PPCTBBlock*)malloc(sizeof(PPCTBBlock) + sizeof(PPCTBEntry) * (stepCount - 1));
-#ifdef IRIDIA_TB_COUNT
-		block->execs[0] = block->execs[1] = block->execs[2] = 0;
-		block->instr = 0; // malloc'd: was left uninitialized
-		block->nsteps = nsteps;
-#endif
 		block->version = version;
 		block->count = count;
 		memcpy(block->steps, steps, sizeof(PPCTBEntry) * stepCount);
@@ -3092,248 +2904,9 @@ namespace
 // a block ran (side exits make it approximate).
 void PPCInterpreter_tbCountSet(bool on)
 {
-#ifdef IRIDIA_TB_COUNT
-	s_tbCountOn = on;
-#endif
 }
 void PPCInterpreter_tbCountDump(const char* path)
 {
-#ifdef IRIDIA_TB_COUNT
-	FILE* f = fopen(path, "w");
-	if (!f) return;
-	using Container = PPCInterpreterContainer<PPCItpCafeOSUsermode>;
-	for (uint32 pg = 0; pg < (1u << (32 - kTBPageShift)); pg++)
-	{
-		PPCTBPage* page = s_tbPages[pg].load(std::memory_order_acquire);
-		if (!page) continue;
-		for (uint32 i = 0; i < kTBPageSlots; i++)
-		{
-			PPCTBBlock* b = page->blocks[i].load(std::memory_order_acquire);
-			if (!b || (b->execs[0] | b->execs[1] | b->execs[2]) == 0) continue;
-			// block line: start address, executions per core, instruction count; then one line per step
-			// Iridia: last field = instructions this block actually ran (side exits refunded)
-			fprintf(f, "B %08x %llu %llu %llu %u %llu\n", (pg << kTBPageShift) | (i << 2), (unsigned long long)b->execs[0], (unsigned long long)b->execs[1], (unsigned long long)b->execs[2], b->count, (unsigned long long)b->instr);
-			for (uint32 k = 0; k < b->nsteps; k++)
-			{
-				const PPCTBEntry& e = b->steps[k];
-				bool ends = false;
-				const PPCTBFn generic = Container::decodeTB(e.opcode, ends);
-				fprintf(f, "%c %08x %08x\n", generic == e.fn ? 'G' : 'S', e.address, e.opcode);
-			}
-		}
-	}
-	fclose(f);
-#ifdef IRIDIA_COUNTERS
-	// taken side exits: block start, branch step index, count (all cores)
-	if (FILE* fs = fopen((std::string(path) + ".side").c_str(), "w"))
-	{
-		for (uint32 pg = 0; pg < (1u << (32 - kTBPageShift)); pg++)
-		{
-			PPCTBPage* page = s_tbPages[pg].load(std::memory_order_acquire);
-			if (!page) continue;
-			for (uint32 i = 0; i < kTBPageSlots; i++)
-			{
-				PPCTBBlock* b = page->blocks[i].load(std::memory_order_acquire);
-				if (!b || (b->execs[0] | b->execs[1] | b->execs[2]) == 0) continue;
-				for (uint32 k = 0; k < b->nsteps; k++)
-				{
-					uint64 n = 0;
-					for (auto& m : g_iridiaSideTaken)
-						if (auto it = m.find(&b->steps[k]); it != m.end())
-							n += it->second;
-					if (n)
-						fprintf(fs, "%08x %u %llu\n", (pg << kTBPageShift) | (i << 2), k, (unsigned long long)n);
-				}
-			}
-		}
-		fclose(fs);
-	}
-#endif
-	fprintf(stderr, "IRIDIA_TB_COUNT written to %s\n", path);
-#endif
-}
-
-#include "PPCInterpreterAotNames.hpp"
-// Iridia AOT generator (Mac study tool, IRIDIA_TB_COUNT builds): writes IridiaAotGenerated.inc for the hottest
-// blocks seen so far, covering `coverage` of all executed instructions (at most maxBlocks blocks). Each block is
-// walked with these rules: same page only; an unconditional relative `b` in the page is followed; a conditional
-// branch becomes a side exit (taken = leave with the unrun instructions refunded); any other branch, an
-// instruction that ends a block for the interpreter (HLE call, sc, rfi, ...) or one without a stock handler ends
-// the block. The output calls the stock interpreter handlers with constant opcodes, nothing hand-translated.
-int PPCInterpreter_aotGenerate(const char* path, double coverage, uint32 maxBlocks)
-{
-#ifdef IRIDIA_TB_COUNT
-	using Container = PPCInterpreterContainer<PPCItpCafeOSUsermode>;
-	struct Hot { uint32 address; uint64 weight; };
-	std::vector<Hot> hot;
-	uint64 total = 0, compiledWeight = 0;
-	for (uint32 pg = 0; pg < (1u << (32 - kTBPageShift)); pg++)
-	{
-		PPCTBPage* page = s_tbPages[pg].load(std::memory_order_acquire);
-		if (!page) continue;
-		for (uint32 i = 0; i < kTBPageSlots; i++)
-		{
-			PPCTBBlock* b = page->blocks[i].load(std::memory_order_acquire);
-			if (!b) continue;
-			// Iridia: weight by instructions actually run (IRIDIA_AOT_WEIGHT=entries: the old entries x length)
-			static const bool s_entryWeight = getenv("IRIDIA_AOT_WEIGHT") && strcmp(getenv("IRIDIA_AOT_WEIGHT"), "entries") == 0;
-			const uint64 w = s_entryWeight ? (b->execs[0] + b->execs[1] + b->execs[2]) * b->count : b->instr;
-			if (!w) continue;
-			total += w;
-			// a compiled block already (recording with KEEP_AOT): counts towards the total, not generated again
-			if (b->steps[0].r0 == 0xA0 && b->steps[0].opcode == 0) { compiledWeight += w; continue; }
-			hot.push_back({ (pg << kTBPageShift) | (i << 2), w });
-		}
-	}
-	std::sort(hot.begin(), hot.end(), [](const Hot& a, const Hot& b) { return a.weight > b.weight; });
-	if (compiledWeight)
-		fprintf(stderr, "IRIDIA_AOT_GEN %.1f%% of executed instructions ran in compiled blocks\n", total ? 100.0 * compiledWeight / total : 0.0);
-	FILE* f = fopen(path, "w");
-	if (!f) return -1;
-	fprintf(f, "// Generated by PPCInterpreter_aotGenerate from a game's own code. Not part of the source tree.\n");
-	std::string table, words, funcs;
-	std::map<uint32, std::pair<uint32, uint32>> starts; // block start -> (table index, instructions)
-	uint32 nblocks = 0, nwordsTotal = 0;
-	uint64 covered = 0;
-	auto mem = [](uint32 a) { return _swapEndianU32(*(uint32*)(memory_base + a)); };
-	for (const Hot& h : hot)
-	{
-		if (nblocks >= maxBlocks || (double)covered >= coverage * (double)total)
-			break;
-		const uint32 start = h.address;
-		const uint32 pageEnd = ((start >> kTBPageShift) + 1) << kTBPageShift;
-		std::vector<std::pair<uint32, uint32>> instrs; // (address, opcode)
-		std::string body;
-		std::vector<std::pair<size_t, uint32>> sides;   // (body position of the refund placeholder, instructions run)
-		bool returns = false, chained = false, ipValid = true; // the block is entered with the instruction pointer at its start
-		uint32 endTarget = 0; // a constant target of the block's last branch (0: none), for direct chaining
-		uint32 a = start;
-		std::set<uint32> seen;
-		while (instrs.size() < 256 && a != pageEnd && !seen.count(a))
-		{
-			seen.insert(a);
-			const uint32 op = mem(a);
-			const char* name = aotHandlerName(op);
-			if (!name)
-				break;
-			bool endsBlock = false;
-			if (!Container::decodeTB(op, endsBlock))
-				break;
-			instrs.emplace_back(a, op);
-			// the interpreter's specialized body with constant operands when there is one (they leave the
-			// instruction pointer alone), else the stock handler (needs and advances the instruction pointer)
-			PPCTBEntry sp{ nullptr, op, a, 0, 0, 0, 0, 0 };
-			const char* spName = nullptr;
-			if (Container::tbSpecializeUnpinned(op, sp)) // unpinned bodies never read pr1
-				for (auto& [fnp, nm] : Container::kAotBodies)
-					if (fnp == sp.fn) { spName = nm; break; }
-			if (spName)
-			{
-				body += fmt::format("\t\t{{ static constexpr PPCTBEntry k = {{ nullptr, 0x{:08x}, 0x{:08x}, 0x{:08x}, {}, {}, {}, {} }}; uint32 pr1u = 0; {}(hCPU, &k, pr1u); }} // {:08x}\n",
-					op, a, sp.imm, sp.r0, sp.r1, sp.r2, sp.r3, spName, a);
-				ipValid = false;
-				a += 4;
-				continue;
-			}
-			if (!ipValid)
-				body += fmt::format("\t\thCPU->instructionPointer = 0x{:08x};\n", a);
-			ipValid = true;
-			body += fmt::format("\t\t{}(hCPU, 0x{:08x}); // {:08x}\n", name, op, a);
-			const uint32 primary = op >> 26;
-			const bool isB = primary == 18, isBc = primary == 16;
-			const bool isBclrBcctr = primary == 19 && (((op >> 1) & 0x3ff) == 16 || ((op >> 1) & 0x3ff) == 528);
-			if (isB)
-			{
-				const uint32 target = (op & PPC_OPC_AA) ? 0 : a + (uint32)((sint32)(op << 6) >> 6 & ~3u);
-				if (!(op & PPC_OPC_AA) && (target >> kTBPageShift) == (start >> kTBPageShift))
-				{
-					a = target;
-					continue;
-				}
-				if (!(op & PPC_OPC_AA))
-					endTarget = target;
-				chained = true;
-				break;
-			}
-			if (isBc || isBclrBcctr)
-			{
-				const uint32 bo = (op >> 21) & 0x1f;
-				const bool always = (bo & 0x14) == 0x14;
-				if (always || (isBc && (op & PPC_OPC_AA)) || a + 4 == pageEnd || instrs.size() >= 255)
-				{
-					if (always && isBc && !(op & PPC_OPC_AA))
-						endTarget = a + (uint32)(sint32)(sint16)(op & 0xfffc);
-					chained = true;
-					break;
-				}
-				// side exit: taken unless execution falls through to the next instruction; a relative bc has a constant
-				// target, which may be another compiled block (@T<target>@, resolved below)
-				const std::string exitTo = (isBc && !(op & PPC_OPC_AA)) ? fmt::format("@T{:08x}@", a + (uint32)(sint32)(sint16)(op & 0xfffc)) : std::string("AOT_CHAIN");
-				body += fmt::format("\t\tif (hCPU->instructionPointer != 0x{:08x}) {{ hCPU->remainingCycles += @{}@; {} }}\n", a + 4, sides.size(), exitTo);
-				sides.emplace_back(0, (uint32)instrs.size());
-				a += 4;
-				continue;
-			}
-			if (endsBlock)
-			{
-				// plain branches were handled above; everything else that ends a block returns to the run loop
-				returns = true;
-				break;
-			}
-			a += 4;
-		}
-		if (instrs.empty())
-			continue;
-		const uint32 count = (uint32)instrs.size();
-		// fill in the refunds: instructions not run when a side exit is taken
-		for (uint32 k = 0; k < sides.size(); k++)
-		{
-			const std::string ph = fmt::format("@{}@", k);
-			const size_t pos = body.find(ph);
-			body.replace(pos, ph.size(), std::to_string(count - sides[k].second));
-		}
-		std::string fn = fmt::format("\tTB_CC static void aot_{:08x}(PPCInterpreter_t* hCPU, const PPCTBEntry* e, uint32 pr1)\n\t{{\n{}", start, body);
-		if (!returns && !ipValid)
-		{
-			fn += fmt::format("\t\thCPU->instructionPointer = 0x{:08x};\n", a);
-			endTarget = a; // falls through to the next instruction
-		}
-		fn += returns ? "\t\treturn;\n\t}\n" : (endTarget ? fmt::format("\t\t@T{:08x}@\n\t}}\n", endTarget) : std::string("\t\tAOT_CHAIN\n\t}\n"));
-		funcs += fn;
-		starts[start] = { nblocks, count };
-		(void)chained;
-		table += fmt::format("\t\t{{ 0x{:08x}, {}, {}, {}, &aot_{:08x} }},\n", start, count, nwordsTotal * 2, count, start);
-		for (auto& [ia, iop] : instrs)
-			words += fmt::format("0x{:08x},0x{:08x},", ia, iop);
-		words += "\n";
-		nwordsTotal += count;
-		nblocks++;
-		covered += h.weight;
-	}
-	// direct chaining: exits to another compiled block jump straight to it (AOT_JUMP), the others use the cache
-	uint32 direct = 0, viaCache = 0;
-	for (size_t pos = 0; (pos = funcs.find("@T", pos)) != std::string::npos;)
-	{
-		const uint32 target = (uint32)strtoul(funcs.substr(pos + 2, 8).c_str(), nullptr, 16);
-		auto it = starts.find(target);
-		const std::string with = it != starts.end() ? fmt::format("AOT_JUMP({}, {}, aot_{:08x})", it->second.first, it->second.second, target) : std::string("AOT_CHAIN");
-		(it != starts.end() ? direct : viaCache)++;
-		funcs.replace(pos, 11, with);
-		pos += with.size();
-	}
-	fprintf(f, "%s", funcs.c_str());
-	fprintf(f, "\tstatic inline uint32 s_aotValidGen[%u] = {}; // generation in which each block was last validated\n", std::max<uint32>(nblocks, 1));
-	fprintf(stderr, "IRIDIA_AOT_GEN direct chaining: %u exits straight to a compiled block, %u through the cache\n", direct, viaCache);
-	fprintf(f, "\tstruct AotEntry { uint32 address, count, words, nwords; PPCTBFn fn; };\n");
-	fprintf(f, "\tstatic constexpr AotEntry kAotEntries[] = {\n%s\t};\n", table.c_str());
-	fprintf(f, "\tstatic constexpr uint32 kAotWords[] = {\n%s\t};\n", words.c_str());
-	fprintf(f, "\tstatic constexpr uint32 kAotCount = %u;\n", nblocks);
-	fclose(f);
-	fprintf(stderr, "IRIDIA_AOT_GEN %u blocks, %u instructions, %.1f%% of executed instructions -> %s\n", nblocks, nwordsTotal, total ? 100.0 * covered / total : 0.0, path);
-	return (int)nblocks;
-#else
-	return -1;
-#endif
 }
 
 // Code changed: bump the version of every page in the range, so their blocks are decoded again.
@@ -3376,98 +2949,6 @@ static bool TBVerifySkippable(uint32 op)
 	return primary == 3; // twi
 }
 
-#ifdef IRIDIA_AOT_VERIFY_BUILD
-// Iridia AOT verify: once gameplay runs (IRIDIA_AOT_VERIFY=1), every compiled block runs with its stores logged; the
-// stores are undone, the same instructions run on the stock interpreter (stores logged too), and registers, the
-// instruction pointer, cycles and the final memory of every stored address are compared. The stock result is kept.
-// Blocks with HLE calls or other skippable instructions just run. Other cores keep running meanwhile, so a block
-// that reads memory another core changes in between can show a false difference (rare).
-extern std::atomic<sint64> g_iridiaRunStartMs;
-static bool AotVerifyActive()
-{
-	static const bool s_want = getenv("IRIDIA_AOT_VERIFY") != nullptr;
-	if (!s_want || g_iridiaRunStartMs.load(std::memory_order_relaxed) == 0)
-		return false;
-	s_aotVerifyOn = true;
-	return true;
-}
-static void AotVerifyBlock(PPCInterpreter_t* hCPU, const PPCTBEntry* steps)
-{
-	using Container = PPCInterpreterContainer<PPCItpCafeOSUsermode>;
-	const auto& en = Container::kAotEntries[steps[0].imm];
-	const uint32 count = tbBlockCount(steps);
-	for (uint32 k = 0; k < en.nwords; k++)
-		if (TBVerifySkippable(Container::kAotWords[en.words + 2 * k + 1]))
-		{
-			hCPU->remainingCycles -= (sint32)count;
-			steps[0].fn(hCPU, steps, hCPU->gpr[1]);
-			return;
-		}
-	static std::atomic<uint64> s_checked{0}, s_bad{0};
-	PPCInterpreter_t snap = *hCPU;
-	const sint32 before = hCPU->remainingCycles;
-	IridiaStoreLog la, lb;
-	t_iridiaStoreLog = &la;
-	hCPU->remainingCycles -= (sint32)count;
-	steps[0].fn(hCPU, steps, hCPU->gpr[1]);
-	t_iridiaStoreLog = nullptr;
-	PPCInterpreter_t aot = *hCPU;
-	const sint32 executed = before - aot.remainingCycles;
-	// memory after the compiled run, then undo it
-	std::vector<std::pair<uint32, uint64>> memA;
-	for (size_t i = 0; i < la.old.size(); i++) { uint64 v = 0; memcpy(&v, memory_base + la.old[i].first, la.sizes[i]); memA.emplace_back(la.old[i].first, v); }
-	for (size_t i = la.old.size(); i-- > 0;) memcpy(memory_base + la.old[i].first, &la.old[i].second, la.sizes[i]);
-	*hCPU = snap;
-	t_iridiaStoreLog = &lb;
-	for (sint32 i = 0; i < executed; i++)
-		Container::executeInstruction(hCPU);
-	t_iridiaStoreLog = nullptr;
-	std::string diff;
-	if (aot.instructionPointer != hCPU->instructionPointer) diff += fmt::format(" ip {:08x}/{:08x}", aot.instructionPointer, hCPU->instructionPointer);
-	for (int r = 0; r < 32; r++)
-	{
-		if (aot.gpr[r] != hCPU->gpr[r]) diff += fmt::format(" r{} {:08x}/{:08x}", r, aot.gpr[r], hCPU->gpr[r]);
-		if (aot.fpr[r].fp0int != hCPU->fpr[r].fp0int) diff += fmt::format(" f{}.0 {:016x}/{:016x}", r, aot.fpr[r].fp0int, hCPU->fpr[r].fp0int);
-		if (aot.fpr[r].fp1int != hCPU->fpr[r].fp1int) diff += fmt::format(" f{}.1 {:016x}/{:016x}", r, aot.fpr[r].fp1int, hCPU->fpr[r].fp1int);
-		if (aot.cr[r] != hCPU->cr[r]) diff += fmt::format(" cr{} {}/{}", r, aot.cr[r], hCPU->cr[r]);
-	}
-	if (aot.xer_ca != hCPU->xer_ca || aot.xer_so != hCPU->xer_so || aot.xer_ov != hCPU->xer_ov) diff += " xer";
-	if (aot.spr.LR != hCPU->spr.LR) diff += fmt::format(" lr {:08x}/{:08x}", aot.spr.LR, hCPU->spr.LR);
-	if (aot.spr.CTR != hCPU->spr.CTR) diff += fmt::format(" ctr {:08x}/{:08x}", aot.spr.CTR, hCPU->spr.CTR);
-	if (aot.fpscr != hCPU->fpscr) diff += fmt::format(" fpscr {:08x}/{:08x}", aot.fpscr, hCPU->fpscr);
-	for (int k = 0; k < 8; k++) if (aot.spr.UGQR[k] != hCPU->spr.UGQR[k]) diff += " gqr";
-	// memory: every address either run stored to must end with the same bytes
-	std::set<uint32> addrs;
-	for (auto& [a, v] : la.old) addrs.insert(a);
-	for (auto& [a, v] : lb.old) addrs.insert(a);
-	if (la.old.size() != lb.old.size()) diff += fmt::format(" stores {}/{}", la.old.size(), lb.old.size());
-	for (size_t i = 0; i < memA.size(); i++)
-	{
-		uint64 now = 0;
-		memcpy(&now, memory_base + memA[i].first, la.sizes[i]);
-		// the last compiled-run store to an address decides its final value
-		bool last = true;
-		for (size_t j = i + 1; j < memA.size(); j++) if (memA[j].first == memA[i].first) { last = false; break; }
-		if (last && now != memA[i].second) { diff += fmt::format(" mem {:08x} {:x}/{:x}", memA[i].first, memA[i].second, now); break; }
-	}
-	const uint64 n = ++s_checked;
-	if (n % 2000000 == 0)
-		fprintf(stderr, "IRIDIA_AOTV checked %llu compiled blocks, %llu differences\n", (unsigned long long)n, (unsigned long long)s_bad.load());
-	if (!diff.empty())
-	{
-		s_bad.fetch_add(1);
-		// the first three differences of every block (up to 400 blocks), so a rare block is not hidden behind a
-		// frequent one
-		static std::mutex s_m;
-		static std::unordered_map<uint32, uint32> s_perBlock;
-		std::lock_guard l(s_m);
-		uint32& c = s_perBlock[en.address];
-		if (c++ < 3 && s_perBlock.size() <= 400)
-			fprintf(stderr, "IRIDIA_AOTV DIFF block %08x n=%d (aot/stock):%s\n", en.address, executed, diff.c_str());
-	}
-	hCPU->remainingCycles = aot.remainingCycles;
-}
-#endif
 
 static void TBVerifyBlock(PPCInterpreter_t* hCPU, const PPCTBEntry* steps)
 {
@@ -3622,13 +3103,6 @@ void PPCInterpreterSlim_run(PPCInterpreter_t* hCPU)
 			TBVerifyBlock(hCPU, ce.steps);
 			continue;
 		}
-#ifdef IRIDIA_AOT_VERIFY_BUILD
-		if (AotVerifyActive() && ce.steps[0].r0 == 0xA0) [[unlikely]]
-		{
-			AotVerifyBlock(hCPU, ce.steps);
-			continue;
-		}
-#endif
 		hCPU->remainingCycles -= (sint32)tbBlockCount(ce.steps);
 		tbCountExec(hCPU, ce.steps);
 		if (s_tbHistOn()) [[unlikely]]
@@ -3659,7 +3133,3 @@ void PPCInterpreterFull_executeInstruction(PPCInterpreter_t* hCPU)
 	PPCInterpreterContainer<PPCItpSupervisorWithMMU>::executeInstruction(hCPU);
 }
 
-#ifndef CEMU_TBI
-// Iridia: the AOT generator only exists in threaded-interpreter builds; stock builds (reference runs) get a stub.
-int PPCInterpreter_aotGenerate(const char*, double, uint32) { return -1; }
-#endif

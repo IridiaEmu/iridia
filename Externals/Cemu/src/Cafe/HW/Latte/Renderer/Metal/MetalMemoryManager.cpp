@@ -39,14 +39,14 @@ void MetalMemoryManager::InitBufferCache(size_t size)
     m_metalBufferCacheMode = g_current_game_profile->GetBufferCacheMode();
     // Iridia study: IRIDIA_BUFFER_HOST=1 = on unified memory, let the GPU read guest MEM2 directly (Host mode)
     // instead of a separate buffer cache, for every game (A/B of memory use and upload cost).
-    static const bool s_forceHost = getenv("IRIDIA_BUFFER_HOST") != nullptr;
+    static const bool s_forceHost = iridia_getenv("IRIDIA_BUFFER_HOST") != nullptr;
     if (s_forceHost && m_metalBufferCacheMode == MetalBufferCacheMode::Auto && m_mtlr->HasUnifiedMemory())
         m_metalBufferCacheMode = MetalBufferCacheMode::Host;
     // Iridia: on unified memory (default, IRIDIA_BUFFER_PRIVATE=1 = upstream private cache), a shared buffer cache with
     // GPU-use tracking: uploads are a memcpy unless unfinished GPU work still uses those 256-byte pages, instead of
     // staging copies on the GPU that split render passes. BotW, Mac at 60 Hz: 22.9 -> 25.0 fps.
     bool iridiaTracked = false;
-    if (!getenv("IRIDIA_BUFFER_PRIVATE") && m_metalBufferCacheMode == MetalBufferCacheMode::Auto && m_mtlr->HasUnifiedMemory())
+    if (!iridia_getenv("IRIDIA_BUFFER_PRIVATE") && m_metalBufferCacheMode == MetalBufferCacheMode::Auto && m_mtlr->HasUnifiedMemory())
     {
         m_metalBufferCacheMode = MetalBufferCacheMode::DeviceShared;
         iridiaTracked = true;
@@ -122,7 +122,7 @@ void MetalMemoryManager::UploadToBufferCache(const void* data, size_t offset, si
     // Iridia study: IRIDIA_SKIP_SAME_UPLOAD=1 skips an upload whose bytes already are in the (shared) cache. Only when
     // no GPU write to those pages is unfinished and none is waiting in a redirect: then the CPU-side contents are
     // exactly what the GPU will read, so leaving them alone is the same as writing the same bytes again.
-    static const bool s_skipSame = getenv("IRIDIA_SKIP_SAME_UPLOAD") && atoi(getenv("IRIDIA_SKIP_SAME_UPLOAD")) == 1;
+    static const bool s_skipSame = iridia_getenv("IRIDIA_SKIP_SAME_UPLOAD") && atoi(iridia_getenv("IRIDIA_SKIP_SAME_UPLOAD")) == 1;
     m_iridiaUploads++; m_iridiaUploadBytes += size;
     if (s_skipSame && TracksBufferCacheUse() && !redirected)
     {

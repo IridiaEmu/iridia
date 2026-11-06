@@ -486,7 +486,7 @@ namespace snd_core
 		// are capped by elapsed time x share), like the hot phone, where the audio work doesn't get enough CPU time
 		// (measured there: 0.72-0.89x real time in minutes 5-10 with variable frame timing). Test only.
 		// (a token bucket: share x elapsed time / 3 ms frames may be queued, at most 4 saved up)
-		static const double s_axSpeed = getenv("IRIDIA_AX_SPEED") ? std::clamp(atof(getenv("IRIDIA_AX_SPEED")), 0.3, 1.0) : 0.0;
+		static const double s_axSpeed = iridia_getenv("IRIDIA_AX_SPEED") ? std::clamp(atof(iridia_getenv("IRIDIA_AX_SPEED")), 0.3, 1.0) : 0.0;
 		static double s_axTokens = 0.0;
 		if (s_axSpeed > 0.0)
 		{
@@ -539,7 +539,7 @@ namespace snd_core
 			// Iridia study: IRIDIA_AX_CATCHUP=<n> (2-8; off = 1) lets up to n audio frames be in flight when the
 			// 3 ms timeline is behind (these checks only run when the main core passes its idle loop, which on a
 			// throttled phone is less often than every 3 ms, so with one frame in flight audio falls behind for good)
-			static const uint32 s_maxInFlight = getenv("IRIDIA_AX_CATCHUP") ? std::clamp(atoi(getenv("IRIDIA_AX_CATCHUP")), 1, 8) : 1;
+			static const uint32 s_maxInFlight = iridia_getenv("IRIDIA_AX_CATCHUP") ? std::clamp(atoi(iridia_getenv("IRIDIA_AX_CATCHUP")), 1, 8) : 1;
 			const uint32 inFlight = numQueuedFramesSndGeneric - snd_core::getNumProcessedFrames();
 			uint32 allowed = 1;
 			if (s_maxInFlight > 1)

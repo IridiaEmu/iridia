@@ -76,7 +76,7 @@ namespace coreinit
 	CounterSemaphore g_coreRunQueueThreadCount[3];
 
 	bool g_isMulticoreMode;
-	bool g_iridiaSpin() { static const bool v = getenv("IRIDIA_SPIN") != nullptr; return v; } // Iridia study: old busy-wait behaviour for A/B // read on first use: the app sets study switches after load
+	bool g_iridiaSpin() { static const bool v = iridia_getenv("IRIDIA_SPIN") != nullptr; return v; } // Iridia study: old busy-wait behaviour for A/B // read on first use: the app sets study switches after load
 
 	thread_local uint32 t_assignedCoreIndex;
 	// Iridia study: 2-thread mode (CEMU_CPU_THREADS=2): this host thread runs emulated cores 0 and 2 in turn.
@@ -127,7 +127,7 @@ namespace coreinit
 			// utility, not background: iOS gives background threads very low priority and lets their waits run late,
 			// which on the phone stalled the whole frame (BotW: 10 fps "slow phase" after a minute; utility: 20 fps,
 			// no audio gaps). IRIDIA_SLOW_QOS=background|utility|default overrides (A/B).
-			const char* q = getenv("IRIDIA_SLOW_QOS");
+			const char* q = iridia_getenv("IRIDIA_SLOW_QOS");
 			return !q ? QOS_CLASS_UTILITY : !strcmp(q, "background") ? QOS_CLASS_BACKGROUND : !strcmp(q, "default") ? QOS_CLASS_DEFAULT : QOS_CLASS_UTILITY;
 		}();
 		return cls;
@@ -742,7 +742,7 @@ namespace coreinit
 	void OSYieldThread()
 	{
 		// Iridia study: IRIDIA_YIELD_STATS=1 counts yields per core and how many had no other runnable thread
-		static const bool s_stats = getenv("IRIDIA_YIELD_STATS") != nullptr;
+		static const bool s_stats = iridia_getenv("IRIDIA_YIELD_STATS") != nullptr;
 		if (s_stats)
 		{
 			// also times the switch when no other thread was runnable (the same thread runs again: pure switch cost)
@@ -1780,18 +1780,18 @@ namespace coreinit
 		g_isMulticoreMode = numCPUEmulationThreads > 1;
 		// Iridia study: dynamic core placement (see __IridiaPlacementThread)
 		g_iridiaTwoThreads = numCPUEmulationThreads == 2;
-		g_iridiaLayout = getenv("IRIDIA_IPHONE_LAYOUT") ? std::max(1, atoi(getenv("IRIDIA_IPHONE_LAYOUT"))) : 0;
-		const bool dynamicPlacement = !getenv("IRIDIA_STATIC_CORES");
+		g_iridiaLayout = iridia_getenv("IRIDIA_IPHONE_LAYOUT") ? std::max(1, atoi(iridia_getenv("IRIDIA_IPHONE_LAYOUT"))) : 0;
+		const bool dynamicPlacement = !iridia_getenv("IRIDIA_STATIC_CORES");
 		for (uint32 c = 0; c < 3; c++)
 		{
 			s_coreOwner[c] = s_coreWantSlot[c] = (c == 1) ? kSlotSolo : kSlotShared;
 			s_coreFast[c] = c != 0; // 3-thread layout start: cores 1 and 2 fast (0 vs 2 adjusted at run time)
 		}
-		if (const char* start = getenv("IRIDIA_FAST_START")) // testing: which of cores 0/2 starts fast
+		if (const char* start = iridia_getenv("IRIDIA_FAST_START")) // testing: which of cores 0/2 starts fast
 			s_coreFast[0] = atoi(start) == 0, s_coreFast[2] = atoi(start) != 0;
 		// energy study: IRIDIA_ONE_FAST=1 keeps only core 1 (the main core) on a fast core, cores 0 and 2 on the
 		// slow QoS class, no run-time moves
-		const bool oneFast = getenv("IRIDIA_ONE_FAST") && getenv("IRIDIA_ONE_FAST")[0] == '1';
+		const bool oneFast = iridia_getenv("IRIDIA_ONE_FAST") && iridia_getenv("IRIDIA_ONE_FAST")[0] == '1';
 		if (oneFast)
 			s_coreFast[0] = false, s_coreFast[2] = false;
 		g_iridiaDynQoS = numCPUEmulationThreads == 3 && g_iridiaLayout != 0;

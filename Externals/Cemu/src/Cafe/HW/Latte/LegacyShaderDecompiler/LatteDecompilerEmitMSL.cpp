@@ -735,7 +735,7 @@ static void _emitCodeToReadRelativeGPR(LatteDecompilerShaderContext* shaderConte
 // no relative addressing. On by default; IRIDIA_MUL_SQUARE=0 turns it off.
 static bool _iridiaSquareOperands(LatteDecompilerALUInstruction* aluInstruction)
 {
-	static const bool s_on = !(getenv("IRIDIA_MUL_SQUARE") && atoi(getenv("IRIDIA_MUL_SQUARE")) == 0);
+	static const bool s_on = !(iridia_getenv("IRIDIA_MUL_SQUARE") && atoi(iridia_getenv("IRIDIA_MUL_SQUARE")) == 0);
 	const auto& a = aluInstruction->sourceOperand[0];
 	const auto& b = aluInstruction->sourceOperand[1];
 	return s_on && a.sel == b.sel && a.chan == b.chan && a.abs == b.abs && a.neg == b.neg && a.rel == 0 && b.rel == 0;
@@ -3791,7 +3791,7 @@ void LatteDecompiler_emitHelperFunctions(LatteDecompilerShaderContext* shaderCon
 
 		// Iridia study (measurement only, changes 0*inf/NaN results): IRIDIA_MSL_PLAIN_MUL=1 drops the zero guard, the
 		// upper bound of what removing guards (e.g. a new translator proving operands finite) could save
-		static const bool s_iridiaPlainMul = getenv("IRIDIA_MSL_PLAIN_MUL") && getenv("IRIDIA_MSL_PLAIN_MUL")[0] == '1';
+		static const bool s_iridiaPlainMul = iridia_getenv("IRIDIA_MSL_PLAIN_MUL") && iridia_getenv("IRIDIA_MSL_PLAIN_MUL")[0] == '1';
 		if (s_iridiaPlainMul)
 			fCStr_shaderSource->add("float mul_nonIEEE(float a, float b){ return a*b; }" _CRLF);
 		else if( LatteGPUState.glVendor == GLVENDOR_NVIDIA && !ActiveSettings::DumpShadersEnabled())
@@ -4368,7 +4368,7 @@ void LatteDecompiler_emitMSLShader(LatteDecompilerShaderContext* shaderContext, 
 		// remove, 3 ops per step). The GPU time it adds per extra instruction tells how much fewer instructions (e.g.
 		// from a new translator) could save. The result is written out only if its bits hit one value (about 1 in 8
 		// million pixels or vertices change, so the picture is practically the same; never use this outside tests).
-		static const int s_iridiaPad = getenv("IRIDIA_MSL_ALU_PAD") ? atoi(getenv("IRIDIA_MSL_ALU_PAD")) : 0;
+		static const int s_iridiaPad = iridia_getenv("IRIDIA_MSL_ALU_PAD") ? atoi(iridia_getenv("IRIDIA_MSL_ALU_PAD")) : 0;
 		if (s_iridiaPad > 0 && (shader->shaderType == LatteConst::ShaderType::Pixel || shader->shaderType == LatteConst::ShaderType::Vertex))
 		{
 			size_t aluCount = 0;

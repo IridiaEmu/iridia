@@ -15,6 +15,7 @@
 #include "Cafe/HW/Latte/Renderer/Metal/MetalRenderer.h"
 #include "Cafe/OS/libs/vpad/IridiaExternalPad.h"
 #include "Cemu/ncrypto/ncrypto.h"
+#include "audio/IAudioAPI.h"
 #include "WindowSystem.h"
 
 #include <boost/algorithm/string.hpp>
@@ -23,6 +24,7 @@
 void CemuCommonInit(); // main.cpp
 std::string IridiaNoJitSelfCheck(); // NoJitCheckIOS.mm
 extern std::string g_iridiaLastCoreError; // WindowSystemIOS.mm
+extern std::atomic<bool> g_iridiaPaused; // PPCScheduler.cpp
 
 @implementation CemuTitle
 @end
@@ -92,40 +94,17 @@ static std::string FormatName(const TitleInfo& info)
 
 + (nullable NSString *)startWithUserDir:(NSString *)userDir gamesDir:(NSString *)gamesDir resourcesDir:(NSString *)resourcesDir
 {
-	// Iridia study: -cafeEnv "IRIDIA_PS_VECTEST=<millions>" runs the paired-single instruction test and exits.
-	if (const char* vt = getenv("IRIDIA_PS_VECTEST"))
-	{
-		int iridiaPsVecTest(uint64_t millions); // IridiaPsVecTest.cpp
-		const int r = iridiaPsVecTest((uint64_t)std::max(1L, strtol(vt, nullptr, 10)));
-		printf("IRIDIA_PS_VECTEST exit %d\n", r);
-		fflush(stdout);
-		_exit(r);
-	}
 	if (s_started)
 		return nil;
 	// Interpreter only (no JIT on iOS), one host thread per emulated core, iPhone core placement
 	// (core 1 + the busier of 0/2 on the two performance cores).
 	setenv("IRIDIA_IPHONE_LAYOUT", "1", 0);
-	setenv("IRIDIA_GPU_QOS", "utility", 0); // GPU thread may use a fast core when one is free (+5% on the Mac; background QoS can be throttled on iOS)
-	setenv("IRIDIA_QUANTUM", "100000", 0); // longer time slices: fewer thread switches (+1.6% BotW, Mac iPhone-like)
-	// GPU clock keeper: option only, off by default (it spends power to hold GPU clocks, and heat is the phone's
-	// limit: phone A/B Oct 20, thermal serious, CPU phase 13.3 -> 16.2 ms, no fps gain). -cafeEnv
-	// "IRIDIA_GPU_WARM=20000" turns it on (gated, 12 ms hold, paused above thermal state fair).
-	setenv("IRIDIA_GPU_WARM_GATE", "1", 0);
-	setenv("IRIDIA_GPU_WARM_HOLD_US", "12000", 0);
-	// Iridia diagnostics: does iOS give this process the sustained performance profile (com.apple.developer.sustained-execution)?
-	if (@available(iOS 18.0, *))
-		fprintf(stderr, "IRIDIA_PERFPROFILE sustained=%d\n", (int)[[NSProcessInfo processInfo] hasPerformanceProfile:NSProcessPerformanceProfileSustained]);
+	setenv("IRIDIA_GPU_QOS", "utility", 0); // GPU thread may use a fast core when one is free (background QoS can be throttled on iOS)
+	setenv("IRIDIA_QUANTUM", "100000", 0); // longer time slices: fewer thread switches
 	char arg0[] = "Cemu";
 	char arg1[] = "--force-multicore-interpreter";
 	char* argv[] = {arg0, arg1, nullptr};
-	// Iridia study: IRIDIA_SINGLE_CORE=1 (-cafeEnv) runs all three emulated cores on one host thread (Cemu's
-	// single-core interpreter scheduling) instead of one thread per core, for a power / heat A/B
-	const char* single = getenv("IRIDIA_SINGLE_CORE");
-	const bool singleCore = single && atoi(single) == 1;
-	if (singleCore)
-		fprintf(stderr, "IRIDIA_CORES single host thread for all emulated cores\n");
-	LaunchSettings::HandleCommandline(singleCore ? 1 : 2, argv);
+	LaunchSettings::HandleCommandline(2, argv);
 
 	const fs::path user = _utf8ToPath(userDir.UTF8String);
 	const fs::path data = _utf8ToPath(resourcesDir.UTF8String);
@@ -150,12 +129,11 @@ static std::string FormatName(const TitleInfo& info)
 	config.audio_api = 3; // IAudioAPI::Cubeb slot = iOS RemoteIO output (audio/IOSAudioAPI.mm)
 	config.tv_device = L"default";
 	// Sound queued ahead, in 12 ms blocks: 6 (72 ms) rides through the short hitches that made 2 (24 ms, Cemu's
-	// default) crackle on the phone. IRIDIA_AUDIO_DELAY=<blocks> overrides (A/B).
-	config.audio_delay = getenv("IRIDIA_AUDIO_DELAY") ? std::clamp(atoi(getenv("IRIDIA_AUDIO_DELAY")), 1, 20) : 6;
-	if (getenv("IRIDIA_MUTE"))
-		config.tv_volume = 0; // test runs: audio path active, silent
-	else if (config.tv_volume == 0)
+	// default) crackle on the phone.
+	config.audio_delay = 6;
+	if (config.tv_volume == 0)
 		config.tv_volume = 50;
+
 	GetConfigHandle().Save();
 
 	if (!CreateDefaultMLCFiles(ActiveSettings::GetMlcPath()))
@@ -194,9 +172,6 @@ static std::string FormatName(const TitleInfo& info)
 	CafeTitleList::ReleaseInternalList();
 	return out;
 }
-
-void IridiaStartHangWatchdog(); // HangDumpIOS.mm
-void IridiaStartDiag(); // DiagIOS.mm
 
 + (nullable NSString *)launchTitle:(CemuTitle *)title layer:(CAMetalLayer *)layer width:(int)width height:(int)height
 {
@@ -242,10 +217,38 @@ void IridiaStartDiag(); // DiagIOS.mm
 	}
 	g_iridiaExternalPad.active = true;
 	s_running = true;
+	g_iridiaPaused = false;
 	CafeSystem::LaunchForegroundTitle();
-	IridiaStartHangWatchdog();
-	IridiaStartDiag();
 	return nil;
+}
+
++ (void)stopGame
+{
+	if (!s_running)
+		return;
+	g_iridiaPaused = false;
+	g_iridiaExternalPad.active = false;
+	CafeSystem::ShutdownTitle();
+	auto& wi = WindowSystem::GetWindowInfo();
+	wi.pad_open = false;
+	g_renderer.reset();
+	wi.window_main.surface = nullptr;
+	wi.canvas_main = wi.window_main;
+	wi.window_pad.surface = nullptr;
+	wi.canvas_pad = wi.window_pad;
+	s_running = false;
+}
+
++ (void)setPaused:(BOOL)paused
+{
+	g_iridiaPaused = paused;
+	if (g_tvAudio)
+		g_tvAudio->SetVolume(paused ? 0 : GetConfig().tv_volume);
+}
+
++ (BOOL)isPaused
+{
+	return g_iridiaPaused.load();
 }
 
 + (void)resizeWidth:(int)width height:(int)height

@@ -47,9 +47,9 @@ void IridiaWaitTimerBegin(int k) { IridiaTLHostCpu(7); IridiaTL(TL_LWAIT_B, 0, (
 void IridiaWaitTimerEnd(int k) { IridiaTL(TL_LWAIT_E, 0, (uint32_t)k); IridiaTLHostCpu(7); }
 void IridiaTimelineTick(int gameplaySecond)
 {
-	static const int start = getenv("IRIDIA_TIMELINE") ? atoi(getenv("IRIDIA_TIMELINE")) : -1;
+	static const int start = iridia_getenv("IRIDIA_TIMELINE") ? atoi(iridia_getenv("IRIDIA_TIMELINE")) : -1;
 	// IRIDIA_TIMELINE_EVERY=<s> (> 2): a 2 s window again every <s> seconds; window n > 0 goes to <file>.<n>
-	static const int every = getenv("IRIDIA_TIMELINE_EVERY") ? atoi(getenv("IRIDIA_TIMELINE_EVERY")) : 0;
+	static const int every = iridia_getenv("IRIDIA_TIMELINE_EVERY") ? atoi(iridia_getenv("IRIDIA_TIMELINE_EVERY")) : 0;
 	static int window = 0, windowStart = -1;
 	if (start < 0)
 		return;
@@ -72,7 +72,7 @@ void IridiaTimelineTick(int gameplaySecond)
 		g_iridiaTimelineOn = false;
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 		const size_t n = std::min(s_tlCount.load(), kTLCap);
-		const char* basePath = getenv("IRIDIA_TIMELINE_FILE");
+		const char* basePath = iridia_getenv("IRIDIA_TIMELINE_FILE");
 		const std::string windowPath = basePath ? (window == 0 ? std::string(basePath) : std::string(basePath) + "." + std::to_string(window)) : std::string();
 		const char* path = basePath ? windowPath.c_str() : nullptr;
 		window++;
@@ -128,16 +128,16 @@ static void IridiaGameSpeedProbe(int gameplaySecond)
 	if (!s_init)
 	{
 		s_init = true;
-		if (const char* v = getenv("IRIDIA_RAMDUMP"))
+		if (const char* v = iridia_getenv("IRIDIA_RAMDUMP"))
 			for (const char* q = v; *q; ) { s_dumpAt.push_back(atoi(q)); while (*q && *q != ',') q++; if (*q) q++; }
-		if (const char* v = getenv("IRIDIA_WATCH"))
+		if (const char* v = iridia_getenv("IRIDIA_WATCH"))
 			for (const char* q = v; *q; ) { s_watch.push_back((uint32)strtoul(q, nullptr, 16)); while (*q && *q != ',') q++; if (*q) q++; }
 	}
 	for (int t : s_dumpAt)
 	{
 		if (t != gameplaySecond || !mmuRange_MEM2.isMapped())
 			continue;
-		const char* dir = getenv("IRIDIA_RAMDUMP_DIR") ? getenv("IRIDIA_RAMDUMP_DIR") : ".";
+		const char* dir = iridia_getenv("IRIDIA_RAMDUMP_DIR") ? iridia_getenv("IRIDIA_RAMDUMP_DIR") : ".";
 		char path[1024];
 		snprintf(path, sizeof(path), "%s/mem2-%d.bin", dir, t);
 		if (FILE* f = fopen(path, "wb"))
@@ -289,7 +289,7 @@ void LattePerformanceMonitor_frameEnd()
 			WindowSystem::UpdateWindowTitles(false, false, fps);
 			// Iridia study: seconds of gameplay seen so far (a full scene: >1000 draws per frame), read by the autopilot.
 			// IRIDIA_GAMEPLAY_DRAWS=<n> changes the threshold (test spots with smaller scenes)
-			static const uint32 s_gameplayDraws = getenv("IRIDIA_GAMEPLAY_DRAWS") ? (uint32)atoi(getenv("IRIDIA_GAMEPLAY_DRAWS")) : 1000;
+			static const uint32 s_gameplayDraws = iridia_getenv("IRIDIA_GAMEPLAY_DRAWS") ? (uint32)atoi(iridia_getenv("IRIDIA_GAMEPLAY_DRAWS")) : 1000;
 			if (drawCallCounter / elapsedFrames > s_gameplayDraws)
 			{
 				const int gs = g_iridiaGameplaySeconds.fetch_add(1) + 1;

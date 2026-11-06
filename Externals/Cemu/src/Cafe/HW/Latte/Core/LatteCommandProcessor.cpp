@@ -170,12 +170,12 @@ void LatteCP_signalEnterWait()
 // Iridia study: GPU-thread waits back off to short sleeps instead of spinning (IRIDIA_SPIN=1: old behaviour)
 // Iridia: WAIT_REG_MEM polls 256 times, then yields, then naps 20 us after this many rounds (yielding keeps the core
 // busy). IRIDIA_WRM_NAP_AFTER=<n> sets it (energy A/B); default 4096.
-static uint32 s_iridiaWrmNapAfter() { static const uint32 v = getenv("IRIDIA_WRM_NAP_AFTER") ? (uint32)atoi(getenv("IRIDIA_WRM_NAP_AFTER")) : 4096; return v; }
-static bool s_iridiaSpin() { static const bool v = getenv("IRIDIA_SPIN") != nullptr || getenv("IRIDIA_SPIN_GPU") != nullptr; return v; } // IRIDIA_SPIN_GPU: only the GPU thread spins // read on first use: the app sets study switches after load
+static uint32 s_iridiaWrmNapAfter() { static const uint32 v = iridia_getenv("IRIDIA_WRM_NAP_AFTER") ? (uint32)atoi(iridia_getenv("IRIDIA_WRM_NAP_AFTER")) : 4096; return v; }
+static bool s_iridiaSpin() { static const bool v = iridia_getenv("IRIDIA_SPIN") != nullptr || iridia_getenv("IRIDIA_SPIN_GPU") != nullptr; return v; } // IRIDIA_SPIN_GPU: only the GPU thread spins // read on first use: the app sets study switches after load
 
 // Iridia: GPU-thread sleep with wake-up (IridiaPerf.h). Opt-in, IRIDIA_LATTE_WAKE=1: slower on the Mac with phone
 // settings (27 vs 35 fps, more CPU per frame; the longer-sleeping thread likely lands on slower cores).
-static bool s_iridiaNap() { static const bool v = getenv("IRIDIA_LATTE_WAKE") == nullptr; return v; }
+static bool s_iridiaNap() { static const bool v = iridia_getenv("IRIDIA_LATTE_WAKE") == nullptr; return v; }
 static std::mutex s_latteSleepMutex;
 static std::condition_variable s_latteSleepCv;
 static std::atomic<bool> s_latteSleeping{false};
@@ -500,7 +500,7 @@ LatteCMDPtr LatteCP_itNumInstances(LatteCMDPtr cmd, uint32 nWords)
 
 // Iridia diagnostics (IRIDIA_WRM_STATS=1): time the GPU thread waits per wait-for-memory address, printed once a
 // second with the IRIDIA_PERF line (GPU thread only, no lock needed)
-static bool s_iridiaWrmStats() { static const bool v = getenv("IRIDIA_WRM_STATS") != nullptr; return v; }
+static bool s_iridiaWrmStats() { static const bool v = iridia_getenv("IRIDIA_WRM_STATS") != nullptr; return v; }
 struct IridiaWrmStat { uint64 us = 0; uint32 n = 0; uint32 op = 0; uint32 lastValue = 0; uint32 lastWant = 0; };
 static std::unordered_map<uint32, IridiaWrmStat> s_iridiaWrm;
 uint32 g_iridiaLastWrmAddr = 0;

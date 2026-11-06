@@ -70,15 +70,6 @@ namespace
 // Returns "PASS ..." or "FAIL ..." with the first offending region.
 std::string IridiaNoJitSelfCheck()
 {
-#if IRIDIA_NOJIT_NEGCTL
-	// test hook (negative control): IRIDIA_NOJIT_TEST_ALLOC=1 maps one anonymous executable page, which must FAIL.
-	// Compiled in only with the CMake option IRIDIA_NOJIT_NEGATIVE_CONTROL (never in normal builds).
-	if (getenv("IRIDIA_NOJIT_TEST_ALLOC"))
-	{
-		static void* page = mmap(nullptr, 16384, PROT_READ | PROT_EXEC, MAP_ANON | MAP_PRIVATE, -1, 0);
-		fprintf(stderr, "IRIDIA_NOJIT_TEST_ALLOC %p\n", page);
-	}
-#endif
 	const auto images = ImageRanges();
 	mach_vm_address_t addr = 0;
 	uint32_t depth = 0;

@@ -174,7 +174,7 @@ void gameProfile_load()
 	// apply some settings immediately
 	ppcThreadQuantum = g_current_game_profile->GetThreadQuantum();
 	// Iridia study: IRIDIA_QUANTUM=<instructions> overrides the default time slice (when the game profile has none).
-	if (const char* q = getenv("IRIDIA_QUANTUM"); q && ppcThreadQuantum == GameProfile::kThreadQuantumDefault)
+	if (const char* q = iridia_getenv("IRIDIA_QUANTUM"); q && ppcThreadQuantum == GameProfile::kThreadQuantumDefault)
 		ppcThreadQuantum = std::clamp<uint32>((uint32)atoi(q), 1000u, 536870912u);
 
 	if (ppcThreadQuantum != GameProfile::kThreadQuantumDefault)

@@ -16,7 +16,7 @@ public:
 	void decode(LatteTextureLoaderCtx* textureLoader, uint8* outputData) override
 	{
 		// IRIDIA_ASTC_MEASURE=1: also compute the error of every block (slower; for the PSNR in IRIDIA_ASTC lines)
-		static const bool s_measure = getenv("IRIDIA_ASTC_MEASURE") != nullptr;
+		static const bool s_measure = iridia_getenv("IRIDIA_ASTC_MEASURE") != nullptr;
 		const auto t0 = std::chrono::steady_clock::now();
 		const sint32 blocksPerRow = (textureLoader->width + 3) / 4;
 		uint64 se = 0, n = 0;

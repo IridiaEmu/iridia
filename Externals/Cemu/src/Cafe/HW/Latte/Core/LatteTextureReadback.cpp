@@ -46,10 +46,10 @@ bool LatteTextureReadback_Update(bool forceStart)
 		uint32 numElapsedDrawcalls = LatteGPUState.drawCallCounter - entry.lastUpdateDrawcallIndex;
 		// Iridia: start a readback after 1 draw that did not write the texture (as soon as the game draws to something
 		// else, i.e. at the end of its render pass; upstream waits 5). IRIDIA_RB_START_DRAWS=<n> overrides it.
-		static const uint32 s_startDraws = getenv("IRIDIA_RB_START_DRAWS") ? std::max(1, atoi(getenv("IRIDIA_RB_START_DRAWS"))) : 1;
+		static const uint32 s_startDraws = iridia_getenv("IRIDIA_RB_START_DRAWS") ? std::max(1, atoi(iridia_getenv("IRIDIA_RB_START_DRAWS"))) : 1;
 		if (forceStart || numElapsedDrawcalls >= s_startDraws)
 		{
-			static const bool s_rbLog = getenv("IRIDIA_RB_LOG") != nullptr;
+			static const bool s_rbLog = iridia_getenv("IRIDIA_RB_LOG") != nullptr;
 			if (s_rbLog)
 				fprintf(stderr, "IRIDIA_RB start %08x %ux%u after %u draws%s\n", entry.textureView->baseTexture->physAddress, entry.textureView->baseTexture->width, entry.textureView->baseTexture->height, numElapsedDrawcalls, forceStart ? " (forced)" : "");
 #ifdef LOG_READBACK_TIME
@@ -137,7 +137,7 @@ void LatteTextureReadback_UpdateFinishedTransfers(bool forceFinish)
 				readbackInfo->forceFinish = true;
 				{
 					// Iridia diagnostics: IRIDIA_RB_LOG=1 logs every forced readback wait
-					static const bool s_rbLog = getenv("IRIDIA_RB_LOG") != nullptr;
+					static const bool s_rbLog = iridia_getenv("IRIDIA_RB_LOG") != nullptr;
 					const auto t0 = std::chrono::steady_clock::now();
 					readbackInfo->ForceFinish();
 					if (g_iridiaSync.inSync)
@@ -237,7 +237,7 @@ IridiaSyncStats g_iridiaSync;
 
 bool IridiaSyncLogOn()
 {
-	static const bool s_on = getenv("IRIDIA_SYNC_LOG") != nullptr;
+	static const bool s_on = iridia_getenv("IRIDIA_SYNC_LOG") != nullptr;
 	return s_on;
 }
 
@@ -297,50 +297,8 @@ void IridiaReadbackWritten(uint32_t addr, uint32_t size, uint32_t w, uint32_t h,
 	forced = forced || s_iridiaWriteForced;
 	if (IridiaSyncLogOn())
 		fprintf(stderr, "IRIDIA_RBWRITE %08x %ux%u fmt %04x %u bytes %s f=%u\n", addr, w, h, fmt, size, forced ? "sync" : "async", LatteGPUState.frameCounter);
-#ifdef IRIDIA_READ_WATCH_BUILD
-	std::lock_guard l(s_iridiaWatchMutex);
-	IridiaRbWatch* slot = nullptr;
-	for (auto& e : s_iridiaWatch)
-	{
-		if (e.used && e.addr < addr + size && addr < e.addr + e.size)
-		{
-			IridiaWatchReport(e, "unread, overwritten", 0);
-			e.used = false;
-		}
-		else if (e.used && LatteGPUState.frameCounter - e.writeFrame > 120)
-		{
-			IridiaWatchReport(e, "unread, dropped", 0);
-			e.used = false;
-		}
-		if (!e.used && !slot)
-			slot = &e;
-	}
-	if (slot)
-		*slot = { addr, size, w, h, fmt, LatteGPUState.frameCounter, IridiaNowNs(), forced, true };
-	IridiaWatchBoundsLocked();
-#endif
 }
 
-#ifdef IRIDIA_READ_WATCH_BUILD
-void IridiaReadWatchHit(uint32_t addr, uint32_t size, uint32_t pc)
-{
-	bool any = false;
-	for (int i = 0; i < 16 && !any; i++)
-		any = addr < s_iridiaSlotHi[i].load(std::memory_order_relaxed) && s_iridiaSlotLo[i].load(std::memory_order_relaxed) < addr + size;
-	if (!any)
-		return;
-	std::lock_guard l(s_iridiaWatchMutex);
-	for (auto& e : s_iridiaWatch)
-	{
-		if (e.used && e.addr < addr + size && addr < e.addr + e.size)
-		{
-			IridiaWatchReport(e, "first read", pc);
-			e.used = false;
-		}
-	}
-	IridiaWatchBoundsLocked();
-}
-#endif
 
 static std::mutex s_iridiaQueryMutex;
 static std::unordered_map<uint32_t, std::pair<uint64_t, uint32_t>> s_iridiaQueryDone; // query -> (finish time, frame)

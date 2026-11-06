@@ -66,7 +66,7 @@ static bool IridiaUseAsmFiber()
 #if TARGET_OS_IPHONE
 	return true;
 #else
-	static const bool use = getenv("IRIDIA_ASM_FIBER") && atoi(getenv("IRIDIA_ASM_FIBER")) != 0;
+	static const bool use = iridia_getenv("IRIDIA_ASM_FIBER") && atoi(iridia_getenv("IRIDIA_ASM_FIBER")) != 0;
 	return use;
 #endif
 }

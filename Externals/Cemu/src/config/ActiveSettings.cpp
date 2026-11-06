@@ -108,7 +108,7 @@ bool ActiveSettings::WaitForGX2DrawDoneEnabled()
 {
 	// Iridia: IRIDIA_PERF_MODE=1 ("Performance mode", opt-in, never the default) skips the full GPU sync at
 	// GX2DrawDone. Faster, but texture readbacks and occlusion results may arrive a frame later than the game expects.
-	static const bool s_perfMode = getenv("IRIDIA_PERF_MODE") && atoi(getenv("IRIDIA_PERF_MODE")) == 1;
+	static const bool s_perfMode = iridia_getenv("IRIDIA_PERF_MODE") && atoi(iridia_getenv("IRIDIA_PERF_MODE")) == 1;
 	if (s_perfMode)
 		return false;
 	return GetConfig().gx2drawdone_sync;
@@ -169,6 +169,9 @@ uint32 ActiveSettings::GetPersistentId()
 
 bool ActiveSettings::IsOnlineEnabled()
 {
+#if IRIDIA_SHIP
+	return false; // Iridia App Store build: no online features (no account login, no Nintendo Network or Pretendo)
+#endif
 	if(!Account::GetAccount(GetPersistentId()).IsValidOnlineAccount())
 		return false;
 	if(!HasRequiredOnlineFiles())
@@ -189,7 +192,7 @@ NetworkService ActiveSettings::GetNetworkService()
 
 bool ActiveSettings::DumpShadersEnabled()
 {
-	static const bool s_iridiaDump = getenv("IRIDIA_DUMP_SHADERS") != nullptr; // Iridia study: dump translated shaders without the debug menu
+	static const bool s_iridiaDump = iridia_getenv("IRIDIA_DUMP_SHADERS") != nullptr; // Iridia study: dump translated shaders without the debug menu
 	return s_dump_shaders || s_iridiaDump;
 }
 

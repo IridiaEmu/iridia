@@ -4,6 +4,7 @@
 
 #include "version.h"
 #include "platform.h"
+#include "IridiaEnv.h" // Iridia: environment switches (study switches compiled out in App Store builds)
 
 #define FMT_HEADER_ONLY
 #define FMT_USE_GRISU 1

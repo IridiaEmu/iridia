@@ -34,7 +34,7 @@ static NSRunningApplication* s_iridiaPrevFront = nil;
 
 bool IridiaBgWindowEnabled()
 {
-	static const bool on = getenv("IRIDIA_BG_WINDOW") && atoi(getenv("IRIDIA_BG_WINDOW")) == 1;
+	static const bool on = iridia_getenv("IRIDIA_BG_WINDOW") && atoi(iridia_getenv("IRIDIA_BG_WINDOW")) == 1;
 	return on;
 }
 

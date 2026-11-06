@@ -1,4 +1,4 @@
-// Iridia Wii U app: the Objective-C face of the Cemu core for the Swift app.
+// Iridia Wii U: the Objective-C face of the Cemu core for the Swift app.
 // Plain Objective-C (no C++ in this header) so Swift can import it through the bridging header.
 #import <Foundation/Foundation.h>
 #import <QuartzCore/CAMetalLayer.h>
@@ -41,6 +41,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// Starts a game drawing into `layer` (sized in points; the layer's contentsScale gives pixels).
 /// Returns nil on success, otherwise a message for the player.
 + (nullable NSString *)launchTitle:(CemuTitle *)title layer:(CAMetalLayer *)layer width:(int)width height:(int)height;
+
+/// Ends the running game and frees its memory and graphics. The next launchTitle starts fresh.
++ (void)stopGame;
+
+/// Pauses the game: every emulated core stops at the end of its time slice and the sound is muted.
++ (void)setPaused:(BOOL)paused;
++ (BOOL)isPaused;
 
 + (void)resizeWidth:(int)width height:(int)height;
 + (BOOL)isRunning;

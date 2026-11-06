@@ -174,7 +174,7 @@ void MetalSynchronizedRingAllocator::GetStats(uint32& numBuffers, size_t& totalB
 bool MetalSynchronizedHeapAllocator::BumpOn()
 {
 	// on by default (Oct 23: -10% command-thread time per draw); IRIDIA_INDEX_BUMP=0 uses the heap allocator
-	static const bool v = !(getenv("IRIDIA_INDEX_BUMP") && getenv("IRIDIA_INDEX_BUMP")[0] == '0');
+	static const bool v = !(iridia_getenv("IRIDIA_INDEX_BUMP") && iridia_getenv("IRIDIA_INDEX_BUMP")[0] == '0');
 	return v;
 }
 
@@ -211,7 +211,7 @@ MetalSynchronizedHeapAllocator::AllocatorReservation* MetalSynchronizedHeapAlloc
 		if (m_bumpCurrent == 0xFFFFFFFF)
 		{
 			// IRIDIA_INDEX_BUMP_CHUNK=<bytes>: smaller chunks (debug: makes chunks wrap and get reused every frame)
-			static const uint32 s_chunkMin = getenv("IRIDIA_INDEX_BUMP_CHUNK") ? std::max(4096, atoi(getenv("IRIDIA_INDEX_BUMP_CHUNK"))) : 4u * 1024 * 1024;
+			static const uint32 s_chunkMin = iridia_getenv("IRIDIA_INDEX_BUMP_CHUNK") ? std::max(4096, atoi(iridia_getenv("IRIDIA_INDEX_BUMP_CHUNK"))) : 4u * 1024 * 1024;
 			const uint32 chunkSize = std::max<uint32>(s_chunkMin, (size + 0xFFFF) & ~0xFFFFu);
 			MTL::Buffer* buffer = m_mtlr->GetDevice()->newBuffer(chunkSize, m_bumpOptions);
 			cemu_assert_debug(buffer);
@@ -242,7 +242,7 @@ MetalSynchronizedHeapAllocator::AllocatorReservation* MetalSynchronizedHeapAlloc
 
 bool MetalSynchronizedHeapAllocator::DbgOn()
 {
-	static const bool v = BumpOn() && getenv("IRIDIA_INDEX_BUMP_DEBUG") && getenv("IRIDIA_INDEX_BUMP_DEBUG")[0] == '1';
+	static const bool v = BumpOn() && iridia_getenv("IRIDIA_INDEX_BUMP_DEBUG") && iridia_getenv("IRIDIA_INDEX_BUMP_DEBUG")[0] == '1';
 	return v;
 }
 

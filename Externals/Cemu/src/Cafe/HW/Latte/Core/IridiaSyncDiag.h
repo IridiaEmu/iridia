@@ -31,10 +31,4 @@ void IridiaReadbackWritten(uint32_t addr, uint32_t size, uint32_t w, uint32_t h,
 void IridiaQueryFinished(uint32_t queryAddr);
 void IridiaQueryRead(uint32_t queryAddr);
 
-#ifdef IRIDIA_READ_WATCH_BUILD
-extern std::atomic<uint32_t> g_iridiaWatchLo, g_iridiaWatchHi;
-void IridiaReadWatchHit(uint32_t addr, uint32_t size, uint32_t pc);
-#define IRIDIA_WATCH_LOAD(a, n, pc) do { const uint32_t _wa = (a); if (_wa < g_iridiaWatchHi.load(std::memory_order_relaxed) && _wa + (n) > g_iridiaWatchLo.load(std::memory_order_relaxed)) IridiaReadWatchHit(_wa, (n), (pc)); } while (0)
-#else
 #define IRIDIA_WATCH_LOAD(a, n, pc)
-#endif

@@ -61,7 +61,7 @@ namespace
         if (s_pp.checked)
             return s_pp.on;
         s_pp.checked = true;
-        if (!getenv("IRIDIA_GPU_PASSES"))
+        if (!iridia_getenv("IRIDIA_GPU_PASSES"))
             return false;
         if (!dev->supportsCounterSampling(MTL::CounterSamplingPointAtStageBoundary))
         {
@@ -155,13 +155,13 @@ namespace
     }
 
     // study switches read once per call site (getenv scans the whole environment; these sit on per-encoder paths)
-#define IridiaEnvOn(name) ([] { static const bool v = getenv(name) != nullptr; return v; }())
+#define IridiaEnvOn(name) ([] { static const bool v = iridia_getenv(name) != nullptr; return v; }())
 
     // IRIDIA_PASS_SEQ=<frame number>: logs the encoder sequence of that frame (render pass attachments, draws)
     struct { int target = -2; int frame = 0; std::vector<std::string> seq; uint32 draws = 0; } s_seq;
     bool IridiaSeqOn()
     {
-        if (s_seq.target == -2) s_seq.target = getenv("IRIDIA_PASS_SEQ") ? atoi(getenv("IRIDIA_PASS_SEQ")) : -1;
+        if (s_seq.target == -2) s_seq.target = iridia_getenv("IRIDIA_PASS_SEQ") ? atoi(iridia_getenv("IRIDIA_PASS_SEQ")) : -1;
         if (s_seq.target >= 0 && s_seq.frame == 0 && g_iridiaGameplaySeconds.load() >= s_seq.target) s_seq.frame = 1; // armed: record the next whole frame
         return s_seq.frame == 2;
     }
@@ -422,7 +422,7 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
 #if !TARGET_OS_IPHONE
     m_defaultCommitTreshlod = 24;
 #endif
-    if (const char* v = getenv("IRIDIA_COMMIT_DRAWS"); v && atoi(v) > 0)
+    if (const char* v = iridia_getenv("IRIDIA_COMMIT_DRAWS"); v && atoi(v) > 0)
         m_defaultCommitTreshlod = atoi(v);
 
     // Occlusion queries
@@ -470,13 +470,13 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
 
     // Iridia study only: IRIDIA_GPU_WARM=<iterations> keeps one small compute job always queued on its own queue, so
     // the GPU never looks idle to the OS clock heuristics (measures how much GPU clock speed limits the frame)
-    if (const char* v = getenv("IRIDIA_GPU_WARM"); v && atoi(v) > 0)
+    if (const char* v = iridia_getenv("IRIDIA_GPU_WARM"); v && atoi(v) > 0)
     {
         const uint32 iterations = (uint32)atoi(v);
-        const uint32 sleepUs = getenv("IRIDIA_GPU_WARM_SLEEP_US") ? (uint32)atoi(getenv("IRIDIA_GPU_WARM_SLEEP_US")) : 0; // pause between jobs
+        const uint32 sleepUs = iridia_getenv("IRIDIA_GPU_WARM_SLEEP_US") ? (uint32)atoi(iridia_getenv("IRIDIA_GPU_WARM_SLEEP_US")) : 0; // pause between jobs
         m_iridiaWarmRun = true;
         // IRIDIA_GPU_WARM_GATE=1: only spin while game GPU work is in flight (committed, not completed)
-        m_iridiaWarmGate = getenv("IRIDIA_GPU_WARM_GATE") != nullptr;
+        m_iridiaWarmGate = iridia_getenv("IRIDIA_GPU_WARM_GATE") != nullptr;
         m_iridiaWarmThread = std::thread([this, iterations, sleepUs]() {
             NS::Error* err = nullptr;
             auto lib = m_device->newLibrary(ToNSString("kernel void iridiaSpin(device uint* out [[buffer(0)]], constant uint& n [[buffer(1)]], uint tid [[thread_position_in_grid]]) {"
@@ -490,7 +490,7 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
             uint64 jobs = 0, jobNs = 0; auto lastPrint = std::chrono::steady_clock::now();
             // IRIDIA_GPU_WARM_MAXTHERMAL (default 1 = fair): no warm-up while the device is hotter than this
             // (0 nominal, 1 fair, 2 serious, 3 critical); the extra GPU clock must not make a hot phone throttle
-            const int maxThermal = getenv("IRIDIA_GPU_WARM_MAXTHERMAL") ? atoi(getenv("IRIDIA_GPU_WARM_MAXTHERMAL")) : 1;
+            const int maxThermal = iridia_getenv("IRIDIA_GPU_WARM_MAXTHERMAL") ? atoi(iridia_getenv("IRIDIA_GPU_WARM_MAXTHERMAL")) : 1;
             auto lastThermalCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
             bool tooHot = false;
             while (m_iridiaWarmRun.load())
@@ -511,7 +511,7 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
                 if (m_iridiaWarmGate)
                 {
                     // IRIDIA_GPU_WARM_HOLD_US: keep spinning this long after the game's GPU work drained
-                    static const auto s_hold = std::chrono::microseconds(getenv("IRIDIA_GPU_WARM_HOLD_US") ? atoi(getenv("IRIDIA_GPU_WARM_HOLD_US")) : 0);
+                    static const auto s_hold = std::chrono::microseconds(iridia_getenv("IRIDIA_GPU_WARM_HOLD_US") ? atoi(iridia_getenv("IRIDIA_GPU_WARM_HOLD_US")) : 0);
                     static auto s_lastBusy = std::chrono::steady_clock::now();
                     const auto now = std::chrono::steady_clock::now();
                     if (m_iridiaInFlight.load(std::memory_order_relaxed) > 0)
@@ -668,7 +668,7 @@ void MetalRenderer::SwapBuffers(bool swapTV, bool swapDRC)
     // Debug
     {
         // Iridia diagnostics: IRIDIA_DRAWSTATS=1, per-frame draw kinds every 5 s
-        static const bool on = getenv("IRIDIA_DRAWSTATS") != nullptr;
+        static const bool on = iridia_getenv("IRIDIA_DRAWSTATS") != nullptr;
         static uint64 manual = 0, mesh = 0, fans = 0, passes = 0, cbs = 0, frames = 0;
         static auto last = std::chrono::steady_clock::now();
         if (on)
@@ -691,7 +691,7 @@ void MetalRenderer::SwapBuffers(bool swapTV, bool swapDRC)
     {
         // Iridia diagnostics: IRIDIA_BUFSTATS=1, once a second: buffer cache uploads per frame (and how many
         // IRIDIA_SKIP_SAME_UPLOAD skipped), and the CPU time of this thread (the GPU command thread)
-        static const bool on = getenv("IRIDIA_BUFSTATS") != nullptr;
+        static const bool on = iridia_getenv("IRIDIA_BUFSTATS") != nullptr;
         static uint64 frames = 0, lastCpuNs = 0;
         static auto last = std::chrono::steady_clock::now();
         if (on)
@@ -1201,7 +1201,7 @@ void MetalRenderer::texture_clearColorSlice(LatteTexture* hostTexture, sint32 sl
 // (neutral on the Mac; the saving is memory traffic, to be measured on the phone).
 bool MetalRenderer::IridiaFoldClearsOn()
 {
-    static const bool v = getenv("IRIDIA_FOLD_CLEARS") && atoi(getenv("IRIDIA_FOLD_CLEARS")) != 0; // off by default (phone test pending)
+    static const bool v = iridia_getenv("IRIDIA_FOLD_CLEARS") && atoi(iridia_getenv("IRIDIA_FOLD_CLEARS")) != 0; // off by default (phone test pending)
     return v;
 }
 
@@ -1448,7 +1448,7 @@ void MetalRenderer::bufferCache_copy(uint32 srcOffset, uint32 dstOffset, uint32 
 // work of the pass), so a destination they use takes the blit. srcAfter: stages that wrote src in this pass (0 = none).
 bool MetalRenderer::IridiaCopyInPass(MTL::Buffer* src, size_t srcOffset, size_t dstOffset, size_t size, MTL::RenderStages srcAfter)
 {
-    static const bool s_blit = getenv("IRIDIA_XFB_BLIT") != nullptr;
+    static const bool s_blit = iridia_getenv("IRIDIA_XFB_BLIT") != nullptr;
     bool inPass = !s_blit && m_isAppleGPU && m_encoderType == MetalEncoderType::Render && ((srcOffset | dstOffset | size) & 3) == 0 && size > 0;
     for (size_t i = 0; inPass && i < m_iridiaPassReads.size(); i++)
     {
@@ -1491,7 +1491,7 @@ bool MetalRenderer::IridiaCopyInPass(MTL::Buffer* src, size_t srcOffset, size_t 
 std::atomic<uint32> g_iridiaRedirectStats[2];
 bool MetalRenderer::IridiaRedirectUpload(MTL::Buffer* src, size_t srcOffset, size_t dstOffset, size_t size)
 {
-    static const bool s_off = getenv("IRIDIA_NO_REDIRECT") != nullptr;
+    static const bool s_off = iridia_getenv("IRIDIA_NO_REDIRECT") != nullptr;
     if (s_off || m_encoderType != MetalEncoderType::Render || size == 0)
         return false;
     m_iridiaRedirects.push_back({ dstOffset, size, src, srcOffset });
@@ -1651,7 +1651,7 @@ void MetalRenderer::draw_beginSequence()
 // Iridia study: IRIDIA_DRAW_TIMES=1 times draw_execute on the GPU command thread: [0] whole call, [1] resource
 // binding (BindStageResources for all stages), [2] draws timed; printed once per second (LattePerformanceMonitor)
 std::atomic<uint64> g_iridiaDrawNs[3];
-static bool IridiaDrawTimesOn() { static const bool v = getenv("IRIDIA_DRAW_TIMES") != nullptr; return v; }
+static bool IridiaDrawTimesOn() { static const bool v = iridia_getenv("IRIDIA_DRAW_TIMES") != nullptr; return v; }
 struct IridiaDrawTimer
 {
     uint64 t0 = IridiaDrawTimesOn() ? IridiaTimelineNow() : 0;
@@ -1661,7 +1661,7 @@ struct IridiaDrawTimer
 std::atomic<uint64> g_iridiaFastDrawStats[4]; // fast continued draws, pipeline re-looked-up, check mismatches, full draws
 std::atomic<uint64> g_iridiaFastDrawMis[4]; // check mismatches by kind: pipeline, depth-stencil, textures, support buffer
 // on by default since Oct 30 (Mac +3.7% uncapped, 4/4 rounds); IRIDIA_FASTDRAW=0 turns it off, =2 is the check mode
-static int IridiaFastDrawMode() { static const int v = getenv("IRIDIA_FASTDRAW") ? atoi(getenv("IRIDIA_FASTDRAW")) : 1; return v; }
+static int IridiaFastDrawMode() { static const int v = iridia_getenv("IRIDIA_FASTDRAW") ? atoi(iridia_getenv("IRIDIA_FASTDRAW")) : 1; return v; }
 
 void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 instanceCount, uint32 count, MPTR indexDataMPTR, Latte::LATTE_VGT_DMA_INDEX_TYPE::E_INDEX_TYPE indexType, const LatteDrawcallContext& drawcallContext)
 {
@@ -2127,7 +2127,7 @@ void MetalRenderer::draw_endSequence()
 	m_recordedDrawcalls++;
 	// Iridia study: IRIDIA_LATTE_SPIN_NS=<n> busy-waits n ns per draw on this thread (off by default). Sensitivity
 	// test for moving encoding off this thread: if added time here does not lower fps, removing it will not raise it.
-	static const uint64 s_spinNs = getenv("IRIDIA_LATTE_SPIN_NS") ? strtoull(getenv("IRIDIA_LATTE_SPIN_NS"), nullptr, 10) : 0;
+	static const uint64 s_spinNs = iridia_getenv("IRIDIA_LATTE_SPIN_NS") ? strtoull(iridia_getenv("IRIDIA_LATTE_SPIN_NS"), nullptr, 10) : 0;
 	if (s_spinNs)
 	{
 		static mach_timebase_info_data_t tb = [] { mach_timebase_info_data_t t; mach_timebase_info(&t); return t; }();
@@ -2138,10 +2138,10 @@ void MetalRenderer::draw_endSequence()
 	// TODO: ucomment?
 	// Iridia study: IRIDIA_INPASS_COMMIT=<n> sets the in-pass multiplier (default 2). A commit inside a render pass
 	// splits it: the reopened pass reloads its attachments and its vertex stage waits for the first half's fragments.
-	static const uint32 s_inPassMult = getenv("IRIDIA_INPASS_COMMIT") ? (uint32)atoi(getenv("IRIDIA_INPASS_COMMIT")) : 2;
+	static const uint32 s_inPassMult = iridia_getenv("IRIDIA_INPASS_COMMIT") ? (uint32)atoi(iridia_getenv("IRIDIA_INPASS_COMMIT")) : 2;
 	if (m_recordedDrawcalls >= m_commitTreshold * s_inPassMult/* || hasReadback*/)
 	{
-		static const bool s_noResume = getenv("IRIDIA_NO_RESUME") != nullptr;
+		static const bool s_noResume = iridia_getenv("IRIDIA_NO_RESUME") != nullptr;
 		if (!s_noResume && m_commandEncoder && m_encoderType == MetalEncoderType::Render && m_state.m_lastUsedFBO.m_fbo)
 			m_iridiaResumeFBO = m_state.m_lastUsedFBO;
 		CommitCommandBuffer();
@@ -2511,7 +2511,7 @@ MTL::RenderCommandEncoder* MetalRenderer::GetRenderCommandEncoder(bool forceRecr
         // Iridia study: IRIDIA_BOUNDARY_COMMIT=<n> commits at a render pass boundary once the command buffer holds n
         // draws (the sequence-count threshold lets ~460 draws pile up). The pass ends here anyway, so no pass is split
         // and the GPU gets the work sooner.
-        static const uint32 s_boundaryCommit = getenv("IRIDIA_BOUNDARY_COMMIT") ? (uint32)atoi(getenv("IRIDIA_BOUNDARY_COMMIT")) : 0;
+        static const uint32 s_boundaryCommit = iridia_getenv("IRIDIA_BOUNDARY_COMMIT") ? (uint32)atoi(iridia_getenv("IRIDIA_BOUNDARY_COMMIT")) : 0;
         if (s_boundaryCommit && m_iridiaCmdDraws >= s_boundaryCommit && m_encoderType == MetalEncoderType::Render)
             CommitCommandBuffer();
         else
@@ -2607,7 +2607,7 @@ MTL::RenderCommandEncoder* MetalRenderer::GetRenderCommandEncoder(bool forceRecr
         iridiaRp->colorAttachments()->object(i)->setLoadAction(MTL::LoadActionLoad); // the cached descriptor stays as it was
         c.texture->release();
     }
-    static const bool s_iridiaLabels = getenv("IRIDIA_ENC_LABELS") != nullptr; // Iridia: pass names in Metal System Trace
+    static const bool s_iridiaLabels = iridia_getenv("IRIDIA_ENC_LABELS") != nullptr; // Iridia: pass names in Metal System Trace
     if (s_iridiaLabels)
     {
         fprintf(stderr, "IRIDIA_ENC R %s\n", IridiaRenderPassKey(iridiaRp).c_str());
@@ -3183,7 +3183,7 @@ void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandE
 		// Iridia: a draw whose uniform block for this stage is byte-identical to the previous upload in the same
 		// command buffer binds that upload again instead of copying a new one (the ring keeps it until the command
 		// buffer completes). IRIDIA_UNIFORM_REUSE=0 turns it off (A/B).
-		static const bool s_reuseOn = !getenv("IRIDIA_UNIFORM_REUSE") || atoi(getenv("IRIDIA_UNIFORM_REUSE")) != 0;
+		static const bool s_reuseOn = !iridia_getenv("IRIDIA_UNIFORM_REUSE") || atoi(iridia_getenv("IRIDIA_UNIFORM_REUSE")) != 0;
 		// check mode: a continued draw that would have reused the support buffer must produce the same bytes
 		if (fast && fastMode == 2 && supportStatic && shader->uniform.loc_verticesPerInstance < 0 && last.buffer && last.shader == shader &&
 			last.serial == m_iridiaSerial && last.size == size && memcmp(last.data, supportBufferData, size) != 0)

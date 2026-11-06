@@ -253,7 +253,7 @@ int BreathOfTheWildChildProcessMain();
 int main(int argc, char *argv[])
 {
 #if BOOST_OS_LINUX && defined(ENABLE_VULKAN)
-	if (getenv("CEMU_DETECT_RADV") != nullptr)
+	if (iridia_getenv("CEMU_DETECT_RADV") != nullptr)
 		return BreathOfTheWildChildProcessMain();
 #endif
 

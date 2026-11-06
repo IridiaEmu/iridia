@@ -73,15 +73,8 @@ if(IOS)
 		ios_bridge/CemuBridge.mm
 		ios_bridge/WindowSystemIOS.mm
 		ios_bridge/NoJitCheckIOS.mm
-		ios_bridge/HangDumpIOS.mm
-		ios_bridge/DiagIOS.mm
-		ios_bridge/IridiaPsVecTest.cpp
 	)
-	set_source_files_properties(ios_bridge/IridiaPsVecTest.cpp PROPERTIES COMPILE_OPTIONS "-ffp-contract=off" SKIP_PRECOMPILE_HEADERS ON)
 	set_source_files_properties(main.cpp PROPERTIES COMPILE_DEFINITIONS "main=cemu_desktop_main")
-	if (IRIDIA_NOJIT_NEGATIVE_CONTROL)
-		set_source_files_properties(ios_bridge/NoJitCheckIOS.mm PROPERTIES COMPILE_DEFINITIONS "IRIDIA_NOJIT_NEGCTL=1")
-	endif()
 	target_include_directories(CemuIOSBridge PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/gui/interface")
 	cemu_use_precompiled_header(CemuIOSBridge)
 	target_link_libraries(CemuIOSBridge PRIVATE CemuAudio CemuCafe CemuCommon CemuComponents CemuConfig CemuGui CemuInput CemuUtil)

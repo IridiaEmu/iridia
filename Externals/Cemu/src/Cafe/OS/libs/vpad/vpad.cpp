@@ -79,8 +79,8 @@ namespace iridia_external
 namespace iridia_autopilot
 {
 	// read on first use: the iOS app sets these per launch (-cafeEnv) after static initialization
-	static bool Enabled() { static const bool v = getenv("IRIDIA_AUTOPILOT") != nullptr; return v; }
-	static const char* ShotDir() { static const char* v = getenv("IRIDIA_SHOTS"); return v; }
+	static bool Enabled() { static const bool v = iridia_getenv("IRIDIA_AUTOPILOT") != nullptr; return v; }
+	static const char* ShotDir() { static const char* v = iridia_getenv("IRIDIA_SHOTS"); return v; }
 	static std::chrono::steady_clock::time_point s_start, s_runStart;
 	static bool s_started = false, s_running = false;
 	static int s_nextShot = 0;
@@ -130,7 +130,7 @@ namespace iridia_autopilot
 		status->leftStick.y = 0.0f;
 		// IRIDIA_AUTOPILOT_STILL=1: the camera stays still too (screenshots of two runs then show the same view, for
 		// pixel comparisons between builds)
-		static const bool s_still = getenv("IRIDIA_AUTOPILOT_STILL") != nullptr;
+		static const bool s_still = iridia_getenv("IRIDIA_AUTOPILOT_STILL") != nullptr;
 		status->rightStick.x = s_still ? 0.0f : 0.35f;
 		status->rightStick.y = 0.0f;
 		if (ShotDir() && s_nextShot < kShots && r >= 15.0 * (s_nextShot + 1) && g_renderer)

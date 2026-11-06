@@ -197,7 +197,7 @@ void LatteFetchShader::CheckIfVerticesNeedManualFetchMtl(uint32* contextRegister
  			    mtlFetchVertexManually = true;
   		}
 		// Iridia study: IRIDIA_MANUAL_FETCH_LOG=1 prints why a fetch shader needs manual vertex fetch
-		static const bool s_log = getenv("IRIDIA_MANUAL_FETCH_LOG") != nullptr;
+		static const bool s_log = iridia_getenv("IRIDIA_MANUAL_FETCH_LOG") != nullptr;
 		if (s_log && mtlFetchVertexManually)
 		{
 			std::string a;

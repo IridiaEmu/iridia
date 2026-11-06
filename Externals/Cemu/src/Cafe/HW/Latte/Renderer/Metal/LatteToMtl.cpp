@@ -196,7 +196,7 @@ void CheckForPixelFormatSupport(const MetalPixelFormatSupport& support)
         // Iridia study: IRIDIA_BC_ASTC=1 transcodes the unorm BC formats to ASTC 4x4 at upload instead (1 byte per
         // texel instead of 16; ASTC is lossy, see IridiaAstc.h). The snorm BC4/BC5 formats keep the decode above
         // (ASTC has no signed formats).
-        if (getenv("IRIDIA_BC_ASTC") && atoi(getenv("IRIDIA_BC_ASTC")) == 1)
+        if (iridia_getenv("IRIDIA_BC_ASTC") && atoi(iridia_getenv("IRIDIA_BC_ASTC")) == 1)
         {
             using IridiaAstc::Src;
             auto setAstc = [](Latte::E_GX2SURFFMT f, bool srgb, TextureDecoder* dec) {

@@ -82,7 +82,7 @@ LatteTextureMtl::LatteTextureMtl(class MetalRenderer* mtlRenderer, Latte::E_DIM 
 	// Iridia: leave out the pixel format view usage (it can turn off lossless compression; phone -1.2 ms per frame).
 	// A view that needs it recreates the texture with it (IridiaEnsurePfv).
 	// Off by default: no clear gain on the Mac (-1.1%) or the phone (+0.2%). IRIDIA_NO_PFV=1 turns it on.
-	static const bool s_noPfv = getenv("IRIDIA_NO_PFV") && atoi(getenv("IRIDIA_NO_PFV")) == 1;
+	static const bool s_noPfv = iridia_getenv("IRIDIA_NO_PFV") && atoi(iridia_getenv("IRIDIA_NO_PFV")) == 1;
 	MTL::TextureUsage usage = MTL::TextureUsageShaderRead | (s_noPfv ? 0 : MTL::TextureUsagePixelFormatView);
 	if (FormatIsRenderable(format))
 		usage |= MTL::TextureUsageRenderTarget;

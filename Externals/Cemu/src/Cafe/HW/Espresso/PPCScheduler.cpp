@@ -36,10 +36,16 @@ namespace coreinit
 	void __OSThreadSwitchToNext();
 }
 
+// Iridia: set by the app while the game is paused (pause sheet, end of a free play session). Each emulated core
+// stops at the end of its current time slice, outside the scheduler lock, until it is cleared or the title ends.
+std::atomic<bool> g_iridiaPaused{false};
+
 void PPCCore_switchToScheduler()
 {
 	cemu_assert_debug(__OSHasSchedulerLock() == false); // scheduler lock must not be hold past thread time slice
 	cemu_assert_debug(PPCInterpreter_getCurrentInstance()->coreInterruptMask != 0 || CafeSystem::GetForegroundTitleId() == 0x000500001019e600);
+	while (g_iridiaPaused.load(std::memory_order_relaxed) && coreinit::OSIsSchedulerActive()) [[unlikely]]
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	__OSLockScheduler();
 	coreinit::__OSThreadSwitchToNext();
 	__OSUnlockScheduler();

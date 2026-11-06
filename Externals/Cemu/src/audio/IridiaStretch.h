@@ -24,7 +24,7 @@ extern std::atomic<uint32_t> g_iridiaAudioStretched; // IAudioAPI.cpp: callbacks
 
 inline bool IridiaStretchEnabled()
 {
-	static const bool v = getenv("IRIDIA_AUDIO_STRETCH") && getenv("IRIDIA_AUDIO_STRETCH")[0] == '1';
+	static const bool v = iridia_getenv("IRIDIA_AUDIO_STRETCH") && iridia_getenv("IRIDIA_AUDIO_STRETCH")[0] == '1';
 	return v;
 }
 
@@ -32,7 +32,7 @@ inline bool IridiaStretchEnabled()
 // to an A/B afterwards; file I/O in the audio callback, so test only)
 inline void IridiaAudioWavDump(const void* data, size_t bytes, uint32_t channels)
 {
-	static FILE* s_f = [] { const char* p = getenv("IRIDIA_AUDIO_WAV"); return p ? fopen(p, "wb") : nullptr; }();
+	static FILE* s_f = [] { const char* p = iridia_getenv("IRIDIA_AUDIO_WAV"); return p ? fopen(p, "wb") : nullptr; }();
 	static uint32_t s_bytes = 0, s_sinceHeader = 0;
 	if (!s_f)
 		return;
@@ -68,7 +68,7 @@ public:
 	{
 		m_low = std::max(envInt("IRIDIA_STRETCH_LOW", 2304), 2 * kFloor);
 		m_high = std::max(envInt("IRIDIA_STRETCH_HIGH", 4608), m_low * 2);
-		m_minRate = std::clamp(getenv("IRIDIA_STRETCH_MIN") ? atof(getenv("IRIDIA_STRETCH_MIN")) : 0.5, 0.3, 1.0);
+		m_minRate = std::clamp(iridia_getenv("IRIDIA_STRETCH_MIN") ? atof(iridia_getenv("IRIDIA_STRETCH_MIN")) : 0.5, 0.3, 1.0);
 		m_w.resize(2 * kHop);
 		for (int i = 0; i < 2 * kHop; i++)
 			m_w[i] = 0.5f - 0.5f * std::cos(6.283185307f * (float)i / (float)(2 * kHop)); // periodic Hann: w[i] + w[i+hop] = 1
@@ -191,7 +191,7 @@ public:
 	bool Active() const { return m_active; }
 
 private:
-	static int envInt(const char* name, int def) { const char* v = getenv(name); return v ? std::max(1, atoi(v)) : def; }
+	static int envInt(const char* name, int def) { const char* v = iridia_getenv(name); return v ? std::max(1, atoi(v)) : def; }
 	static int16_t clamp16(float v) { return (int16_t)std::clamp(std::lrintf(v), -32768L, 32767L); }
 
 	// input frames to use per output frame for this much queued sound; while stretching, it goes back to a plain

@@ -239,6 +239,9 @@ size_t CurlRequestHelper::__curlWriteCallback(char* ptr, size_t size, size_t nme
 
 bool CurlRequestHelper::submitRequest(bool isPost)
 {
+#if IRIDIA_SHIP
+	return false; // Iridia App Store build: no network requests (no Nintendo Network, Pretendo or icon downloads)
+#endif
 	// HTTP headers
 	struct curl_slist* headers = nullptr;
 	for (auto& itr : m_headerExtraFields)
@@ -415,6 +418,9 @@ sint32 iosuCrypto_getDeviceCertificateBase64Encoded(char* output);
 
 bool CurlSOAPHelper::submitRequest()
 {
+#if IRIDIA_SHIP
+	return false; // Iridia App Store build: no network requests (no Nintendo Network, Pretendo or icon downloads)
+#endif
 	// generate and set envelope
 	SOAP_generateEnvelope();
 	curl_easy_setopt(m_curl, CURLOPT_POST, 1);

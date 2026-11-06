@@ -28,7 +28,7 @@ struct MetalPixelFormatSupport
         m_supportsBC = device->supportsBCTextureCompression();
         // Iridia study: IRIDIA_FORCE_NO_BC=1 takes the no-BC fallback even where BC exists (on the Mac, to reproduce
         // what a GPU without BC does)
-        if (getenv("IRIDIA_FORCE_NO_BC") && atoi(getenv("IRIDIA_FORCE_NO_BC")) == 1)
+        if (iridia_getenv("IRIDIA_FORCE_NO_BC") && atoi(iridia_getenv("IRIDIA_FORCE_NO_BC")) == 1)
             m_supportsBC = false;
 #if TARGET_OS_SIMULATOR
         // Iridia Wii U app: the iOS Simulator claims the Apple GPU family but lacks these formats.

@@ -1322,8 +1322,8 @@ LatteTexture::LatteTexture(Latte::E_DIM dim, MPTR physAddress, MPTR physMipAddre
 	// Game-agnostic: scales tiled single-mip 2D surfaces whose size is a screen size (720p, 1080p, 480p GamePad and
 	// their 1/2, 1/4, 1/8), the same way a resolution graphic pack's texture rules do. IRIDIA_TEXLOG=1 prints sizes.
 	{
-		static const int s_resScale = []() { const char* e = getenv("IRIDIA_RES_SCALE"); int v = e ? atoi(e) : 100; return (v >= 25 && v < 100) ? v : 100; }();
-		static const bool s_texLog = getenv("IRIDIA_TEXLOG") && getenv("IRIDIA_TEXLOG")[0] == '1';
+		static const int s_resScale = []() { const char* e = iridia_getenv("IRIDIA_RES_SCALE"); int v = e ? atoi(e) : 100; return (v >= 25 && v < 100) ? v : 100; }();
+		static const bool s_texLog = iridia_getenv("IRIDIA_TEXLOG") && iridia_getenv("IRIDIA_TEXLOG")[0] == '1';
 		const bool tiled = tileMode != Latte::E_HWTILEMODE::TM_LINEAR_GENERAL && tileMode != Latte::E_HWTILEMODE::TM_LINEAR_ALIGNED;
 		const bool flat = (dim == Latte::E_DIM::DIM_2D || dim == Latte::E_DIM::DIM_2D_MSAA) && depth == 1 && mipLevels == 1;
 		bool screenSized = false;

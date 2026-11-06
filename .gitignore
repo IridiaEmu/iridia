@@ -114,3 +114,9 @@ benchmarks/profiles/
 Tools/StoreTestHost/Derived/
 Tools/StoreTestHost/*.xcodeproj/
 Tools/StoreTestHost/*.xcworkspace/
+
+# Wii U core (Externals/Cemu/ios/build_core.sh): CMake build dirs, prebuilt vcpkg libraries, moved-aside output
+/Externals/Cemu/build-*/
+/Externals/Cemu/build-*.log
+/Externals/Cemu/ios/vcpkg_installed/
+/.trash/

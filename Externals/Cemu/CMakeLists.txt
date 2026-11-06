@@ -279,7 +279,8 @@ if (CMAKE_OSX_ARCHITECTURES)
 else()
 	set(CEMU_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
 endif()
-if(CEMU_ARCHITECTURE MATCHES "(aarch64)|(AARCH64)|(arm64)|(ARM64)")
+# Iridia: xbyak_aarch64 is the JIT backend's code emitter; a CEMU_NO_JIT build has neither (and this tree omits it).
+if(CEMU_ARCHITECTURE MATCHES "(aarch64)|(AARCH64)|(arm64)|(ARM64)" AND NOT CEMU_NO_JIT)
 	add_subdirectory("dependencies/xbyak_aarch64" EXCLUDE_FROM_ALL)
 endif()
 

@@ -1,4 +1,5 @@
 #include "Cafe/OS/common/OSCommon.h"
+#include "Cafe/HW/Latte/Core/IridiaSyncDiag.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "GX2.h"
 #include "Cafe/HW/Latte/Core/LattePM4.h"
@@ -111,6 +112,8 @@ namespace GX2
 			return GX2_FALSE;
 		}
 		*resultOut = endValue - startValue;
+		if (IridiaSyncLogOn())
+			IridiaQueryRead(memory_getVirtualOffsetFromPointer(query));
 		return GX2_TRUE;
 	}
 

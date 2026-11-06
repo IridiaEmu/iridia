@@ -9,6 +9,7 @@
 #include "Cafe/HW/Latte/Core/LatteCachedFBO.h"
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
 #include "Cafe/HW/Latte/Core/LattePerformanceMonitor.h"
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 #include "util/highresolutiontimer/HighResolutionTimer.h"
 #include "Cafe/GraphicPack/GraphicPack2.h"
 #include "HW/Latte/Renderer/RendererCore.h"
@@ -686,6 +687,26 @@ void LatteRenderTarget_itHLESwapScanBuffer()
 	FrameBenchmarkHelper::FrameEnd();
 	LatteGPUState.frameCounter++;
 	g_renderer->SwapBuffers(true, true);
+	{
+		// Iridia study: displayed frame times (present to present on the GPU thread), printed as IRIDIA_PRESENT;
+		// the present count lets IRIDIA_VRR know the guest's frame is out
+		extern std::atomic<uint32> g_iridiaHostPresents, g_iridiaPresentHist[9];
+		extern std::atomic<uint64> g_iridiaPresentSumUs, g_iridiaPresentSqUs;
+		static uint64 s_lastNs = 0;
+		const uint64 now = IridiaTimelineNow();
+		if (s_lastNs)
+		{
+			const uint64 us = (now - s_lastNs) / 1000;
+			static const uint64 edges[8] = {17500, 25000, 34200, 41000, 51000, 60000, 68000, 100000};
+			int b = 0;
+			while (b < 8 && us >= edges[b]) b++;
+			g_iridiaPresentHist[b].fetch_add(1, std::memory_order_relaxed);
+			g_iridiaPresentSumUs.fetch_add(us, std::memory_order_relaxed);
+			g_iridiaPresentSqUs.fetch_add(us * us / 1000, std::memory_order_relaxed);
+		}
+		s_lastNs = now;
+		g_iridiaHostPresents.fetch_add(1, std::memory_order_release);
+	}
 
 	catchOpenGLError();
 	performanceMonitor.gpuTime_frameTime.beginMeasuring();

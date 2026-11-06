@@ -1,5 +1,7 @@
 #include "Cafe/OS/common/OSCommon.h"
+#include "Cafe/HW/Latte/Core/IridiaSyncDiag.h"
 #include "coreinit_Memory.h"
+#include "Cafe/HW/Espresso/IridiaCounters.h"
 #include "Cafe/HW/Latte/Core/LatteBufferCache.h"
 #include "Cafe/OS/RPL/rpl.h"
 #include "Cafe/GraphicPack/GraphicPack2.h"
@@ -19,6 +21,7 @@ namespace coreinit
 	{
 		MPTR addrEnd = (addr + size + 0x1F) & ~0x1F;
 		addr &= ~0x1F;
+		IRIDIA_CNT(CNT_DCRANGE_LINES, (addrEnd - addr) / 32);
 		LatteBufferCache_notifyDCFlush(addr, addrEnd - addr);
 	}
 
@@ -26,6 +29,7 @@ namespace coreinit
 	{
 		MPTR addrEnd = (addr + size + 0x1F) & ~0x1F;
 		addr &= ~0x1F;
+		IRIDIA_CNT(CNT_DCRANGE_LINES, (addrEnd - addr) / 32);
 		LatteBufferCache_notifyDCFlush(addr, addrEnd - addr);
 	}
 
@@ -40,6 +44,7 @@ namespace coreinit
 	{
 		MPTR addrEnd = (addr + size + 0x1F) & ~0x1F;
 		addr &= ~0x1F;
+		IRIDIA_CNT(CNT_DCRANGE_LINES, (addrEnd - addr) / 32);
 		LatteBufferCache_notifyDCFlush(addr, addrEnd - addr);
 	}
 
@@ -84,6 +89,8 @@ namespace coreinit
 		}
 		if (size > 0)
 		{
+			IRIDIA_CNT(CNT_MEMCPY_BYTES, size);
+			IRIDIA_WATCH_LOAD(src.GetMPTR(), size, PPCInterpreter_getCurrentInstance()->spr.LR);
 			memcpy(dst.GetPtr(), src.GetPtr(), size);
 			// always flushes the cache!
 			LatteBufferCache_notifyDCFlush(dst.GetMPTR(), size);
@@ -96,6 +103,8 @@ namespace coreinit
 	{
 		if (size > 0)
 		{
+			IRIDIA_CNT(CNT_MEMCPY_BYTES, size);
+			IRIDIA_WATCH_LOAD(memory_getVirtualOffsetFromPointer(src), size, PPCInterpreter_getCurrentInstance()->spr.LR);
 			memmove(dst.GetPtr(), src, size);
 			// always flushes the cache!
 			LatteBufferCache_notifyDCFlush(dst.GetMPTR(), size);
@@ -107,6 +116,8 @@ namespace coreinit
 	{
 		if (size > 0)
 		{
+			IRIDIA_CNT(CNT_MEMCPY_BYTES, size);
+			IRIDIA_WATCH_LOAD(src.GetMPTR(), size, PPCInterpreter_getCurrentInstance()->spr.LR);
 			memmove(dst.GetPtr(), src.GetPtr(), size);
 			if (flushDC)
 				LatteBufferCache_notifyDCFlush(dst.GetMPTR(), size);

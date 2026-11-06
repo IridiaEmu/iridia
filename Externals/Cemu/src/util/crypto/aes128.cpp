@@ -1,3 +1,5 @@
+#include <atomic>
+#include <chrono>
 /*
 	Original implementation based on Tiny-AES-c (2015)
 	https://github.com/kokke/tiny-AES-c
@@ -827,6 +829,77 @@ void AES128CTR_transform(uint8* data, sint32 length, uint8* key, uint8* nonceIv)
 	}
 }
 
+#if defined(__aarch64__)
+// Iridia (CPU_OPT.md, on by default since Oct 29, IRIDIA_AES_ARM=0 turns it off): ARMv8 AES instructions for disc decryption (FSTVolume
+// hashed blocks are AES-128-CBC; the software InvCipher was 4% of CPU on the Mac efficiency cores while BotW streamed).
+// Round keys come from the software KeyExpansion (FIPS byte order, same as the vector registers). Checked against the
+// FIPS-197 vector and the software path at init; any mismatch keeps the software path.
+#include <arm_neon.h>
+__attribute__((target("aes"))) static void __armv8__AES128_CBC_decrypt(uint8* output, uint8* input, uint32 length, const uint8* key, const uint8* iv)
+{
+	aes128Ctx_t aesCtx;
+	KeyExpansion(&aesCtx, key);
+	uint8x16_t rk[11];
+	for (int r = 0; r < 11; r++)
+		rk[r] = vld1q_u8(aesCtx.RoundKey + 16 * r);
+	for (int r = 1; r < 10; r++)
+		rk[r] = vaesimcq_u8(rk[r]); // equivalent inverse cipher: InvMixColumns moves onto the middle round keys
+	uint8x16_t feedback = iv ? vld1q_u8(iv) : vdupq_n_u8(0);
+	for (uint32 i = 0; i + 16 <= length; i += 16)
+	{
+		const uint8x16_t in = vld1q_u8(input + i);
+		uint8x16_t st = vaesdq_u8(in, rk[10]);
+		for (int r = 9; r >= 1; r--)
+			st = vaesdq_u8(vaesimcq_u8(st), rk[r]);
+		st = veorq_u8(st, rk[0]);
+		vst1q_u8(output + i, veorq_u8(st, feedback)); // output may alias input: input block read first
+		feedback = in;
+	}
+}
+__attribute__((target("aes"))) static void __armv8__AES128_ECB_encrypt(uint8* input, const uint8* key, uint8* output)
+{
+	aes128Ctx_t aesCtx;
+	KeyExpansion(&aesCtx, key);
+	uint8x16_t st = vaeseq_u8(vld1q_u8(input), vld1q_u8(aesCtx.RoundKey));
+	for (int r = 1; r < 10; r++)
+		st = vaeseq_u8(vaesmcq_u8(st), vld1q_u8(aesCtx.RoundKey + 16 * r));
+	vst1q_u8(output, veorq_u8(st, vld1q_u8(aesCtx.RoundKey + 160)));
+}
+static bool AES128_armv8SelfTest()
+{
+	uint8 key[16], pt[16], ct[16], out[16];
+	for (int i = 0; i < 16; i++) { key[i] = (uint8)i; pt[i] = (uint8)(i * 0x11); }
+	static const uint8 fips[16] = { 0x69,0xc4,0xe0,0xd8,0x6a,0x7b,0x04,0x30,0xd8,0xcd,0xb7,0x80,0x70,0xb4,0xc5,0x5a };
+	__armv8__AES128_ECB_encrypt(pt, key, ct);
+	if (memcmp(ct, fips, 16) != 0) return false;
+	__armv8__AES128_CBC_decrypt(out, ct, 16, key, nullptr);
+	if (memcmp(out, pt, 16) != 0) return false;
+	// longer CBC buffer, in place and out of place, against the software path
+	uint8 buf[256], a[256], b[256], iv[16];
+	uint32 x = 0x12345678;
+	for (auto& v : buf) { x = x * 1103515245 + 12345; v = (uint8)(x >> 24); }
+	for (int i = 0; i < 16; i++) iv[i] = buf[i] ^ 0x5a;
+	__soft__AES128_CBC_decrypt(a, buf, 256, key, iv);
+	__armv8__AES128_CBC_decrypt(b, buf, 256, key, iv);
+	if (memcmp(a, b, 256) != 0) return false;
+	memcpy(b, buf, 256);
+	__armv8__AES128_CBC_decrypt(b, b, 256, key, iv);
+	return memcmp(a, b, 256) == 0;
+}
+#endif
+
+// Iridia: decrypted bytes and time spent in CBC decryption (logged as IRIDIA_AESSTAT next to IRIDIA_PERF), to time
+// loading on the phone by its disc reads (CPU_OPT.md 5.6).
+std::atomic<uint64> g_iridiaAesBytes{0}, g_iridiaAesNs{0};
+static void (*s_aesCbcInner)(uint8* output, uint8* input, uint32 length, const uint8* key, const uint8* iv) = nullptr;
+static void __counted__AES128_CBC_decrypt(uint8* output, uint8* input, uint32 length, const uint8* key, const uint8* iv)
+{
+	const auto t0 = std::chrono::steady_clock::now();
+	s_aesCbcInner(output, input, length, key, iv);
+	g_iridiaAesNs.fetch_add(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count(), std::memory_order_relaxed);
+	g_iridiaAesBytes.fetch_add(length, std::memory_order_relaxed);
+}
+
 void AES128_init()
 {
 	for (uint32 i = 0; i <= 0xFF; i++)
@@ -854,5 +927,19 @@ void AES128_init()
     #else
 	AES128_CBC_decrypt = __soft__AES128_CBC_decrypt;
 	AES128_ECB_encrypt = __soft__AES128_ECB_encrypt;
+	#if defined(__aarch64__)
+	if (const char* v = getenv("IRIDIA_AES_ARM"); !v || v[0] != '0')
+	{
+		const bool ok = AES128_armv8SelfTest();
+		fprintf(stderr, "IRIDIA_AES_ARM self-test %s\n", ok ? "PASS (ARMv8 AES on)" : "FAIL (software AES kept)");
+		if (ok)
+		{
+			AES128_CBC_decrypt = __armv8__AES128_CBC_decrypt;
+			AES128_ECB_encrypt = __armv8__AES128_ECB_encrypt;
+		}
+	}
+	#endif
     #endif
+	s_aesCbcInner = AES128_CBC_decrypt;
+	AES128_CBC_decrypt = __counted__AES128_CBC_decrypt;
 }

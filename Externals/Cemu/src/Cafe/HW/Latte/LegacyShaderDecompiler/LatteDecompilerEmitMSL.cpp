@@ -730,6 +730,17 @@ static void _emitCodeToReadRelativeGPR(LatteDecompilerShaderContext* shaderConte
 		_emitTypeConversionSuffixMSL(shaderContext, LATTE_DECOMPILER_DTYPE_SIGNED_INT, requiredType);
 }
 
+// Iridia: x*x needs no zero guard (if x is 0 both sides are 0, so the result is 0 either way; inf/NaN behave the same
+// as with the guard). True when operands 0 and 1 read the same value: same register or constant, channel and modifiers,
+// no relative addressing. On by default; IRIDIA_MUL_SQUARE=0 turns it off.
+static bool _iridiaSquareOperands(LatteDecompilerALUInstruction* aluInstruction)
+{
+	static const bool s_on = !(getenv("IRIDIA_MUL_SQUARE") && atoi(getenv("IRIDIA_MUL_SQUARE")) == 0);
+	const auto& a = aluInstruction->sourceOperand[0];
+	const auto& b = aluInstruction->sourceOperand[1];
+	return s_on && a.sel == b.sel && a.chan == b.chan && a.abs == b.abs && a.neg == b.neg && a.rel == 0 && b.rel == 0;
+}
+
 static void _emitOperandInputCode(LatteDecompilerShaderContext* shaderContext, LatteDecompilerALUInstruction* aluInstruction, sint32 operandIndex, sint32 requiredType)
 {
 	StringBuf* src = shaderContext->shaderSource;
@@ -1088,6 +1099,8 @@ static void _emitALUOP2InstructionCode(LatteDecompilerShaderContext* shaderConte
 			{
 				useDefaultMul = true;
 			}
+			if (_iridiaSquareOperands(aluInstruction))
+				useDefaultMul = true;
 			if (shaderContext->options->strictMul && useDefaultMul == false)
 			{
 				src->add("mul_nonIEEE(");
@@ -1624,6 +1637,8 @@ static void _emitALUOP3InstructionCode(LatteDecompilerShaderContext* shaderConte
 			useDefaultMul = true;
 		}
 		if (aluInstruction->opcode == ALU_OP3_INST_MULADD_IEEE)
+			useDefaultMul = true;
+		if (_iridiaSquareOperands(aluInstruction))
 			useDefaultMul = true;
 
 		if (shaderContext->options->strictMul && useDefaultMul == false)
@@ -3774,7 +3789,12 @@ void LatteDecompiler_emitHelperFunctions(LatteDecompilerShaderContext* shaderCon
 
 		// for "min" it used to be: float mul_nonIEEE(float a, float b){ return min(a*b,min(abs(a)*3.40282347E+38F,abs(b)*3.40282347E+38F)); }
 
-		if( LatteGPUState.glVendor == GLVENDOR_NVIDIA && !ActiveSettings::DumpShadersEnabled())
+		// Iridia study (measurement only, changes 0*inf/NaN results): IRIDIA_MSL_PLAIN_MUL=1 drops the zero guard, the
+		// upper bound of what removing guards (e.g. a new translator proving operands finite) could save
+		static const bool s_iridiaPlainMul = getenv("IRIDIA_MSL_PLAIN_MUL") && getenv("IRIDIA_MSL_PLAIN_MUL")[0] == '1';
+		if (s_iridiaPlainMul)
+			fCStr_shaderSource->add("float mul_nonIEEE(float a, float b){ return a*b; }" _CRLF);
+		else if( LatteGPUState.glVendor == GLVENDOR_NVIDIA && !ActiveSettings::DumpShadersEnabled())
 			fCStr_shaderSource->add("float mul_nonIEEE(float a, float b){return mix(0.0, a*b, (a != 0.0) && (b != 0.0));}" _CRLF); // compiles faster on Nvidia and also results in lower RAM usage (OpenGL)
 		else
 			fCStr_shaderSource->add("float mul_nonIEEE(float a, float b){ if( a == 0.0 || b == 0.0 ) return 0.0; return a*b; }" _CRLF);
@@ -4343,6 +4363,36 @@ void LatteDecompiler_emitMSLShader(LatteDecompilerShaderContext* shaderContext, 
 
     if (shader->shaderType == LatteConst::ShaderType::Pixel || (shaderContext->contextRegistersNew->IsRasterizationEnabled() && !usesGeometryShader))
     {
+		// Iridia study (measurement only): IRIDIA_MSL_ALU_PAD=<percent> adds extra arithmetic to every vertex and pixel
+		// shader, about that percent of its own ALU instruction count (a data-dependent chain the compiler can't
+		// remove, 3 ops per step). The GPU time it adds per extra instruction tells how much fewer instructions (e.g.
+		// from a new translator) could save. The result is written out only if its bits hit one value (about 1 in 8
+		// million pixels or vertices change, so the picture is practically the same; never use this outside tests).
+		static const int s_iridiaPad = getenv("IRIDIA_MSL_ALU_PAD") ? atoi(getenv("IRIDIA_MSL_ALU_PAD")) : 0;
+		if (s_iridiaPad > 0 && (shader->shaderType == LatteConst::ShaderType::Pixel || shader->shaderType == LatteConst::ShaderType::Vertex))
+		{
+			size_t aluCount = 0;
+			for (auto& cf : shaderContext->cfInstructions)
+				aluCount += cf.instructionsALU.size();
+			const size_t steps = aluCount * (size_t)s_iridiaPad / 300;
+			std::string sink;
+			if (shader->shaderType == LatteConst::ShaderType::Vertex)
+				sink = "out.position.w";
+			else
+			{
+				const char* srcText = src->c_str();
+				const char* hit = strstr(srcText, "out.passPixelColor");
+				if (hit && isdigit((unsigned char)hit[18]))
+					sink = fmt::format("out.passPixelColor{}.x", hit[18]);
+			}
+			const bool isFloat = shaderContext->typeTracker.defaultDataType == LATTE_DECOMPILER_DTYPE_FLOAT;
+			const std::string seed = isFloat ? fmt::format("{}.x", _getRegisterVarName(shaderContext, 0)) : fmt::format("as_type<float>({}.x)", _getRegisterVarName(shaderContext, 0));
+			if (steps > 0 && !sink.empty() && (shaderContext->analyzer.gprUseMask[0] & 1) && !shaderContext->typeTracker.useArrayGPRs)
+			{
+				src->addFmt("{{ float iridiaPad = {}; for (int iridiaI = 0; iridiaI < {}; iridiaI++) iridiaPad = fract(iridiaPad * 1.37 + 0.11);" _CRLF, seed, steps);
+				src->addFmt("if (as_type<uint>(iridiaPad) == 0x3F123457u) {} = 0.0; }}" _CRLF, sink);
+			}
+		}
     	// Return
         src->add("return out;" _CRLF);
     }

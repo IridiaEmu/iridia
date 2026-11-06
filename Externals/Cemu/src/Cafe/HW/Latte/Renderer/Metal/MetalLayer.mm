@@ -1,9 +1,22 @@
 #include "Cafe/HW/Latte/Renderer/Metal/MetalLayer.h"
 
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#import <QuartzCore/CAMetalLayer.h>
+#import <UIKit/UIKit.h>
+#else
 #include "Cafe/HW/Latte/Renderer/MetalView.h"
+#endif
 
 void* CreateMetalLayer(void* handle, float& scaleX, float& scaleY)
 {
+#if TARGET_OS_IPHONE
+	// Iridia Wii U app: the host app owns a view backed by a CAMetalLayer and passes the layer itself.
+	CAMetalLayer* layer = (__bridge CAMetalLayer*)handle;
+	scaleX = scaleY = (float)layer.contentsScale;
+	[layer retain];
+	return (__bridge void*)layer;
+#else
 	NSView* view = (NSView*)handle;
 
 	MetalView* childView = [[MetalView alloc] initWithFrame:view.bounds];
@@ -19,4 +32,5 @@ void* CreateMetalLayer(void* handle, float& scaleX, float& scaleY)
     scaleY = (float)(pixels.size.height / points.size.height);
 
 	return childView.layer;
+#endif
 }

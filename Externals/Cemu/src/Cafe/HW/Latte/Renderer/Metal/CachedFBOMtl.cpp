@@ -62,3 +62,18 @@ CachedFBOMtl::~CachedFBOMtl()
 {
 	m_renderPassDescriptor->release();
 }
+
+void CachedFBOMtl::IridiaRefreshTextures()
+{
+	for (int i = 0; i < 8; ++i)
+	{
+		if (auto textureView = (LatteTextureViewMtl*)colorBuffer[i].texture)
+			m_renderPassDescriptor->colorAttachments()->object(i)->setTexture(textureView->GetRGBAView());
+	}
+	if (auto textureView = static_cast<LatteTextureViewMtl*>(depthBuffer.texture))
+	{
+		m_renderPassDescriptor->depthAttachment()->setTexture(textureView->GetRGBAView());
+		if (m_renderPassDescriptor->stencilAttachment()->texture())
+			m_renderPassDescriptor->stencilAttachment()->setTexture(textureView->GetRGBAView());
+	}
+}

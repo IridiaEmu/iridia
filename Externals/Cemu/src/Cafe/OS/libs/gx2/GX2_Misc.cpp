@@ -36,6 +36,7 @@ extern uint64 lastSwapTime;
 
 void gx2Export_GX2GetSwapStatus(PPCInterpreter_t* hCPU)
 {
+	g_iridiaPace[4]++; // Iridia study
 	memory_writeU32(hCPU->gpr[3], _swapEndianU32(LatteGPUState.sharedArea->flipRequestCountBE));
 	memory_writeU32(hCPU->gpr[4], _swapEndianU32(LatteGPUState.sharedArea->flipExecuteCountBE));
 	memory_writeU64(hCPU->gpr[5], lastSwapTime);

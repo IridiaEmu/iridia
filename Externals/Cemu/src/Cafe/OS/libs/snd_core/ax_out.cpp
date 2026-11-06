@@ -482,6 +482,22 @@ namespace snd_core
 		constexpr static auto kWaitDurationFast = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::microseconds(2900));
 		constexpr static auto kWaitDurationMinimum = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::microseconds(1700));
 
+		// Iridia test switch: IRIDIA_AX_SPEED=<0.5-1> makes sound at most that share of real time (sound frames queued
+		// are capped by elapsed time x share), like the hot phone, where the audio work doesn't get enough CPU time
+		// (measured there: 0.72-0.89x real time in minutes 5-10 with variable frame timing). Test only.
+		// (a token bucket: share x elapsed time / 3 ms frames may be queued, at most 4 saved up)
+		static const double s_axSpeed = getenv("IRIDIA_AX_SPEED") ? std::clamp(atof(getenv("IRIDIA_AX_SPEED")), 0.3, 1.0) : 0.0;
+		static double s_axTokens = 0.0;
+		if (s_axSpeed > 0.0)
+		{
+			static auto s_tokenTime = now_cached();
+			const auto t = now_cached();
+			s_axTokens = std::min(4.0, s_axTokens + s_axSpeed * std::chrono::duration<double, std::milli>(t - s_tokenTime).count() / 3.0);
+			s_tokenTime = t;
+			if (s_axTokens < 1.0)
+				return;
+		}
+
 		// if we haven't buffered any blocks, we will wait less time than usual
 		bool additional_blocks_required = false;
 		{
@@ -520,8 +536,27 @@ namespace snd_core
 
 		if (snd_core::isInitialized())
 		{
-			if (numQueuedFramesSndGeneric == snd_core::getNumProcessedFrames())
+			// Iridia study: IRIDIA_AX_CATCHUP=<n> (2-8; off = 1) lets up to n audio frames be in flight when the
+			// 3 ms timeline is behind (these checks only run when the main core passes its idle loop, which on a
+			// throttled phone is less often than every 3 ms, so with one frame in flight audio falls behind for good)
+			static const uint32 s_maxInFlight = getenv("IRIDIA_AX_CATCHUP") ? std::clamp(atoi(getenv("IRIDIA_AX_CATCHUP")), 1, 8) : 1;
+			const uint32 inFlight = numQueuedFramesSndGeneric - snd_core::getNumProcessedFrames();
+			uint32 allowed = 1;
+			if (s_maxInFlight > 1)
 			{
+				const auto behind = (now - s_ax_interval_timer) / kWaitDuration;
+				allowed = 1 + (uint32)std::min<sint64>(std::max<sint64>(behind, 0), s_maxInFlight - 1);
+			}
+			for (uint32 q = inFlight; q < allowed; q++)
+			{
+				if (q > inFlight)
+					s_ax_interval_timer += kWaitDuration; // each extra frame uses up one 3 ms period
+				if (s_axSpeed > 0.0)
+				{
+					if (s_axTokens < 1.0)
+						break;
+					s_axTokens -= 1.0;
+				}
 				AXOut_updateDevicePlayState(true);
 				snd_core::AXIst_QueueFrame();
 				numQueuedFramesSndGeneric++;

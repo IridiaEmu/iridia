@@ -2,7 +2,9 @@
 #include "util/ChunkedHeap/ChunkedHeap.h"
 #include "util/helpers/fspinlock.h"
 #include "config/ActiveSettings.h"
+#include "Cafe/HW/Espresso/IridiaCounters.h"
 
+#include <bit>
 #define CACHE_PAGE_SIZE		0x400
 #define CACHE_PAGE_SIZE_M1	(CACHE_PAGE_SIZE-1)
 
@@ -1696,6 +1698,67 @@ FSpinlock g_spinlockDCFlushQueue;
 SparseBitset* s_DCFlushQueue = new SparseBitset();
 SparseBitset* s_DCFlushQueueAlternate = new SparseBitset();
 
+// Iridia: flat flushed-page bitmap (one bit per 1 KB page of the 4 GB physical space, 512 KB) plus the list of its
+// non-zero 64-bit words. Setting a page is O(1) (the sparse set searched a bucket per page), and the queue is
+// processed in address order with consecutive pages merged into one invalidation per run: a node's invalidation
+// is the union (min/max) of the ranges it is given, so the result is the same as one call per page.
+// IRIDIA_DCQ=0 uses the old per-page set (A/B).
+class IridiaPageBitmap
+{
+public:
+	bool Empty() const { return m_dirtyWords.empty(); }
+	void Set(uint32 page)
+	{
+		uint64& w = m_words[page >> 6];
+		if (w == 0)
+			m_dirtyWords.push_back(page >> 6);
+		w |= 1ull << (page & 63);
+	}
+	void SetRange(uint32 firstPage, uint32 lastPage)
+	{
+		for (uint32 i = firstPage; i <= lastPage; i++)
+			Set(i);
+	}
+	template<typename TFunc> // callback(firstPage, pageCount) for each run of consecutive pages, in address order
+	void ForAllRunsAndClear(TFunc callbackFunc)
+	{
+		std::sort(m_dirtyWords.begin(), m_dirtyWords.end());
+		uint32 runStart = 0, runLen = 0;
+		for (uint32 wi : m_dirtyWords)
+		{
+			uint64 w = m_words[wi];
+			m_words[wi] = 0;
+			while (w)
+			{
+				const uint32 page = (wi << 6) + (uint32)std::countr_zero(w);
+				w &= w - 1;
+				if (runLen && page == runStart + runLen)
+					runLen++;
+				else
+				{
+					if (runLen)
+						callbackFunc(runStart, runLen);
+					runStart = page;
+					runLen = 1;
+				}
+			}
+		}
+		if (runLen)
+			callbackFunc(runStart, runLen);
+		m_dirtyWords.clear();
+	}
+private:
+	uint64* m_words = new uint64[(1ull << 22) / 64]();
+	std::vector<uint32> m_dirtyWords;
+};
+IridiaPageBitmap* s_iridiaDCQ = new IridiaPageBitmap();
+IridiaPageBitmap* s_iridiaDCQAlternate = new IridiaPageBitmap();
+static bool IridiaDCQEnabled()
+{
+	static const bool v = !(getenv("IRIDIA_DCQ") && getenv("IRIDIA_DCQ")[0] == '0');
+	return v;
+}
+
 void LatteBufferCache_notifyDCFlush(MPTR address, uint32 size)
 {
 	if (address == 0 || size == 0xFFFFFFFF)
@@ -1703,14 +1766,40 @@ void LatteBufferCache_notifyDCFlush(MPTR address, uint32 size)
 
 	uint32 firstPage = address / CACHE_PAGE_SIZE;
 	uint32 lastPage = (address + size - 1) / CACHE_PAGE_SIZE;
+	IRIDIA_CNT(CNT_DCFLUSH_NOTIFY, 1);
+	IRIDIA_CNT(CNT_DCFLUSH_PAGES, lastPage - firstPage + 1);
+#ifdef IRIDIA_COUNTERS
+	if (g_spinlockDCFlushQueue.is_locked())
+		IRIDIA_CNT(CNT_DCQ_CONTENDED, 1);
+#endif
 	g_spinlockDCFlushQueue.lock();
-	for (uint32 i = firstPage; i <= lastPage; i++)
-		s_DCFlushQueue->Set(i);
+	if (IridiaDCQEnabled())
+		s_iridiaDCQ->SetRange(firstPage, lastPage);
+	else
+	{
+		for (uint32 i = firstPage; i <= lastPage; i++)
+			s_DCFlushQueue->Set(i);
+	}
 	g_spinlockDCFlushQueue.unlock();
 }
 
 void LatteBufferCache_processDCFlushQueue()
 {
+	if (IridiaDCQEnabled())
+	{
+		if (s_iridiaDCQ->Empty()) // quick check to avoid locking if there is no work to do
+			return;
+		g_spinlockDCFlushQueue.lock();
+		std::swap(s_iridiaDCQ, s_iridiaDCQAlternate);
+		g_spinlockDCFlushQueue.unlock();
+		s_iridiaDCQAlternate->ForAllRunsAndClear([](uint32 firstPage, uint32 count) {
+			if (count == 1)
+				LatteBufferCache_invalidatePage(firstPage * CACHE_PAGE_SIZE);
+			else
+				LatteBufferCache_invalidate(firstPage * CACHE_PAGE_SIZE, count * CACHE_PAGE_SIZE);
+		});
+		return;
+	}
 	if (s_DCFlushQueue->Empty()) // quick check to avoid locking if there is no work to do
 		return;
 	g_spinlockDCFlushQueue.lock();

@@ -2,6 +2,8 @@
 
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
 
+struct PipelineObject;
+
 #include "Cafe/HW/Latte/Renderer/Metal/MetalLayerHandle.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalPerformanceMonitor.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalOutputShaderCache.h"
@@ -269,8 +271,10 @@ public:
 
 	void SetShouldMaximizeConcurrentCompilation(bool shouldMaximizeConcurrentCompilation)
 	{
+#if !TARGET_OS_IPHONE // Iridia Wii U app: Mac-only API
 	    if (m_supportsMetal3)
 	        m_device->setShouldMaximizeConcurrentCompilation(shouldMaximizeConcurrentCompilation);
+#endif
 	}
 
 	bool IsCommandBufferActive() const
@@ -312,6 +316,7 @@ public:
     void ResetEncoderState()
     {
         m_state.m_encoderState = {};
+        m_iridiaEncoderGen++; // Iridia (item 5): a new encoder may resume the pass with other attachments
 
         // TODO: set viewport and scissor to render target dimensions if render commands
 
@@ -344,12 +349,36 @@ public:
     void CommitCommandBuffer();
     void ProcessFinishedCommandBuffers();
 
+    // Iridia: command buffer serial numbers for buffer cache use tracking (MetalMemoryManager)
+    uint64 IridiaCurrentSerial() const { return m_iridiaSerial; }
+    bool IridiaCopyInPass(MTL::Buffer* src, size_t srcOffset, size_t dstOffset, size_t size, MTL::RenderStages srcAfter);
+    // Iridia: buffer cache uploads renamed inside the open render pass (see MetalRenderer.cpp)
+    bool IridiaRedirectUpload(MTL::Buffer* src, size_t srcOffset, size_t dstOffset, size_t size);
+    bool IridiaRedirectOverlaps(size_t offset, size_t size) const;
+    void IridiaFlushRedirects();
+    uint64 IridiaCompletedSerial() const
+    {
+        // everything older than the oldest command buffer still executing (or still being recorded) is finished
+        uint64 oldest = (m_currentCommandBuffer.m_commandBuffer && !m_currentCommandBuffer.m_commited) ? m_iridiaSerial : m_iridiaSerial + 1;
+        for (uint64 s : m_iridiaExecutingSerials)
+            oldest = std::min(oldest, s);
+        return oldest - 1;
+    }
+
     bool AcquireDrawable(bool mainWindow);
 
     //bool CheckIfRenderPassNeedsFlush(LatteDecompilerShader* shader);
-    void BindStageResources(MTL::RenderCommandEncoder* renderCommandEncoder, LatteDecompilerShader* shader, bool usesGeometryShader);
+    // fast: a continued draw of a draw sequence (MORNING9 item 5): replay the texture/sampler bindings and reuse the
+    // support buffer recorded by the sequence's last full bind when nothing that feeds them changed
+    void BindStageResources(MTL::RenderCommandEncoder* renderCommandEncoder, LatteDecompilerShader* shader, bool usesGeometryShader, bool fast = false, bool supportStatic = false);
 
     void ClearColorTextureInternal(MTL::Texture* mtlTexture, sint32 sliceIndex, sint32 mipIndex, float r, float g, float b, float a);
+    // Iridia: color clears folded into the next render pass (see IridiaDeferClear)
+    struct IridiaPendingClear { MTL::Texture* texture; sint32 slice; sint32 mip; MTL::ClearColor color; };
+    std::vector<IridiaPendingClear> m_iridiaPendingClears;
+    static bool IridiaFoldClearsOn();
+    void IridiaDeferClear(MTL::Texture* texture, sint32 slice, sint32 mip, float r, float g, float b, float a);
+    void IridiaFlushClears();
 
     void CopyBufferToBuffer(MTL::Buffer* src, uint32 srcOffset, MTL::Buffer* dst, uint32 dstOffset, uint32 size, MTL::RenderStages after, MTL::RenderStages before);
 
@@ -515,6 +544,14 @@ private:
 	// Texture readback
 	MTL::Buffer* m_readbackBuffer = nullptr;
 	uint32 m_readbackBufferWriteOffset = 0;
+	std::vector<std::pair<uint32, uint32>> m_iridiaReadbackLive; // ring ranges of readbacks not yet consumed (offset, size)
+public:
+	void IridiaReadbackReleased(uint32 offset)
+	{
+		for (size_t i = 0; i < m_iridiaReadbackLive.size(); i++)
+			if (m_iridiaReadbackLive[i].first == offset) { m_iridiaReadbackLive.erase(m_iridiaReadbackLive.begin() + i); break; }
+	}
+private:
 
 	// Transform feedback
 	MTL::Buffer* m_xfbRingBuffer = nullptr;
@@ -532,10 +569,46 @@ private:
 	// Active objects
 	MetalCommandBuffer m_currentCommandBuffer{};
 	std::vector<MTL::CommandBuffer*> m_executingCommandBuffers;
+	std::vector<uint64> m_iridiaExecutingSerials; // Iridia: serial of each entry of m_executingCommandBuffers
+	uint64 m_iridiaSerial = 0;
+	// Iridia (MORNING9 item 5, on by default, IRIDIA_FASTDRAW=0 off; =2 also runs the full lookups and counts mismatches): state of the
+	// current draw sequence's last full draw, reused by the continued draws (Vulkan's draw_execute_continued idea).
+	// Within a sequence the command processor allows no context register, sampler or texture change, only vertex /
+	// uniform buffer addresses (dirty masks), ALU constants, base vertex/instance, index type and primitive type.
+	struct IridiaFastDraw
+	{
+		bool valid = false;
+		PipelineObject* pipelineObj = nullptr;
+		uint32 strides[Latte::GPU_LIMITS::NUM_VERTEX_BUFFERS] = {};
+		uint32 nStrides = 0;
+		uint32 primType = 0;
+		uint64 encoderGen = 0; // the pipeline also follows the pass attachments (m_lastUsedFBO), set per encoder
+		MTL::DepthStencilState* depthStencil = nullptr;
+		struct TexBind { uint32 binding; MTL::Texture* texture; MTL::SamplerState* sampler; }; // sampler null: texture only
+		TexBind tex[3][32];
+		uint32 nTex[3] = {};
+		bool texValid[3] = {};
+	} m_iridiaFast;
+	uint64 m_iridiaEncoderGen = 0;
+	uint64 m_iridiaFastStats[4] = {}; // continued draws taken fast, pipeline recomputed (stride/primitive change), check mismatches, full
+	uint64 m_iridiaXfbInPass = 0, m_iridiaXfbBlit = 0;
+	std::atomic<bool> m_iridiaWarmRun{false};
+	std::atomic<int32_t> m_iridiaInFlight{0}; // IRIDIA_GPU_WARM_GATE: committed game command buffers not yet completed
+	bool m_iridiaWarmGate = false;
+	std::thread m_iridiaWarmThread;
+	std::vector<std::pair<size_t, size_t>> m_iridiaPassReads; // buffer cache ranges read by draws of the open render pass
+	struct IridiaRedirect { size_t offset, size; MTL::Buffer* buffer; size_t bufferOffset; };
+	MetalActiveFBOState m_iridiaResumeFBO; // render pass cut by a draw-count commit: the next pass reopens with its attachments if they cover the new ones
+	std::vector<IridiaRedirect> m_iridiaRedirects; // buffer cache ranges whose newest data is in staging (open render pass only)
+	void IridiaBindCacheBuffer(MTL::RenderCommandEncoder* encoder, MetalShaderType shaderType, size_t offset, size_t size, uint32 index);
+	void IridiaApplyRedirects(MTL::BlitCommandEncoder* blit);
+	uint32 m_iridiaVbSize[MAX_MTL_VERTEX_BUFFERS] = {};
+	uint32 m_iridiaUbSize[METAL_GENERAL_SHADER_TYPE_TOTAL][MAX_MTL_BUFFERS] = {};
 	MetalEncoderType m_encoderType = MetalEncoderType::None;
 	MTL::CommandEncoder* m_commandEncoder = nullptr;
 
     uint32 m_recordedDrawcalls;
+    uint32 m_iridiaCmdDraws = 0; // draws in the current command buffer (IRIDIA_BOUNDARY_COMMIT)
     uint32 m_defaultCommitTreshlod;
     uint32 m_commitTreshold;
 

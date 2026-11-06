@@ -1652,7 +1652,14 @@ void VulkanRenderer::draw_execute_continued(uint32 baseVertex, uint32 baseInstan
 	}
 	else
 	{
-		cemu_assert(false); // should never happen unless draw_prepareDescriptorSets can fail?
+		// Iridia: the sequence's first draw was skipped because its pipeline wasn't ready (still compiling, or failed:
+		// MoltenVK "Failed to create graphics pipeline. Error -3"), so no descriptor sets were prepared. Now the
+		// pipeline is valid: prepare them as the first draw would, instead of trapping (Mac Vulkan crash, night 7).
+		draw_prepareDescriptorSets(pipeline_info, vertexDS, pixelDS, geometryDS);
+		m_state.activeVertexDS = vertexDS;
+		m_state.activePixelDS = pixelDS;
+		m_state.activeGeometryDS = geometryDS;
+		m_state.descriptorSetsChanged = true;
 	}
 
 	draw_setRenderPass();

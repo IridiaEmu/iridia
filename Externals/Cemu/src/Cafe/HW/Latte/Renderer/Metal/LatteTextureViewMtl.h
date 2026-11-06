@@ -21,12 +21,14 @@ public:
         return GetSwizzledView(RGBA_SWIZZLE);
     }
 
+    void IridiaRecreateViews(); // the base texture's MTL::Texture was replaced
+
 private:
 	class MetalRenderer* m_mtlr;
 
 	class LatteTextureMtl* m_baseTexture;
 
-	MTL::Texture* m_rgbaView;
+	MTL::Texture* m_rgbaView = nullptr; // set after the base class constructor already registered this view
 	struct {
 	    uint32 key;
 	    MTL::Texture* texture;

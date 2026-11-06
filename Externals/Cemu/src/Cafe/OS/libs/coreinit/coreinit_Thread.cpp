@@ -2,6 +2,11 @@
 #include "Cafe/HW/Espresso/PPCCallback.h"
 #include "Cafe/OS/RPL/rpl.h"
 #include "Cafe/OS/libs/coreinit/coreinit_Thread.h"
+#if BOOST_OS_MACOS
+#include <mach/mach_time.h>
+#endif
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
+#include "Cafe/HW/Espresso/IridiaCounters.h"
 #include "Cafe/OS/libs/coreinit/coreinit_Time.h"
 #include "Cafe/OS/libs/coreinit/coreinit_Alarm.h"
 #include "Cafe/OS/libs/snd_core/ax.h"
@@ -71,9 +76,77 @@ namespace coreinit
 	CounterSemaphore g_coreRunQueueThreadCount[3];
 
 	bool g_isMulticoreMode;
+	bool g_iridiaSpin() { static const bool v = getenv("IRIDIA_SPIN") != nullptr; return v; } // Iridia study: old busy-wait behaviour for A/B // read on first use: the app sets study switches after load
 
 	thread_local uint32 t_assignedCoreIndex;
+	// Iridia study: 2-thread mode (CEMU_CPU_THREADS=2): this host thread runs emulated cores 0 and 2 in turn.
+	thread_local bool t_coresShared = false;
 	thread_local Fiber* t_schedulerFiber;
+
+	// Iridia study: dynamic core placement (game-agnostic). A sampler measures how busy each emulated core is
+	// (running, or has a runnable thread waiting) and moves the busiest one onto the best host thread:
+	// 2-thread mode: the busiest core gets the solo host thread, the other two share the second one;
+	// 3-thread mode + IRIDIA_IPHONE_LAYOUT: the two busiest cores get fast (user-interactive) host threads,
+	// the lightest one an efficiency core (background QoS). IRIDIA_STATIC_CORES=1 = old fixed layout (1 | 0+2).
+	constexpr uint8 kSlotShared = 0, kSlotSolo = 1; // 2-thread mode host thread slots (= their t_assignedCoreIndex)
+	bool g_iridiaTwoThreads = false;
+	int g_iridiaLayout = 0; // IRIDIA_IPHONE_LAYOUT: 1 = solo thread fast, rest efficiency; 2 = both CPU threads fast (2-thread mode)
+	std::atomic<uint8> s_coreOwner[3];    // 2-thread mode: slot that runs each core (changed only by the owner, between time slices, under the scheduler lock)
+	std::atomic<uint8> s_coreWantSlot[3]; // 2-thread mode: slot each core should move to
+	std::atomic<bool> s_coreFast[3];      // 3-thread iPhone layout: this core's host thread should be on a fast core
+	bool g_iridiaDynQoS = false;
+	std::thread s_placementThread;
+	thread_local int t_qos = -1;
+	thread_local uint32 t_sharedTurn = 0;
+
+	// 2-thread mode, scheduler lock held, nothing running on this host thread: give away cores that should move,
+	// return the cores this host thread runs now
+	uint32 __IridiaOwnedCores()
+	{
+		const uint8 me = (uint8)t_assignedCoreIndex;
+		uint32 mask = 0;
+		for (uint32 c = 0; c < 3; c++)
+		{
+			if (s_coreOwner[c].load(std::memory_order_relaxed) != me)
+				continue;
+			const uint8 want = s_coreWantSlot[c].load(std::memory_order_relaxed);
+			if (want != me)
+				s_coreOwner[c].store(want, std::memory_order_relaxed);
+			else
+				mask |= 1u << c;
+		}
+		return mask;
+	}
+
+	// Iridia: QoS class of the host thread that runs the lightest emulated core in the iPhone layout.
+	// IRIDIA_SLOW_QOS=background (default: efficiency cores) | utility | default. iOS may throttle background
+	// threads harder than macOS, so the phone can test the others.
+	inline qos_class_t __IridiaSlowQoS()
+	{
+		static const qos_class_t cls = [] {
+			// utility, not background: iOS gives background threads very low priority and lets their waits run late,
+			// which on the phone stalled the whole frame (BotW: 10 fps "slow phase" after a minute; utility: 20 fps,
+			// no audio gaps). IRIDIA_SLOW_QOS=background|utility|default overrides (A/B).
+			const char* q = getenv("IRIDIA_SLOW_QOS");
+			return !q ? QOS_CLASS_UTILITY : !strcmp(q, "background") ? QOS_CLASS_BACKGROUND : !strcmp(q, "default") ? QOS_CLASS_DEFAULT : QOS_CLASS_UTILITY;
+		}();
+		return cls;
+	}
+
+	// 3-thread iPhone layout: move this host thread to the fast or efficiency cores when its core's rank changed
+	inline void __IridiaApplyQoS()
+	{
+#if BOOST_OS_MACOS
+		if (!g_iridiaDynQoS)
+			return;
+		const int want = s_coreFast[t_assignedCoreIndex].load(std::memory_order_relaxed) ? 1 : 0;
+		if (want != t_qos)
+		{
+			t_qos = want;
+			pthread_set_qos_class_self_np(want ? QOS_CLASS_USER_INTERACTIVE : __IridiaSlowQoS(), 0);
+		}
+#endif
+	}
 
 	struct OSHostThread
 	{
@@ -665,8 +738,41 @@ namespace coreinit
 		OSExitThread(exitCode);
 	}
 
+	inline uint64 __IridiaNowNs();
 	void OSYieldThread()
 	{
+		// Iridia study: IRIDIA_YIELD_STATS=1 counts yields per core and how many had no other runnable thread
+		static const bool s_stats = getenv("IRIDIA_YIELD_STATS") != nullptr;
+		if (s_stats)
+		{
+			// also times the switch when no other thread was runnable (the same thread runs again: pure switch cost)
+			static std::atomic<uint32> s_n[3], s_empty[3];
+			static std::atomic<uint64> s_aloneNs[3];
+			static std::atomic<uint64> s_last{0};
+			const uint32 c = OSGetCoreId();
+			s_n[c]++;
+			const bool alone = g_coreRunQueueThreadCount[c].isZero();
+			if (alone)
+				s_empty[c]++;
+			const uint64 now = GetTickCount();
+			uint64 last = s_last.load();
+			if (now - last >= 5000 && s_last.compare_exchange_strong(last, now))
+			{
+				uint32 n[3], e[3]; uint64 ns[3];
+				for (int i = 0; i < 3; i++) { n[i] = s_n[i].exchange(0); e[i] = s_empty[i].exchange(0); ns[i] = s_aloneNs[i].exchange(0); }
+				fprintf(stderr, "IRIDIA_YIELD per s: core0 %u (%u alone) core1 %u (%u alone) core2 %u (%u alone); alone switch ns avg %u/%u/%u, ms/s %.1f/%.1f/%.1f\n",
+					n[0] / 5, e[0] / 5, n[1] / 5, e[1] / 5, n[2] / 5, e[2] / 5,
+					(uint32)(e[0] ? ns[0] / e[0] : 0), (uint32)(e[1] ? ns[1] / e[1] : 0), (uint32)(e[2] ? ns[2] / e[2] : 0),
+					ns[0] / 5e6, ns[1] / 5e6, ns[2] / 5e6);
+			}
+			if (alone)
+			{
+				const uint64 t0 = __IridiaNowNs();
+				PPCCore_switchToScheduler();
+				s_aloneNs[c].fetch_add(__IridiaNowNs() - t0, std::memory_order_relaxed);
+				return;
+			}
+		}
 		PPCCore_switchToScheduler();
 	}
 
@@ -762,6 +868,24 @@ namespace coreinit
 			return;
 		if (thread->suspendCounter != 0)
 			return;
+		if (g_iridiaTimelineOn.load(std::memory_order_relaxed)) [[unlikely]]
+		{
+			// Iridia study: wake attribution for the critical-path analysis (a thread put back after its own slice is not a wake)
+			PPCInterpreter_t* cur = PPCInterpreter_getCurrentInstance();
+			OSThread_t* waker = cur ? __currentCoreThread[PPCInterpreter_getCoreIndex(cur)] : nullptr;
+			if (waker != thread)
+			{
+				IridiaTL(TL_WAKE, cur ? (uint16)PPCInterpreter_getCoreIndex(cur) : 7, memory_getVirtualOffsetFromPointer(thread));
+				IridiaTL(TL_WAKER, cur ? (uint16)PPCInterpreter_getCoreIndex(cur) : 7, waker ? memory_getVirtualOffsetFromPointer(waker) : 0);
+				uint32 pr = ((uint32)thread->effectivePriority & 31) | ((thread->context.getAffinity() & 7) << 5);
+				for (uint32 c = 0; c < 3; c++)
+				{
+					OSThread_t* r = __currentCoreThread[c];
+					pr |= (r ? ((uint32)r->effectivePriority & 31) : 63u) << (8 + 6 * c);
+				}
+				IridiaTL(TL_WAKEPRIO, cur ? (uint16)PPCInterpreter_getCoreIndex(cur) : 7, pr);
+			}
+		}
 		for (sint32 i = 0; i < PPC_CORE_COUNT; i++)
 		{
 			if (thread->currentRunQueue[i] != nullptr)
@@ -1065,6 +1189,7 @@ namespace coreinit
 
 		OSHostThread* hostThread = s_threadToFiber.find(thread)->second;
 		hostThread->selectedCore = coreIndex;
+		IRIDIA_CNT(CNT_THREAD_SWITCH, 1);
 		Fiber::Switch(hostThread->m_fiber);
 	}
 
@@ -1126,6 +1251,19 @@ namespace coreinit
 		thread->context.srr0 = hCPU->instructionPointer;
 	}
 
+	inline uint64 __IridiaNowNs()
+	{
+#if BOOST_OS_MACOS
+		// same clock as clock_gettime_nsec_np(CLOCK_UPTIME_RAW), read directly (called on every guest thread switch)
+		static const mach_timebase_info_data_t tb = [] { mach_timebase_info_data_t t; mach_timebase_info(&t); return t; }();
+		return tb.numer == tb.denom ? mach_absolute_time() : mach_absolute_time() * tb.numer / tb.denom;
+#else
+		return (uint64)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+#endif
+	}
+	extern std::atomic<uint64> g_iridiaCoreCycles[3];
+	extern std::atomic<uint64> g_iridiaCoreBusyNs[3];
+	extern uint64 s_iridiaRunStart[3];
 	void __OSStoreThread(OSThread_t* thread, PPCInterpreter_t* hCPU)
 	{
 		if (thread->state == OSThread_t::THREAD_STATE::STATE_RUNNING)
@@ -1152,6 +1290,21 @@ namespace coreinit
 		else
 			executedCycles -= hCPU->skippedCycles;
 		thread->totalCycles += (uint64)executedCycles;
+		{
+			// Iridia study: core placement statistics (only one host thread runs a given core at a time)
+			const uint32 core = OSGetCoreId();
+			g_iridiaCoreCycles[core].fetch_add((uint64)executedCycles, std::memory_order_relaxed);
+			g_iridiaCoreBusyNs[core].fetch_add(__IridiaNowNs() - s_iridiaRunStart[core], std::memory_order_relaxed);
+			IridiaTLHostCpu((uint16)core);
+			IridiaTL(TL_RUN_E, (uint16)core, memory_getVirtualOffsetFromPointer(thread));
+			if (g_iridiaTimelineOn.load(std::memory_order_relaxed))
+			{
+				const IridiaHleCur h = g_iridiaHleCur[core];
+				IridiaTL(TL_END_HLE, (uint16)core, h.id);
+				IridiaTL(TL_END_LR, (uint16)core, h.id == 0xffff ? hCPU->instructionPointer : h.lr);
+				IridiaTL(TL_END_R3, (uint16)core, h.r3);
+			}
+		}
 		// store context and set current thread to null
 		__OSThreadStoreContext(hCPU, thread);
 		OSSetCurrentThread(OSGetCoreId(), nullptr);
@@ -1166,12 +1319,27 @@ namespace coreinit
 		hCPU->reservedMemValue = 0;
 		hCPU->spr.UPIR = coreIndex;
 		hCPU->coreInterruptMask = 1;
+#ifdef CEMU_TBI
+		PPCInterpreter_bindTBCache(hCPU, coreIndex);
+#endif
+		s_iridiaRunStart[coreIndex] = __IridiaNowNs(); // Iridia study: core placement
+		if (g_iridiaTimelineOn.load(std::memory_order_relaxed))
+		{
+			IridiaTL(TL_RUN_B, (uint16)coreIndex, memory_getVirtualOffsetFromPointer(thread));
+			IridiaTLHostCpu((uint16)coreIndex);
+			IridiaTimelineThreadName(memory_getVirtualOffsetFromPointer(thread), thread->threadName.GetPtr());
+		}
+#if BOOST_OS_MACOS
+		if (size_t cpu; pthread_cpu_number_np(&cpu) == 0 && cpu < 16) // Iridia: IRIDIA_DIAG, fast or efficiency core
+			g_iridiaCpuHist[coreIndex][cpu].fetch_add(1, std::memory_order_relaxed);
+#endif
 		PPCInterpreter_setCurrentInstance(hCPU);
 		OSSetCurrentThread(OSGetCoreId(), thread);
 		__OSThreadLoadContext(hCPU, thread);
 		thread->context.upir = coreIndex;
 		thread->quantumTicks = ppcThreadQuantum;
 		// statistics
+		IRIDIA_CNT(CNT_THREAD_LOAD, 1);
 		thread->wakeUpTime = PPCInterpreter_getMainCoreCycleCounter();
 		thread->wakeUpCount = thread->wakeUpCount + 1;
 	}
@@ -1245,13 +1413,75 @@ namespace coreinit
 
 	// idle fiber per core if no thread is runnable
 	// this is necessary since we can't block in __OSThreadSwitchToNext() (__OSStoreThread + thread switch must happen inside same scheduler lock)
+	// Iridia study: idle loop of a 2-thread-mode host thread: runs the cores it currently owns in turn; the solo
+	// slot also checks audio/alarms (the system events), like the main core does in the normal layout
+	void __OSThreadCoreIdleTwoThreads()
+	{
+		const bool isSolo = t_assignedCoreIndex == kSlotSolo;
+		const uint8 me = (uint8)t_assignedCoreIndex;
+		__OSUnlockScheduler();
+		while (true)
+		{
+			// lock-free hint first so an idle host thread doesn't hammer the scheduler lock
+			bool work = false;
+			for (uint32 c = 0; c < 3; c++)
+			{
+				if (s_coreOwner[c].load(std::memory_order_relaxed) != me)
+					continue;
+				if (s_coreWantSlot[c].load(std::memory_order_relaxed) != me || !g_coreRunQueueThreadCount[c].isZero())
+					work = true;
+			}
+			if (work)
+			{
+				__OSLockScheduler();
+				const uint32 owned = __IridiaOwnedCores();
+				for (uint32 i = 0; i < 3; i++)
+				{
+					const uint32 c = (t_sharedTurn + i) % 3;
+					if (!(owned & (1u << c)) || g_coreRunQueueThreadCount[c].isZero())
+						continue;
+					if (OSThread_t* nextThread = __OSGetNextRunableThread(c))
+					{
+						t_sharedTurn = c + 1;
+						__OSSwitchToThreadFiber(nextThread, c);
+						break;
+					}
+				}
+				__OSUnlockScheduler();
+			}
+			if (isSolo)
+				__OSCheckSystemEvents();
+			if (!sSchedulerActive.load(std::memory_order::relaxed))
+				Fiber::Switch(*t_schedulerFiber); // switch back to original thread to exit
+			// nothing runnable on our cores: wait for work (the solo slot still checks system events every 250 us)
+			sint32 single = -1, count = 0;
+			bool anyWork = false;
+			for (uint32 c = 0; c < 3; c++)
+			{
+				if (s_coreOwner[c].load(std::memory_order_relaxed) != me)
+					continue;
+				single = c; count++;
+				anyWork |= !g_coreRunQueueThreadCount[c].isZero();
+			}
+			if (anyWork || g_iridiaSpin())
+				continue;
+			if (count == 1)
+				g_coreRunQueueThreadCount[single].waitUntilNonZeroFor(std::chrono::microseconds(isSolo ? 250 : 50));
+			else
+				std::this_thread::sleep_for(std::chrono::microseconds(50));
+		}
+	}
+
 	void __OSThreadCoreIdle(void* unusedParam)
 	{
+		if (g_iridiaTwoThreads)
+			return __OSThreadCoreIdleTwoThreads();
 		bool isMainCore = g_isMulticoreMode == false || t_assignedCoreIndex == 1;
 		sint32 coreIndex = t_assignedCoreIndex;
 		__OSUnlockScheduler();
 		while (true)
 		{
+			__IridiaApplyQoS();
 			if (!g_coreRunQueueThreadCount[coreIndex].isZero()) // avoid hammering the lock on the main core if there is no runable thread
 			{
 				__OSLockScheduler();
@@ -1268,6 +1498,10 @@ namespace coreinit
 				__OSCheckSystemEvents();
 				if(g_isMulticoreMode == false)
 					coreIndex = (coreIndex + 1) % 3;
+				// Iridia study: sleep (woken when a thread becomes runnable) instead of spinning on the clock;
+				// audio and alarms are still checked at least every 250 us. IRIDIA_SPIN=1 restores the old loop.
+				else if (!g_iridiaSpin() && g_coreRunQueueThreadCount[coreIndex].isZero())
+					g_coreRunQueueThreadCount[coreIndex].waitUntilNonZeroFor(std::chrono::microseconds(250));
 			}
 			else
 			{
@@ -1301,6 +1535,33 @@ namespace coreinit
 		// choose core
 		static uint32 _coreCounter = 0;
 
+		if (g_iridiaTwoThreads)
+		{
+			// Iridia study: 2-thread mode. The solo slot always goes through its idle loop (system events); the
+			// shared slot runs its cores in turn
+			OSThread_t* nextThread = nullptr;
+			uint32 nextCore = 0;
+			if (t_assignedCoreIndex != kSlotSolo)
+			{
+				const uint32 owned = __IridiaOwnedCores();
+				for (uint32 i = 0; i < 3 && !nextThread; i++)
+				{
+					nextCore = (t_sharedTurn + i) % 3;
+					if (owned & (1u << nextCore))
+						nextThread = __OSGetNextRunableThread(nextCore);
+				}
+			}
+			if (nextThread)
+			{
+				t_sharedTurn = nextCore + 1;
+				__OSSwitchToThreadFiber(nextThread, nextCore);
+			}
+			else
+				Fiber::Switch(*g_idleLoopFiber[t_assignedCoreIndex]);
+		}
+		else
+		{
+		__IridiaApplyQoS();
 		sint32 coreIndex;
 		if (g_isMulticoreMode)
 			coreIndex = t_assignedCoreIndex;
@@ -1326,9 +1587,10 @@ namespace coreinit
 		{
 			Fiber::Switch(*g_idleLoopFiber[t_assignedCoreIndex]);
 		}
+		}
 
 		cemu_assert_debug(__OSHasSchedulerLock());	
-		cemu_assert_debug(g_isMulticoreMode == false || hostThread->selectedCore == t_assignedCoreIndex);
+		cemu_assert_debug(g_isMulticoreMode == false || g_iridiaTwoThreads || hostThread->selectedCore == t_assignedCoreIndex);
 
 		// received next time slice, load self again
 		__OSLoadThread(hostThread->m_thread, &hostThread->ppcInstance, hostThread->selectedCore);
@@ -1358,8 +1620,12 @@ namespace coreinit
 				// try to enter recompiler immediately
 				PPCRecompiler_attemptEnterWithoutRecompile(hCPU, hCPU->instructionPointer);
 				// keep executing as long as there are cycles left
+#ifdef CEMU_TBI
+				PPCInterpreterSlim_run(hCPU);
+#else
 				while ((--hCPU->remainingCycles) >= 0)
 					PPCInterpreterSlim_executeInstruction(hCPU);
+#endif
 			}
 
 			// reset reservation
@@ -1389,8 +1655,21 @@ namespace coreinit
 
 	void OSSchedulerCoreEmulationThread(void* _assignedCoreIndex)
 	{
-		SetThreadName(fmt::format("OSSched[core={}]", (uintptr_t)_assignedCoreIndex).c_str());
-		t_assignedCoreIndex = (sint32)(uintptr_t)_assignedCoreIndex;
+		t_coresShared = ((uintptr_t)_assignedCoreIndex & 0x100) != 0;
+		t_assignedCoreIndex = (uint32)((uintptr_t)_assignedCoreIndex & 0xFF);
+		if (g_iridiaTwoThreads)
+			SetThreadName(t_assignedCoreIndex == kSlotSolo ? "OSSched[solo]" : "OSSched[shared]");
+		else
+			SetThreadName(fmt::format("OSSched[core={}]", t_assignedCoreIndex).c_str());
+#if BOOST_OS_MACOS
+		// Iridia study: IRIDIA_IPHONE_LAYOUT mimics the iPhone (2 fast + 4 efficiency cores) with QoS classes
+		// (user-interactive = fast cores, background = efficiency cores). 2-thread mode: layout 1 = solo host
+		// thread fast, shared one efficiency; layout 2 = both fast. 3-thread mode: chosen per core at run time
+		// (__IridiaApplyQoS). The GPU thread is on the efficiency cores in every layout (LatteThread.cpp).
+		if (g_iridiaLayout && g_iridiaTwoThreads)
+			pthread_set_qos_class_self_np(t_assignedCoreIndex == kSlotSolo || g_iridiaLayout == 2 ? QOS_CLASS_USER_INTERACTIVE : QOS_CLASS_BACKGROUND, 0);
+		__IridiaApplyQoS();
+#endif
 
 		ConfigureHostFloatingPointEnvironment();
 
@@ -1427,6 +1706,70 @@ namespace coreinit
 		return g_schedulerThreadHandles;
 	}
 
+	// Iridia study: core placement for the 3-thread iPhone layout (2 fast cores). Core 1 is the Wii U OS main core
+	// in every game (main thread, GX2 setup, system events here) and the one the other cores wait on, so it always
+	// keeps a fast core: measured in BotW, core 1 on an efficiency core = 12.0 fps even though its own busy time
+	// was the lowest; with core 1 fast and core 0 slow = 19.8. The second fast core goes to the busier of cores 0
+	// and 2: once a second this compares how much host time each spent running (guest code and the OS/GPU calls
+	// it makes, not time spent waiting).
+	// Busy time on an efficiency core is converted to fast-core time with the core's own ns-per-instruction
+	// ratio between the two kinds of host thread (measured whenever it ran on both; 0.5 until then). Games sync
+	// every frame, so a core with less work per frame blocks sooner; running time tracks work even when a host
+	// thread is shared. A move needs a 10% lead in two windows in a row, 3 s apart.
+	std::atomic<uint64> g_iridiaCoreCycles[3];
+	std::atomic<uint64> g_iridiaCoreBusyNs[3];
+	uint64 s_iridiaRunStart[3];
+	void __IridiaPlacementThread()
+	{
+		SetThreadName("IridiaPlacement");
+		auto isFast = [&](uint32 c) { return s_coreFast[c].load(); };
+		uint64 lastCyc[3] = {}, lastNs[3] = {};
+		double ema[3] = {}, nsPerInstr[3][2] = {}; // [core][0 = efficiency, 1 = fast]
+		sint32 pendingStrong = -1;
+		auto lastChange = std::chrono::steady_clock::now();
+		uint32 logCounter = 0;
+		while (sSchedulerActive.load(std::memory_order_relaxed))
+		{
+			for (int i = 0; i < 10 && sSchedulerActive.load(std::memory_order_relaxed); i++)
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			double busy[3], est[3];
+			for (uint32 c = 0; c < 3; c++)
+			{
+				const uint64 cyc = g_iridiaCoreCycles[c].load(std::memory_order_relaxed), ns = g_iridiaCoreBusyNs[c].load(std::memory_order_relaxed);
+				const double dCyc = (double)(cyc - lastCyc[c]), dNs = (double)(ns - lastNs[c]);
+				lastCyc[c] = cyc; lastNs[c] = ns;
+				busy[c] = dNs / 1e9;
+				const int cls = isFast(c) ? 1 : 0;
+				if (dCyc > 1e6)
+					nsPerInstr[c][cls] = nsPerInstr[c][cls] > 0 ? 0.7 * nsPerInstr[c][cls] + 0.3 * (dNs / dCyc) : dNs / dCyc;
+				double ratio = 0.5; // efficiency-core time -> fast-core time
+				if (nsPerInstr[c][0] > 0 && nsPerInstr[c][1] > 0)
+					ratio = std::clamp(nsPerInstr[c][1] / nsPerInstr[c][0], 0.2, 1.0);
+				est[c] = cls ? busy[c] : busy[c] * ratio;
+				ema[c] = 0.5 * ema[c] + 0.5 * est[c];
+			}
+			if ((logCounter++ % 5) == 0)
+				fprintf(stderr, "IRIDIA_CORES busy %.2f %.2f %.2f est %.2f %.2f %.2f fast %d%d%d\n", busy[0], busy[1], busy[2], ema[0], ema[1], ema[2], isFast(0), isFast(1), isFast(2));
+			// cores 0 and 2 compete for the second fast core (core 1 stays fast)
+			const sint32 weak = isFast(0) ? 0 : 2, strong = isFast(0) ? 2 : 0;
+			if (weak < 0 || strong < 0 || ema[strong] <= ema[weak] * 1.10 + 0.02)
+			{
+				pendingStrong = -1;
+				continue;
+			}
+			if (pendingStrong != strong || std::chrono::steady_clock::now() - lastChange < std::chrono::seconds(3))
+			{
+				pendingStrong = strong; // needs a second window in a row
+				continue;
+			}
+			pendingStrong = -1;
+			s_coreFast[strong].store(true);
+			s_coreFast[weak].store(false);
+			lastChange = std::chrono::steady_clock::now();
+			fprintf(stderr, "IRIDIA_CORES move: core %d now fast (%.2f), core %d not (%.2f)\n", strong, ema[strong], weak, ema[weak]);
+		}
+	}
+
 	// starts PPC core emulation
 	void OSSchedulerBegin(sint32 numCPUEmulationThreads)
 	{
@@ -1435,12 +1778,39 @@ namespace coreinit
 			return;
 		cemu_assert_debug(numCPUEmulationThreads == 1 || numCPUEmulationThreads == 3);
 		g_isMulticoreMode = numCPUEmulationThreads > 1;
+		// Iridia study: dynamic core placement (see __IridiaPlacementThread)
+		g_iridiaTwoThreads = numCPUEmulationThreads == 2;
+		g_iridiaLayout = getenv("IRIDIA_IPHONE_LAYOUT") ? std::max(1, atoi(getenv("IRIDIA_IPHONE_LAYOUT"))) : 0;
+		const bool dynamicPlacement = !getenv("IRIDIA_STATIC_CORES");
+		for (uint32 c = 0; c < 3; c++)
+		{
+			s_coreOwner[c] = s_coreWantSlot[c] = (c == 1) ? kSlotSolo : kSlotShared;
+			s_coreFast[c] = c != 0; // 3-thread layout start: cores 1 and 2 fast (0 vs 2 adjusted at run time)
+		}
+		if (const char* start = getenv("IRIDIA_FAST_START")) // testing: which of cores 0/2 starts fast
+			s_coreFast[0] = atoi(start) == 0, s_coreFast[2] = atoi(start) != 0;
+		// energy study: IRIDIA_ONE_FAST=1 keeps only core 1 (the main core) on a fast core, cores 0 and 2 on the
+		// slow QoS class, no run-time moves
+		const bool oneFast = getenv("IRIDIA_ONE_FAST") && getenv("IRIDIA_ONE_FAST")[0] == '1';
+		if (oneFast)
+			s_coreFast[0] = false, s_coreFast[2] = false;
+		g_iridiaDynQoS = numCPUEmulationThreads == 3 && g_iridiaLayout != 0;
+		// 2-thread mode keeps core 1 on the solo host thread: moving the busiest core there instead measured slower
+		// in BotW (16.7 vs 17.4 fps), and the 3-thread layout beats both (19.8)
+		if (dynamicPlacement && g_iridiaDynQoS && !oneFast)
+			s_placementThread = std::thread(__IridiaPlacementThread);
 		if (numCPUEmulationThreads == 1)
 			sSchedulerThreads.emplace_back(OSSchedulerCoreEmulationThread, (void*)0);
 		else if (numCPUEmulationThreads == 3)
 		{
 			for (size_t i = 0; i < 3; i++)
 				sSchedulerThreads.emplace_back(OSSchedulerCoreEmulationThread, (void*)i);
+		}
+		else if (numCPUEmulationThreads == 2)
+		{
+			// Iridia study: core 1 (the main core) on its own host thread, cores 0 and 2 sharing one.
+			sSchedulerThreads.emplace_back(OSSchedulerCoreEmulationThread, (void*)(uintptr_t)1);
+			sSchedulerThreads.emplace_back(OSSchedulerCoreEmulationThread, (void*)(uintptr_t)(0 | 0x100));
 		}
 		else
 			cemu_assert_debug(false);
@@ -1459,6 +1829,8 @@ namespace coreinit
 		for (auto& threadItr : sSchedulerThreads)
 			threadItr.join();
 		sSchedulerThreads.clear();
+		if (s_placementThread.joinable())
+			s_placementThread.join();
 		g_schedulerThreadHandles.clear();
 #if BOOST_OS_LINUX
 		{

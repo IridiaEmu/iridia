@@ -1,6 +1,12 @@
+#include <map>
+#include <mach/mach_time.h>
+#include <dlfcn.h>
+#include <TargetConditionals.h>
 #include "Cafe/HW/Latte/Renderer/Metal/MetalRenderer.h"
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalMemoryManager.h"
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureMtl.h"
+#include "Cafe/HW/Latte/Core/IridiaAstc.h"
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureViewMtl.h"
 #include "Cafe/HW/Latte/Renderer/Metal/RendererShaderMtl.h"
 #include "Cafe/HW/Latte/Renderer/Metal/CachedFBOMtl.h"
@@ -27,11 +33,191 @@
 #include "imgui/imgui_extension.h"
 #include "imgui/imgui_impl_metal.h"
 
+extern std::atomic<int> g_iridiaGameplaySeconds;
+// Iridia diagnostics: IRIDIA_GPU_PASSES=1 times every render/blit/compute pass on the GPU (counter samples at stage
+// boundaries) and prints, every 5 s, GPU ms per frame by pass kind (attachments): IRIDIA_GPUPASS lines.
+namespace
+{
+    struct IridiaPassAcc { double vMs = 0, fMs = 0, spanMs = 0; uint32 n = 0; uint64 draws = 0; };
+    struct IridiaPassProf
+    {
+        bool on = false, checked = false;
+        MTL::CounterSampleBuffer* buf = nullptr;
+        static constexpr uint32 kSamples = 32768 / 8; // 4 per pass (max buffer size 32 KB)
+        uint32 next = 0;
+        std::unordered_map<MTL::CommandBuffer*, std::vector<std::pair<uint32, uint32>>> pending; // sample index, key id
+        std::vector<std::string> keys;
+        std::unordered_map<std::string, uint32> keyIds;
+        std::unordered_map<uint32, IridiaPassAcc> acc;
+        double tickToMs = 0;
+        MTL::Timestamp cal0c = 0, cal0g = 0;
+        std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
+        uint32 frames = 0;
+        uint32 allocs = 0;
+    } s_pp;
+
+    bool IridiaPassProfOn(MTL::Device* dev)
+    {
+        if (s_pp.checked)
+            return s_pp.on;
+        s_pp.checked = true;
+        if (!getenv("IRIDIA_GPU_PASSES"))
+            return false;
+        if (!dev->supportsCounterSampling(MTL::CounterSamplingPointAtStageBoundary))
+        {
+            fprintf(stderr, "IRIDIA_GPUPASS stage boundary sampling not supported\n");
+            return false;
+        }
+        MTL::CounterSet* ts = nullptr;
+        auto sets = dev->counterSets();
+        for (NS::UInteger i = 0; i < sets->count(); i++)
+        {
+            auto cs = (MTL::CounterSet*)sets->object(i);
+            if (strcmp(cs->name()->utf8String(), "timestamp") == 0) ts = cs;
+        }
+        if (!ts) { fprintf(stderr, "IRIDIA_GPUPASS no timestamp counter set\n"); return false; }
+        auto d = MTL::CounterSampleBufferDescriptor::alloc()->init();
+        d->setCounterSet(ts);
+        d->setStorageMode(MTL::StorageModeShared);
+        d->setSampleCount(IridiaPassProf::kSamples);
+        NS::Error* err = nullptr;
+        s_pp.buf = dev->newCounterSampleBuffer(d, &err);
+        d->release();
+        if (!s_pp.buf) { fprintf(stderr, "IRIDIA_GPUPASS sample buffer failed: %s\n", err ? err->localizedDescription()->utf8String() : "?"); return false; }
+        dev->sampleTimestamps(&s_pp.cal0c, &s_pp.cal0g);
+        s_pp.on = true;
+        return true;
+    }
+
+    uint32 IridiaPassKey(const std::string& k)
+    {
+        auto it = s_pp.keyIds.find(k);
+        if (it != s_pp.keyIds.end()) return it->second;
+        uint32 id = (uint32)s_pp.keys.size();
+        s_pp.keys.push_back(k); s_pp.keyIds[k] = id;
+        return id;
+    }
+
+    // returns the first of 4 sample indices, or ~0 if the ring is full
+    uint32 IridiaPassAlloc(MTL::CommandBuffer* cb, uint32 key)
+    {
+        s_pp.allocs++;
+        uint32 idx = s_pp.next;
+        s_pp.next = (s_pp.next + 4) % IridiaPassProf::kSamples;
+        s_pp.pending[cb].emplace_back(idx, key);
+        return idx;
+    }
+
+    std::string IridiaRenderPassKey(MTL::RenderPassDescriptor* rp)
+    {
+        std::string k;
+        for (int i = 0; i < 8; i++)
+        {
+            auto t = rp->colorAttachments()->object(i)->texture();
+            if (!t) continue;
+            k += fmt::format("c{}:{}x{}f{}{} ", i, t->width(), t->height(), (int)t->pixelFormat(), rp->colorAttachments()->object(i)->loadAction() == MTL::LoadActionLoad ? "L" : "");
+        }
+        if (auto t = rp->depthAttachment()->texture())
+            k += fmt::format("d:{}x{}f{}{}", t->width(), t->height(), (int)t->pixelFormat(), rp->depthAttachment()->loadAction() == MTL::LoadActionLoad ? "L" : "");
+        return k;
+    }
+    // base texture ids + slice/mip of each attachment (pass sequence log only)
+    std::string IridiaRpIds(MTL::RenderPassDescriptor* rp)
+    {
+        std::string k = " [";
+        auto one = [&](MTL::RenderPassAttachmentDescriptor* a, const char* n) {
+            auto t = a->texture(); if (!t) return;
+            auto base = t->parentTexture() ? t->parentTexture() : t;
+            k += fmt::format("{}={:x}/{}/{} ", n, ((uintptr_t)base >> 4) & 0xfffff, a->slice() + (t->parentTexture() ? t->parentRelativeSlice() : 0), a->level() + (t->parentTexture() ? t->parentRelativeLevel() : 0));
+        };
+        for (int i = 0; i < 8; i++) one(rp->colorAttachments()->object(i), fmt::format("c{}", i).c_str());
+        one(rp->depthAttachment(), "d");
+        return k + "]";
+    }
+
+    void IridiaPassResolve(MTL::Device* dev, MTL::CommandBuffer* cb)
+    {
+        auto it = s_pp.pending.find(cb);
+        if (it == s_pp.pending.end()) return;
+        for (auto& [idx, key] : it->second)
+        {
+            const bool render = s_pp.keys[key] != "blit" && s_pp.keys[key] != "compute";
+            NS::Data* data = s_pp.buf->resolveCounterRange(NS::Range(idx, render ? 4 : 2));
+            if (!data) continue;
+            const uint64* v = (const uint64*)data->mutableBytes();
+            auto ok = [](uint64 x) { return x != 0 && x != 0xFFFFFFFFFFFFFFFFull; };
+            auto& a = s_pp.acc[key];
+            if (ok(v[0]) && ok(v[1]) && v[1] >= v[0]) a.vMs += (double)(v[1] - v[0]);
+            if (render && ok(v[2]) && ok(v[3]) && v[3] >= v[2]) a.fMs += (double)(v[3] - v[2]);
+            a.n++;
+        }
+        s_pp.pending.erase(it);
+    }
+
+    // study switches read once per call site (getenv scans the whole environment; these sit on per-encoder paths)
+#define IridiaEnvOn(name) ([] { static const bool v = getenv(name) != nullptr; return v; }())
+
+    // IRIDIA_PASS_SEQ=<frame number>: logs the encoder sequence of that frame (render pass attachments, draws)
+    struct { int target = -2; int frame = 0; std::vector<std::string> seq; uint32 draws = 0; } s_seq;
+    bool IridiaSeqOn()
+    {
+        if (s_seq.target == -2) s_seq.target = getenv("IRIDIA_PASS_SEQ") ? atoi(getenv("IRIDIA_PASS_SEQ")) : -1;
+        if (s_seq.target >= 0 && s_seq.frame == 0 && g_iridiaGameplaySeconds.load() >= s_seq.target) s_seq.frame = 1; // armed: record the next whole frame
+        return s_seq.frame == 2;
+    }
+    void IridiaSeq(const std::string& what)
+    {
+        if (!IridiaSeqOn()) return;
+        if (!s_seq.seq.empty()) s_seq.seq.back() += fmt::format(" draws={}", s_seq.draws);
+        s_seq.draws = 0;
+        s_seq.seq.push_back(what);
+    }
+    void IridiaSeqFrame()
+    {
+        if (IridiaSeqOn())
+        {
+            if (!s_seq.seq.empty()) s_seq.seq.back() += fmt::format(" draws={}", s_seq.draws);
+            for (auto& l : s_seq.seq) fprintf(stderr, "IRIDIA_SEQ %s\n", l.c_str());
+            s_seq.seq.clear();
+        }
+        if (s_seq.frame == 1 || s_seq.frame == 2) s_seq.frame++;
+    }
+
+    void IridiaPassPrint(MTL::Device* dev)
+    {
+        s_pp.frames++;
+        if (std::chrono::steady_clock::now() - s_pp.last < std::chrono::seconds(5)) return;
+        s_pp.last = std::chrono::steady_clock::now();
+        // GPU timestamp ticks -> ms, from CPU/GPU timestamp pairs
+        MTL::Timestamp c, g; dev->sampleTimestamps(&c, &g);
+        mach_timebase_info_data_t tb; mach_timebase_info(&tb);
+        const double m = (double)(c - s_pp.cal0c) * tb.numer / tb.denom / (double)(g - s_pp.cal0g) / 1e6;
+        std::vector<std::pair<double, uint32>> order;
+        double totV = 0, totF = 0, n = 0;
+        for (auto& [k, a] : s_pp.acc) { order.emplace_back(a.vMs + a.fMs, k); totV += a.vMs; totF += a.fMs; n += a.n; }
+        std::sort(order.rbegin(), order.rend());
+        const double f = s_pp.frames;
+        fprintf(stderr, "IRIDIA_GPUPASS frames=%u tick=%.3fns per frame: vertex/encoder %.2f ms, fragment %.2f ms, passes %.1f (allocated %.1f)\n", s_pp.frames, m * 1e6, totV * m / f, totF * m / f, n / f, s_pp.allocs / f);
+        s_pp.allocs = 0;
+        int shown = 0;
+        for (auto& [t, k] : order)
+        {
+            auto& a = s_pp.acc[k];
+            fprintf(stderr, "IRIDIA_GPUPASS  %6.2f ms (v %.2f f %.2f) n %.1f  %s\n", t * m / f, a.vMs * m / f, a.fMs * m / f, a.n / f, s_pp.keys[k].c_str());
+            if (++shown == 30) break;
+        }
+        s_pp.acc.clear(); s_pp.frames = 0;
+    }
+}
+
+
 #define EVENT_VALUE_WRAP 4096
 
 extern bool hasValidFramebufferAttached;
 
 float supportBufferData[512 * 4];
+std::atomic<uint32> g_iridiaClears[3]; // Iridia: color / depth-stencil clear passes (printed once per second)
+std::atomic<uint32> g_iridiaUniformReuse[2]; // Iridia: uniform blocks bound again / uploaded (printed once per second)
 
 // Defined in the Common renderer
 void LatteDraw_handleSpecialState8_clearAsDepth();
@@ -170,6 +356,9 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
     m_isAppleGPU = m_device->supportsFamily(MTL::GPUFamilyApple1);
     m_supportsFramebufferFetch = GetConfig().framebuffer_fetch.GetValue() ? m_device->supportsFamily(MTL::GPUFamilyApple2) : false;
     m_hasUnifiedMemory = m_device->hasUnifiedMemory();
+#if TARGET_OS_IPHONE
+    m_hasUnifiedMemory = true; // Iridia Wii U app: iOS has no managed storage (the Simulator reports otherwise)
+#endif
     m_supportsMetal3 = m_device->supportsFamily(MTL::GPUFamilyMetal3);
     m_supportsMeshShaders = (m_supportsMetal3 && (m_vendor != GfxVendor::Intel || GetConfig().force_mesh_shaders.GetValue())); // Intel GPUs have issues with mesh shaders
     m_recommendedMaxVRAMUsage = m_device->recommendedMaxWorkingSetSize();
@@ -226,6 +415,15 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
         m_defaultCommitTreshlod = 64;
     else
         m_defaultCommitTreshlod = 196;
+    // Iridia: on the Mac, commit every 24 draw sequences (sooner commits let the GPU start while the CPU is still
+    // encoding the frame). Mac sweep 4..64: 24 best (38.7 fps vs 37.7 at 32, 32.7 at upstream 196). On the iPhone it
+    // was slower over 20-min runs (14.7 vs 15.9 fps, heat-bound), so iOS keeps upstream's value.
+    // IRIDIA_COMMIT_DRAWS=<n> overrides it (196 = upstream).
+#if !TARGET_OS_IPHONE
+    m_defaultCommitTreshlod = 24;
+#endif
+    if (const char* v = getenv("IRIDIA_COMMIT_DRAWS"); v && atoi(v) > 0)
+        m_defaultCommitTreshlod = atoi(v);
 
     // Occlusion queries
     m_occlusionQuery.m_resultBuffer = m_device->newBuffer(OCCLUSION_QUERY_POOL_SIZE * sizeof(uint64), MTL::ResourceStorageModeShared);
@@ -269,10 +467,93 @@ MetalRenderer::MetalRenderer() : Renderer(RendererAPI::Metal)
     // HACK: for some reason, this variable ends up being initialized to some garbage data, even though its declared as bool m_captureFrame = false;
     m_occlusionQuery.m_lastCommandBuffer = nullptr;
     m_captureFrame = false;
+
+    // Iridia study only: IRIDIA_GPU_WARM=<iterations> keeps one small compute job always queued on its own queue, so
+    // the GPU never looks idle to the OS clock heuristics (measures how much GPU clock speed limits the frame)
+    if (const char* v = getenv("IRIDIA_GPU_WARM"); v && atoi(v) > 0)
+    {
+        const uint32 iterations = (uint32)atoi(v);
+        const uint32 sleepUs = getenv("IRIDIA_GPU_WARM_SLEEP_US") ? (uint32)atoi(getenv("IRIDIA_GPU_WARM_SLEEP_US")) : 0; // pause between jobs
+        m_iridiaWarmRun = true;
+        // IRIDIA_GPU_WARM_GATE=1: only spin while game GPU work is in flight (committed, not completed)
+        m_iridiaWarmGate = getenv("IRIDIA_GPU_WARM_GATE") != nullptr;
+        m_iridiaWarmThread = std::thread([this, iterations, sleepUs]() {
+            NS::Error* err = nullptr;
+            auto lib = m_device->newLibrary(ToNSString("kernel void iridiaSpin(device uint* out [[buffer(0)]], constant uint& n [[buffer(1)]], uint tid [[thread_position_in_grid]]) {"
+                " uint x = tid; for (uint i = 0; i < n; i++) x = x * 1664525u + 1013904223u; if (x == 7u) out[0] = x; }"), nullptr, &err);
+            if (!lib) { fprintf(stderr, "IRIDIA_GPU_WARM: compile failed\n"); return; }
+            auto fn = lib->newFunction(ToNSString("iridiaSpin"));
+            auto pso = m_device->newComputePipelineState(fn, &err);
+            auto queue = m_device->newCommandQueue();
+            auto out = m_device->newBuffer(16, MTL::ResourceStorageModePrivate);
+            fprintf(stderr, "IRIDIA_GPU_WARM on, %u iterations per job, %u us pause\n", iterations, sleepUs);
+            uint64 jobs = 0, jobNs = 0; auto lastPrint = std::chrono::steady_clock::now();
+            // IRIDIA_GPU_WARM_MAXTHERMAL (default 1 = fair): no warm-up while the device is hotter than this
+            // (0 nominal, 1 fair, 2 serious, 3 critical); the extra GPU clock must not make a hot phone throttle
+            const int maxThermal = getenv("IRIDIA_GPU_WARM_MAXTHERMAL") ? atoi(getenv("IRIDIA_GPU_WARM_MAXTHERMAL")) : 1;
+            auto lastThermalCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
+            bool tooHot = false;
+            while (m_iridiaWarmRun.load())
+            {
+                if (std::chrono::steady_clock::now() - lastThermalCheck > std::chrono::seconds(1))
+                {
+                    lastThermalCheck = std::chrono::steady_clock::now();
+                    const bool hot = (int)NS::ProcessInfo::processInfo()->thermalState() > maxThermal;
+                    if (hot != tooHot)
+                        fprintf(stderr, "IRIDIA_GPU_WARM %s (thermal state %d)\n", hot ? "paused" : "resumed", (int)NS::ProcessInfo::processInfo()->thermalState());
+                    tooHot = hot;
+                }
+                if (tooHot)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    continue;
+                }
+                if (m_iridiaWarmGate)
+                {
+                    // IRIDIA_GPU_WARM_HOLD_US: keep spinning this long after the game's GPU work drained
+                    static const auto s_hold = std::chrono::microseconds(getenv("IRIDIA_GPU_WARM_HOLD_US") ? atoi(getenv("IRIDIA_GPU_WARM_HOLD_US")) : 0);
+                    static auto s_lastBusy = std::chrono::steady_clock::now();
+                    const auto now = std::chrono::steady_clock::now();
+                    if (m_iridiaInFlight.load(std::memory_order_relaxed) > 0)
+                        s_lastBusy = now;
+                    else if (now - s_lastBusy >= s_hold)
+                    {
+                        m_iridiaInFlight.wait(0, std::memory_order_relaxed); // sleep until the game commits GPU work
+                        continue;
+                    }
+                }
+                auto pool = NS::AutoreleasePool::alloc()->init();
+                auto cb = queue->commandBuffer();
+                auto enc = cb->computeCommandEncoder();
+                enc->setComputePipelineState(pso);
+                enc->setBuffer(out, 0, 0);
+                enc->setBytes(&iterations, sizeof(iterations), 1);
+                enc->dispatchThreadgroups(MTL::Size(1, 1, 1), MTL::Size(32, 1, 1));
+                enc->endEncoding();
+                cb->commit();
+                cb->waitUntilCompleted();
+                jobs++; jobNs += (uint64)((cb->GPUEndTime() - cb->GPUStartTime()) * 1e9);
+                pool->release();
+                if (std::chrono::steady_clock::now() - lastPrint > std::chrono::seconds(5))
+                {
+                    fprintf(stderr, "IRIDIA_GPU_WARM jobs/s %.0f, GPU us per job %.0f\n", jobs / 5.0, jobs ? jobNs / 1000.0 / jobs : 0.0);
+                    jobs = jobNs = 0; lastPrint = std::chrono::steady_clock::now();
+                }
+                if (sleepUs)
+                    std::this_thread::sleep_for(std::chrono::microseconds(sleepUs));
+            }
+            out->release(); queue->release(); pso->release(); fn->release(); lib->release();
+        });
+    }
 }
 
 MetalRenderer::~MetalRenderer()
 {
+    m_iridiaWarmRun = false;
+    m_iridiaInFlight.fetch_add(1); // wake the warm-up thread if it sleeps
+    m_iridiaInFlight.notify_all();
+    if (m_iridiaWarmThread.joinable())
+        m_iridiaWarmThread.join();
     if (m_isAppleGPU)
         delete m_copyBufferToBufferPipeline;
     //delete m_copyTextureToTexturePipeline;
@@ -371,6 +652,7 @@ void MetalRenderer::DrawEmptyFrame(bool mainWindow)
 
 void MetalRenderer::SwapBuffers(bool swapTV, bool swapDRC)
 {
+    IridiaTL(TL_LSWAP_B);
     if (swapTV)
         SwapBuffer(true);
     if (swapDRC)
@@ -378,8 +660,74 @@ void MetalRenderer::SwapBuffers(bool swapTV, bool swapDRC)
 
     // Reset the command buffers (they are released by TemporaryBufferAllocator)
     CommitCommandBuffer();
+    IridiaTL(TL_LSWAP_E);
+    if (s_pp.on)
+        IridiaPassPrint(m_device);
+    IridiaSeqFrame();
 
     // Debug
+    {
+        // Iridia diagnostics: IRIDIA_DRAWSTATS=1, per-frame draw kinds every 5 s
+        static const bool on = getenv("IRIDIA_DRAWSTATS") != nullptr;
+        static uint64 manual = 0, mesh = 0, fans = 0, passes = 0, cbs = 0, frames = 0;
+        static auto last = std::chrono::steady_clock::now();
+        if (on)
+        {
+            manual += m_performanceMonitor.m_manualVertexFetchDraws; mesh += m_performanceMonitor.m_meshDraws; fans += m_performanceMonitor.m_triangleFans;
+            passes += m_performanceMonitor.m_renderPasses; cbs += m_performanceMonitor.m_commandBuffers; frames++;
+            if (std::chrono::steady_clock::now() - last > std::chrono::seconds(5))
+            {
+                fprintf(stderr, "IRIDIA_DRAWSTATS per frame: manual-fetch draws %.1f, mesh (GS) draws %.1f, triangle fans %.1f, render passes %.1f, command buffers %.1f, buffer uploads cpu %.1f gpu %.1f (busy in recording cb %.1f, in executing cb %.1f), streamout copies in pass %.1f blit %.1f\n",
+                    (double)manual / frames, (double)mesh / frames, (double)fans / frames, (double)passes / frames, (double)cbs / frames,
+                    (double)m_memoryManager->m_iridiaCpuUploads / frames, (double)m_memoryManager->m_iridiaGpuUploads / frames,
+                    (double)m_memoryManager->m_iridiaBusyCurrent / frames, (double)m_memoryManager->m_iridiaBusyExecuting / frames,
+                    (double)m_iridiaXfbInPass / frames, (double)m_iridiaXfbBlit / frames);
+                m_iridiaXfbInPass = m_iridiaXfbBlit = 0;
+                m_memoryManager->m_iridiaCpuUploads = m_memoryManager->m_iridiaGpuUploads = m_memoryManager->m_iridiaBusyCurrent = m_memoryManager->m_iridiaBusyExecuting = 0;
+                manual = mesh = fans = passes = cbs = frames = 0; last = std::chrono::steady_clock::now();
+            }
+        }
+    }
+    {
+        // Iridia diagnostics: IRIDIA_BUFSTATS=1, once a second: buffer cache uploads per frame (and how many
+        // IRIDIA_SKIP_SAME_UPLOAD skipped), and the CPU time of this thread (the GPU command thread)
+        static const bool on = getenv("IRIDIA_BUFSTATS") != nullptr;
+        static uint64 frames = 0, lastCpuNs = 0;
+        static auto last = std::chrono::steady_clock::now();
+        if (on)
+        {
+            frames++;
+            auto now = std::chrono::steady_clock::now();
+            if (now - last >= std::chrono::seconds(1))
+            {
+                const uint64 cpuNs = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
+                const double wallMs = std::chrono::duration<double, std::milli>(now - last).count();
+                auto* mm = m_memoryManager;
+                fprintf(stderr, "IRIDIA_TEXMEM BC-format textures %lld (%.1f MB), other %lld (%.1f MB), device allocated %.1f MB, BC supported %d\n",
+                    (long long)g_iridiaTexCount[0].load(), g_iridiaTexBytes[0].load() / 1048576.0, (long long)g_iridiaTexCount[1].load(),
+                    g_iridiaTexBytes[1].load() / 1048576.0, m_device->currentAllocatedSize() / 1048576.0, (int)m_pixelFormatSupport.m_supportsBC);
+                {
+                    static const char* names[5] = {"BC1", "BC2", "BC3", "BC4", "BC5"};
+                    std::string line = "IRIDIA_ASTC transcoded (since start):";
+                    for (int i = 0; i < 5; i++)
+                    {
+                        auto& st = IridiaAstc::g_stats[i];
+                        const uint64 b = st.blocks.load();
+                        if (!b) continue;
+                        const double mse = (double)st.se.load() / (b * 64.0);
+                        line += fmt::format(" {} {} blocks PSNR {:.1f} dB {:.0f} ms ({:.0f} ns/block);", names[i], b, mse > 0 ? 10 * std::log10(255.0 * 255.0 / mse) : 99.0, st.ns.load() / 1e6, (double)st.ns.load() / b);
+                    }
+                    fprintf(stderr, "%s\n", line.c_str());
+                }
+                fprintf(stderr, "IRIDIA_BUF per frame: uploads %.1f (%.1f KB), skipped same %.1f (%.1f KB), not compared (GPU write pending) %.1f; GPU command thread cpu %.0f ms/s\n",
+                    (double)mm->m_iridiaUploads / frames, mm->m_iridiaUploadBytes / 1024.0 / frames, (double)mm->m_iridiaSkips / frames,
+                    mm->m_iridiaSkipBytes / 1024.0 / frames, (double)mm->m_iridiaSkipPending / frames,
+                    lastCpuNs ? (cpuNs - lastCpuNs) / 1e6 * (1000.0 / wallMs) : 0.0);
+                mm->m_iridiaUploads = mm->m_iridiaUploadBytes = mm->m_iridiaSkips = mm->m_iridiaSkipBytes = mm->m_iridiaSkipPending = 0;
+                frames = 0; lastCpuNs = cpuNs; last = now;
+            }
+        }
+    }
     m_performanceMonitor.ResetPerFrameData();
 
     // GPU capture
@@ -394,75 +742,85 @@ void MetalRenderer::SwapBuffers(bool swapTV, bool swapDRC)
     }
 }
 
+// Iridia study: screenshots are read back without interrupting rendering. The frame is blitted into a
+// dedicated shared buffer inside the normal command buffer; the pixels are read on a later frame once that
+// command buffer has completed. (Upstream read the staging buffer before the blit ran, and only handled
+// RGBA8 formats; forcing a flush mid-frame instead broke rendering.)
+static struct
+{
+	MTL::Buffer* buffer = nullptr;
+	MTL::CommandBuffer* commandBuffer = nullptr;
+	MTL::PixelFormat format;
+	int width = 0, height = 0;
+	uint32 bytesPerRow = 0;
+	bool padView = false;
+} s_pendingShot;
+
 void MetalRenderer::HandleScreenshotRequest(LatteTextureView* texView, bool padView) {
-	if (!m_screenshot_requested && m_screenshot_state == ScreenshotState::None)
+	// finish a pending readback once its command buffer is done
+	if (s_pendingShot.commandBuffer && s_pendingShot.commandBuffer->status() >= MTL::CommandBufferStatusCompleted)
+	{
+		const uint8* mem = (const uint8*)s_pendingShot.buffer->contents();
+		std::vector<uint8> rgb_data;
+		rgb_data.reserve(3 * s_pendingShot.width * s_pendingShot.height);
+		bool formatValid = true;
+		for (int y = 0; y < s_pendingShot.height && formatValid; y++)
+		{
+			const uint8* row = mem + (size_t)y * s_pendingShot.bytesPerRow;
+			for (int x = 0; x < s_pendingShot.width; x++)
+			{
+				const uint8* px = row + x * 4;
+				switch (s_pendingShot.format)
+				{
+				case MTL::PixelFormatRGBA8Unorm:
+					rgb_data.insert(rgb_data.end(), { px[0], px[1], px[2] });
+					break;
+				case MTL::PixelFormatRGBA8Unorm_sRGB:
+					rgb_data.insert(rgb_data.end(), { SRGBComponentToRGB(px[0]), SRGBComponentToRGB(px[1]), SRGBComponentToRGB(px[2]) });
+					break;
+				case MTL::PixelFormatRGB10A2Unorm:
+				{
+					uint32 v = *(const uint32*)px;
+					rgb_data.insert(rgb_data.end(), { (uint8)(((v >> 0) & 0x3FF) >> 2), (uint8)(((v >> 10) & 0x3FF) >> 2), (uint8)(((v >> 20) & 0x3FF) >> 2) });
+					break;
+				}
+				default:
+					formatValid = false;
+					break;
+				}
+				if (!formatValid) break;
+			}
+		}
+		if (formatValid)
+			SaveScreenshot(rgb_data, s_pendingShot.width, s_pendingShot.height, !s_pendingShot.padView);
+		else
+			cemuLog_log(LogType::Force, "Unsupported screenshot texture pixel format {}", s_pendingShot.format);
+		s_pendingShot.commandBuffer->release();
+		s_pendingShot.buffer->release();
+		s_pendingShot.commandBuffer = nullptr;
+		s_pendingShot.buffer = nullptr;
+	}
+
+	if (!m_screenshot_requested || s_pendingShot.commandBuffer || padView)
 		return;
 
-	if (m_mainLayer.GetDrawable())
-	{
-		// we already took a pad view screenshow and want a main window screenshot
-		if (m_screenshot_state == ScreenshotState::Main && padView)
-			return;
-
-		if (m_screenshot_state == ScreenshotState::Pad && !padView)
-			return;
-
-		// remember which screenshot is left to take
-		if (m_screenshot_state == ScreenshotState::None)
-			m_screenshot_state = padView ? ScreenshotState::Main : ScreenshotState::Pad;
-		else
-			m_screenshot_state = ScreenshotState::None;
-	}
-	else
-		m_screenshot_state = ScreenshotState::None;
-
 	auto texMtl = static_cast<LatteTextureMtl*>(texView->baseTexture);
-
 	int width, height;
 	texMtl->GetEffectiveSize(width, height, 0);
-
 	uint32 bytesPerRow = GetMtlTextureBytesPerRow(texMtl->format, texMtl->isDepth, width);
 	uint32 size = GetMtlTextureBytesPerImage(texMtl->format, texMtl->isDepth, height, bytesPerRow);
 
+	MTL::Buffer* buffer = m_device->newBuffer(size, MTL::ResourceStorageModeShared);
 	auto blitCommandEncoder = GetBlitCommandEncoder();
+	blitCommandEncoder->copyFromTexture(texMtl->GetTexture(), 0, 0, MTL::Origin(0, 0, 0), MTL::Size(width, height, 1), buffer, 0, bytesPerRow, 0);
 
-	auto& bufferAllocator = m_memoryManager->GetStagingAllocator();
-	auto buffer = bufferAllocator.AllocateBufferMemory(size, 1);
-
-	blitCommandEncoder->copyFromTexture(texMtl->GetTexture(), 0, 0, MTL::Origin(0, 0, 0), MTL::Size(width, height, 1), buffer.mtlBuffer, buffer.bufferOffset, bytesPerRow, 0);
-
-	bool formatValid = true;
-	std::vector<uint8> rgb_data;
-	rgb_data.reserve(3 * width * height);
-
-	auto pixelFormat = texMtl->GetTexture()->pixelFormat();
-	// TODO: implement more formats
-	switch (pixelFormat)
-	{
-	case MTL::PixelFormatRGBA8Unorm:
-		for (auto ptr = buffer.memPtr; ptr < buffer.memPtr + size; ptr += 4)
-		{
-			rgb_data.emplace_back(*ptr);
-			rgb_data.emplace_back(*(ptr + 1));
-			rgb_data.emplace_back(*(ptr + 2));
-		}
-		break;
-	case MTL::PixelFormatRGBA8Unorm_sRGB:
-		for (auto ptr = buffer.memPtr; ptr < buffer.memPtr + size; ptr += 4)
-		{
-			rgb_data.emplace_back(SRGBComponentToRGB(*ptr));
-			rgb_data.emplace_back(SRGBComponentToRGB(*(ptr + 1)));
-			rgb_data.emplace_back(SRGBComponentToRGB(*(ptr + 2)));
-		}
-		break;
-	default:
-		cemuLog_log(LogType::Force, "Unsupported screenshot texture pixel format {}", pixelFormat);
-		formatValid = false;
-		break;
-	}
-
-	if (formatValid)
-		SaveScreenshot(rgb_data, width, height, !padView);
+	s_pendingShot.buffer = buffer;
+	s_pendingShot.commandBuffer = m_currentCommandBuffer.m_commandBuffer->retain();
+	s_pendingShot.format = texMtl->GetTexture()->pixelFormat();
+	s_pendingShot.width = width;
+	s_pendingShot.height = height;
+	s_pendingShot.bytesPerRow = bytesPerRow;
+	s_pendingShot.padView = padView;
 }
 
 void MetalRenderer::DrawBackbufferQuad(LatteTextureView* texView, RendererOutputShader* shader, bool useLinearTexFilter,
@@ -536,7 +894,10 @@ void MetalRenderer::Flush(bool waitIdle)
         CommitCommandBuffer();
 
     if (waitIdle && m_executingCommandBuffers.size() != 0)
+    {
+        IridiaWaitTimer iridiaWait(4);
         m_executingCommandBuffers.back()->waitUntilCompleted();
+    }
 }
 
 void MetalRenderer::NotifyLatteCommandProcessorIdle()
@@ -615,7 +976,7 @@ ImTextureID MetalRenderer::GenerateTexture(const std::vector<uint8>& data, const
 		desc->setPixelFormat(MTL::PixelFormatRGBA8Unorm);
 		desc->setWidth(size.x);
 		desc->setHeight(size.y);
-		desc->setStorageMode(m_isAppleGPU ? MTL::StorageModeShared : MTL::StorageModeManaged);
+		desc->setStorageMode((m_isAppleGPU || TARGET_OS_IPHONE) ? MTL::StorageModeShared : MTL::StorageModeManaged);
 		desc->setUsage(MTL::TextureUsageShaderRead);
 
 		MTL::Texture* texture = m_device->newTexture(desc);
@@ -712,6 +1073,8 @@ void MetalRenderer::rendertarget_deleteCachedFBO(LatteCachedFBO* cfbo)
 {
 	if (cfbo == (LatteCachedFBO*)m_state.m_activeFBO.m_fbo)
 	    m_state.m_activeFBO = {nullptr};
+	if (cfbo == (LatteCachedFBO*)m_iridiaResumeFBO.m_fbo)
+	    m_iridiaResumeFBO = {nullptr};
 }
 
 void MetalRenderer::rendertarget_bindFramebufferObject(LatteCachedFBO* cfbo)
@@ -822,7 +1185,50 @@ void MetalRenderer::texture_clearColorSlice(LatteTexture* hostTexture, sint32 sl
 
     auto mtlTexture = static_cast<LatteTextureMtl*>(hostTexture)->GetTexture();
 
+    if (IridiaFoldClearsOn())
+    {
+        IridiaDeferClear(mtlTexture, sliceIndex, mipIndex, r, g, b, a);
+        return;
+    }
     ClearColorTextureInternal(mtlTexture, sliceIndex, mipIndex, r, g, b, a);
+}
+
+// Iridia: a game's color clear is kept pending instead of running as its own render pass. If the next render pass
+// renders to that texture (same slice, level and pixel format), the pass starts with a clear load action instead:
+// on a tile-based GPU that saves writing the cleared texture out and reading it back in. Before anything else can
+// touch a texture (another render pass, a temporary pass, blit or compute work, a commit) the pending clears run as
+// before. The open encoder is ended at the clear, like the clear pass did. Off by default: IRIDIA_FOLD_CLEARS=1 turns it on
+// (neutral on the Mac; the saving is memory traffic, to be measured on the phone).
+bool MetalRenderer::IridiaFoldClearsOn()
+{
+    static const bool v = getenv("IRIDIA_FOLD_CLEARS") && atoi(getenv("IRIDIA_FOLD_CLEARS")) != 0; // off by default (phone test pending)
+    return v;
+}
+
+void MetalRenderer::IridiaDeferClear(MTL::Texture* texture, sint32 slice, sint32 mip, float r, float g, float b, float a)
+{
+    EndEncoding();
+    for (auto& c : m_iridiaPendingClears)
+        if (c.texture == texture && c.slice == slice && c.mip == mip)
+        {
+            c.color = MTL::ClearColor(r, g, b, a); // cleared again before any use: the last color wins
+            return;
+        }
+    texture->retain();
+    m_iridiaPendingClears.push_back({texture, slice, mip, MTL::ClearColor(r, g, b, a)});
+}
+
+void MetalRenderer::IridiaFlushClears()
+{
+    if (m_iridiaPendingClears.empty())
+        return;
+    auto pending = std::move(m_iridiaPendingClears);
+    m_iridiaPendingClears.clear();
+    for (auto& c : pending)
+    {
+        ClearColorTextureInternal(c.texture, c.slice, c.mip, c.color.red, c.color.green, c.color.blue, c.color.alpha);
+        c.texture->release();
+    }
 }
 
 void MetalRenderer::texture_clearDepthSlice(LatteTexture* hostTexture, uint32 sliceIndex, sint32 mipIndex, bool clearDepth, bool clearStencil, float depthValue, uint32 stencilValue)
@@ -863,6 +1269,7 @@ void MetalRenderer::texture_clearDepthSlice(LatteTexture* hostTexture, uint32 sl
 
     // Debug
     m_performanceMonitor.m_clears++;
+    g_iridiaClears[1].fetch_add(1, std::memory_order_relaxed); // Iridia: depth/stencil clears
 }
 
 LatteTexture* MetalRenderer::texture_createTextureEx(Latte::E_DIM dim, MPTR physAddress, MPTR physMipAddress, Latte::E_GX2SURFFMT format, uint32 width, uint32 height, uint32 depth, uint32 pitch, uint32 mipLevels, uint32 swizzle, Latte::E_HWTILEMODE tileMode, bool isDepth)
@@ -889,6 +1296,17 @@ void MetalRenderer::texture_copyImageSubData(LatteTexture* src, sint32 srcMip, s
         effectiveCopyHeight *= multY;
     }
 
+    if (IridiaSeqOn())
+    {
+        // is either texture an attachment of the open render pass?
+        auto att = [&](LatteTexture* t) {
+            if (m_encoderType != MetalEncoderType::Render || !m_state.m_lastUsedFBO.m_fbo) return 0;
+            auto rp = m_state.m_lastUsedFBO.m_fbo->GetRenderPassDescriptor();
+            auto mt = static_cast<LatteTextureMtl*>(t)->GetTexture();
+            for (int i = 0; i < 8; i++) if (rp->colorAttachments()->object(i)->texture() == mt) return 1;
+            return rp->depthAttachment()->texture() == mt ? 2 : 0; };
+        IridiaSeq(fmt::format("copy {}x{} f{} mip{} sl{} -> {}x{} f{} mip{} sl{} size {}x{}x{} at {},{} -> {},{} src {:x} dst {:x} att {}{}{}", src->width, src->height, (int)src->format, srcMip, srcSlice, dst->width, dst->height, (int)dst->format, dstMip, dstSlice, effectiveCopyWidth, effectiveCopyHeight, srcDepth_, effectiveSrcX, effectiveSrcY, effectiveDstX, effectiveDstY, (uintptr_t)src & 0xffffff, (uintptr_t)dst & 0xffffff, att(src), att(dst), m_encoderType == MetalEncoderType::Render ? " inpass" : ""));
+    }
     auto blitCommandEncoder = GetBlitCommandEncoder();
 
     auto mtlSrc = static_cast<LatteTextureMtl*>(src)->GetTexture();
@@ -978,6 +1396,19 @@ LatteTextureReadbackInfo* MetalRenderer::texture_createReadback(LatteTextureView
 		m_readbackBufferWriteOffset = 0;
 	}
 
+    // Iridia: the ring must never wrap over a readback whose data has not been written to guest memory yet
+    for (const auto& live : m_iridiaReadbackLive)
+    {
+        if (m_readbackBufferWriteOffset < live.first + live.second && live.first < m_readbackBufferWriteOffset + uploadSize)
+        {
+            static uint32 s_overlaps = 0;
+            if (s_overlaps++ < 20)
+                fprintf(stderr, "IRIDIA_RB_RING_OVERLAP new %u+%zu over unconsumed %u+%u\n", m_readbackBufferWriteOffset, uploadSize, live.first, live.second);
+            cemu_assert_debug(false);
+        }
+    }
+    m_iridiaReadbackLive.emplace_back(m_readbackBufferWriteOffset, (uint32)uploadSize);
+
     auto* result = new LatteTextureReadbackInfoMtl(this, textureView, m_readbackBufferWriteOffset);
     m_readbackBufferWriteOffset += uploadSize;
 
@@ -1011,12 +1442,119 @@ void MetalRenderer::bufferCache_copy(uint32 srcOffset, uint32 dstOffset, uint32 
     m_memoryManager->CopyBufferCache(srcOffset, dstOffset, size);
 }
 
+// Iridia: copy into the buffer cache inside the open render pass with a vertex shader (one word per vertex) instead
+// of a blit, which ended the pass and made the GPU store and reload every attachment (IRIDIA_XFB_BLIT=1 = always blit).
+// Earlier draws of this pass may still read the destination (on tile GPUs their fragment work runs after all vertex
+// work of the pass), so a destination they use takes the blit. srcAfter: stages that wrote src in this pass (0 = none).
+bool MetalRenderer::IridiaCopyInPass(MTL::Buffer* src, size_t srcOffset, size_t dstOffset, size_t size, MTL::RenderStages srcAfter)
+{
+    static const bool s_blit = getenv("IRIDIA_XFB_BLIT") != nullptr;
+    bool inPass = !s_blit && m_isAppleGPU && m_encoderType == MetalEncoderType::Render && ((srcOffset | dstOffset | size) & 3) == 0 && size > 0;
+    for (size_t i = 0; inPass && i < m_iridiaPassReads.size(); i++)
+    {
+        const auto [o, n] = m_iridiaPassReads[i];
+        if (n == 0 || (o < dstOffset + size && dstOffset < o + n))
+            inPass = false;
+    }
+    (inPass ? m_iridiaXfbInPass : m_iridiaXfbBlit)++;
+    if (!inPass)
+        return false;
+    auto renderCommandEncoder = static_cast<MTL::RenderCommandEncoder*>(m_commandEncoder);
+    MTL::Buffer* dst = m_memoryManager->GetBufferCache();
+
+    MTL::Resource* barrierBuffers[] = {src};
+    if (srcAfter)
+        renderCommandEncoder->memoryBarrier(barrierBuffers, 1, srcAfter, MTL::RenderStageVertex);
+
+    renderCommandEncoder->setRenderPipelineState(m_copyBufferToBufferPipeline->GetRenderPipelineState());
+    m_state.m_encoderState.m_renderPipelineState = m_copyBufferToBufferPipeline->GetRenderPipelineState();
+
+    SetBuffer(renderCommandEncoder, METAL_SHADER_TYPE_VERTEX, src, srcOffset, GET_HELPER_BUFFER_BINDING(0));
+    SetBuffer(renderCommandEncoder, METAL_SHADER_TYPE_VERTEX, dst, dstOffset, GET_HELPER_BUFFER_BINDING(1));
+
+    renderCommandEncoder->drawPrimitives(MTL::PrimitiveTypePoint, NS::UInteger(0), NS::UInteger(size / 4));
+
+    barrierBuffers[0] = dst;
+    renderCommandEncoder->memoryBarrier(barrierBuffers, 1, MTL::RenderStageVertex, ALL_MTL_RENDER_STAGES);
+    if (src == dst)
+        m_iridiaPassReads.emplace_back(srcOffset, size);
+    return true;
+}
+
+// Iridia: a buffer cache upload to a range that draws of the open render pass already read can't be done in place
+// (on tile GPUs their fragment work runs after all vertex work of the pass) and used to end the pass for a blit,
+// storing and reloading every attachment (the G-buffer pass was split ~14 times per frame in BotW). Instead the new
+// data stays in its staging allocation: draws later in this pass bind the staging copy for that range (renaming),
+// and the copy into the buffer cache runs right after the pass ends. Ranges that a draw would only partly read from
+// a redirect, and other writes to those cache bytes, end the pass first (IridiaFlushRedirects).
+// IRIDIA_NO_REDIRECT=1: the old blit.
+std::atomic<uint32> g_iridiaRedirectStats[2];
+bool MetalRenderer::IridiaRedirectUpload(MTL::Buffer* src, size_t srcOffset, size_t dstOffset, size_t size)
+{
+    static const bool s_off = getenv("IRIDIA_NO_REDIRECT") != nullptr;
+    if (s_off || m_encoderType != MetalEncoderType::Render || size == 0)
+        return false;
+    m_iridiaRedirects.push_back({ dstOffset, size, src, srcOffset });
+    g_iridiaRedirectStats[0]++;
+    return true;
+}
+
+bool MetalRenderer::IridiaRedirectOverlaps(size_t offset, size_t size) const
+{
+    for (const auto& r : m_iridiaRedirects)
+        if (r.offset < offset + size && offset < r.offset + r.size)
+            return true;
+    return false;
+}
+
+void MetalRenderer::IridiaApplyRedirects(MTL::BlitCommandEncoder* blit)
+{
+    for (const auto& r : m_iridiaRedirects) // oldest first: the newest data ends up in the cache
+    {
+        blit->copyFromBuffer(r.buffer, r.bufferOffset, m_memoryManager->GetBufferCache(), r.offset, r.size);
+        m_memoryManager->MarkBufferCacheWrite(r.offset, r.size, m_iridiaSerial);
+    }
+    m_iridiaRedirects.clear();
+}
+
+void MetalRenderer::IridiaFlushRedirects()
+{
+    if (m_iridiaRedirects.empty())
+        return;
+    g_iridiaRedirectStats[1]++;
+    EndEncoding(); // applies the pending copies after the pass
+}
+
+// binds a buffer cache range, from the newest redirect that holds all of it if there is one
+void MetalRenderer::IridiaBindCacheBuffer(MTL::RenderCommandEncoder* encoder, MetalShaderType shaderType, size_t offset, size_t size, uint32 index)
+{
+    for (size_t i = m_iridiaRedirects.size(); i-- > 0;)
+    {
+        const auto& r = m_iridiaRedirects[i];
+        if (r.offset < offset + std::max<size_t>(size, 1) && offset < r.offset + r.size)
+        {
+            if (offset >= r.offset && offset + size <= r.offset + r.size) // checked before the draw: no partial overlaps here
+            {
+                SetBuffer(encoder, shaderType, r.buffer, r.bufferOffset + (offset - r.offset), index);
+                return;
+            }
+            break;
+        }
+    }
+    SetBuffer(encoder, shaderType, m_memoryManager->GetBufferCache(), offset, index);
+}
+
 void MetalRenderer::bufferCache_copyStreamoutToMainBuffer(uint32 srcOffset, uint32 dstOffset, uint32 size)
 {
     if (m_memoryManager->UseHostMemoryForCache())
         dstOffset -= m_memoryManager->GetImportedMemBaseAddress();
 
-    CopyBufferToBuffer(GetXfbRingBuffer(), srcOffset, m_memoryManager->GetBufferCache(), dstOffset, size, MTL::RenderStageVertex | MTL::RenderStageMesh, ALL_MTL_RENDER_STAGES);
+    if (IridiaRedirectOverlaps(dstOffset, size))
+        IridiaFlushRedirects();
+    if (!IridiaCopyInPass(GetXfbRingBuffer(), srcOffset, dstOffset, size, MTL::RenderStageVertex | MTL::RenderStageMesh))
+        CopyBufferToBuffer(GetXfbRingBuffer(), srcOffset, m_memoryManager->GetBufferCache(), dstOffset, size, MTL::RenderStageVertex | MTL::RenderStageMesh, ALL_MTL_RENDER_STAGES);
+    m_memoryManager->MarkBufferCacheUse(dstOffset, size, m_iridiaSerial);
+    m_memoryManager->MarkBufferCacheWrite(dstOffset, size, m_iridiaSerial);
 }
 
 void MetalRenderer::buffer_bindVertexBuffers(std::span<BindBufferParam> bindings)
@@ -1026,6 +1564,7 @@ void MetalRenderer::buffer_bindVertexBuffers(std::span<BindBufferParam> bindings
     {
         cemu_assert_debug(binding.index < LATTE_MAX_VERTEX_BUFFERS);
         m_state.m_vertexBufferOffsets[binding.index] = binding.bindOffset;
+        m_iridiaVbSize[binding.index] = binding.bindSize;
     }
 }
 
@@ -1034,6 +1573,7 @@ void MetalRenderer::buffer_bindUniformBuffer(LatteConst::ShaderType shaderType, 
     cemu_assert_debug(!m_memoryManager->UseHostMemoryForCache());
 
     m_state.m_uniformBufferOffsets[GetMtlGeneralShaderType(shaderType)][bufferIndex] = offset;
+    m_iridiaUbSize[GetMtlGeneralShaderType(shaderType)][bufferIndex] = size;
 }
 
 RendererShader* MetalRenderer::shader_create(RendererShader::ShaderType type, uint64 baseHash, uint64 auxHash, const std::string& source, bool isGameShader, bool isGfxPackShader)
@@ -1060,6 +1600,7 @@ void MetalRenderer::streamout_rendererFinishDrawcall()
 void MetalRenderer::draw_beginSequence()
 {
     m_state.m_skipDrawSequence = false;
+    m_iridiaFast.valid = false;
 
     bool streamoutEnable = LatteGPUState.contextRegister[mmVGT_STRMOUT_EN] != 0;
 
@@ -1107,8 +1648,31 @@ void MetalRenderer::draw_beginSequence()
 		m_state.m_skipDrawSequence = true;
 }
 
+// Iridia study: IRIDIA_DRAW_TIMES=1 times draw_execute on the GPU command thread: [0] whole call, [1] resource
+// binding (BindStageResources for all stages), [2] draws timed; printed once per second (LattePerformanceMonitor)
+std::atomic<uint64> g_iridiaDrawNs[3];
+static bool IridiaDrawTimesOn() { static const bool v = getenv("IRIDIA_DRAW_TIMES") != nullptr; return v; }
+struct IridiaDrawTimer
+{
+    uint64 t0 = IridiaDrawTimesOn() ? IridiaTimelineNow() : 0;
+    ~IridiaDrawTimer() { if (t0) { g_iridiaDrawNs[0].fetch_add(IridiaTimelineNow() - t0, std::memory_order_relaxed); g_iridiaDrawNs[2].fetch_add(1, std::memory_order_relaxed); } }
+};
+
+std::atomic<uint64> g_iridiaFastDrawStats[4]; // fast continued draws, pipeline re-looked-up, check mismatches, full draws
+std::atomic<uint64> g_iridiaFastDrawMis[4]; // check mismatches by kind: pipeline, depth-stencil, textures, support buffer
+// on by default since Oct 30 (Mac +3.7% uncapped, 4/4 rounds); IRIDIA_FASTDRAW=0 turns it off, =2 is the check mode
+static int IridiaFastDrawMode() { static const int v = getenv("IRIDIA_FASTDRAW") ? atoi(getenv("IRIDIA_FASTDRAW")) : 1; return v; }
+
 void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 instanceCount, uint32 count, MPTR indexDataMPTR, Latte::LATTE_VGT_DMA_INDEX_TYPE::E_INDEX_TYPE indexType, const LatteDrawcallContext& drawcallContext)
 {
+    IridiaDrawTimer iridiaDrawTimer;
+    m_iridiaCmdDraws++;
+    const int fastMode = IridiaFastDrawMode();
+    const bool fast = fastMode && !drawcallContext.isFirst && m_iridiaFast.valid;
+    if (fastMode)
+        g_iridiaFastDrawStats[fast ? 0 : 3].fetch_add(1, std::memory_order_relaxed);
+    if (!fast)
+        m_iridiaFast.valid = false; // this draw takes the full path and records the state again
     if (m_state.m_skipDrawSequence)
 	{
 	    LatteGPUState.drawCallCounter++;
@@ -1118,12 +1682,14 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
 	// fast clear color as depth
 	if (LatteGPUState.contextNew.GetSpecialStateValues()[8] != 0)
 	{
+		m_iridiaFast.valid = false;
 		LatteDraw_handleSpecialState8_clearAsDepth();
 		LatteGPUState.drawCallCounter++;
 		return;
 	}
 	else if (LatteGPUState.contextNew.GetSpecialStateValues()[5] != 0)
 	{
+		m_iridiaFast.valid = false;
 		draw_handleSpecialState5();
 		LatteGPUState.drawCallCounter++;
 		return;
@@ -1204,14 +1770,72 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
     	// synchronize vertex and uniform cache and update buffer bindings
     	// We need to call this before getting the render command encoder, since it can cause buffer copies
 		uint8 stageUniformModifiedMask = 0;
-    	LatteBufferCache_Sync(indexMax + baseVertex, baseInstance, instanceCount, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, stageUniformModifiedMask);
+		if (fast) // Iridia: only the buffers the command processor marked dirty in this sequence (Vulkan's incremental sync)
+			LatteBufferCache_Sync(indexMax + baseVertex, baseInstance, instanceCount, drawcallContext.vertexBufferDirtyMask, drawcallContext.vsUniformBufferDirtyMask, drawcallContext.psUniformBufferDirtyMask, drawcallContext.gsUniformBufferDirtyMask, stageUniformModifiedMask, true);
+		else
+    		LatteBufferCache_Sync(indexMax + baseVertex, baseInstance, instanceCount, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, stageUniformModifiedMask);
 	}
 
 	// Render pass
+	// Iridia: a bound range that a redirect covers only partly can't be served from one buffer: end the pass first
+	if (!m_iridiaRedirects.empty())
+	{
+		bool partial = false;
+		auto check = [&](size_t o, size_t n) {
+			if (o == INVALID_OFFSET) return;
+			for (const auto& r : m_iridiaRedirects)
+				if (r.offset < o + std::max<size_t>(n, 1) && o < r.offset + r.size && !(o >= r.offset && o + n <= r.offset + r.size))
+					partial = true;
+		};
+		for (uint8 i = 0; i < MAX_MTL_VERTEX_BUFFERS; i++)
+			check(m_state.m_vertexBufferOffsets[i], m_iridiaVbSize[i]);
+		for (uint32 t = 0; t < METAL_GENERAL_SHADER_TYPE_TOTAL; t++)
+			for (sint32 i = 0; i < LATTE_NUM_MAX_UNIFORM_BUFFERS; i++)
+				check(m_state.m_uniformBufferOffsets[t][i], m_iridiaUbSize[t][i]);
+		if (partial)
+			IridiaFlushRedirects();
+	}
 	auto renderCommandEncoder = GetRenderCommandEncoder();
 
     // Render pipeline state
-    PipelineObject* pipelineObj = m_pipelineCache->GetRenderPipelineState(fetchShader, vertexShader, geometryShader, pixelShader, m_state.m_lastUsedFBO.m_attachmentsInfo, m_state.m_activeFBO.m_attachmentsInfo, m_state.m_activeFBO.m_fbo->m_size, count, LatteGPUState.contextNew);
+    // Iridia (item 5): in a continued draw only the vertex strides and the primitive type can change the pipeline
+    const uint32 primRaw = LatteGPUState.contextRegister[mmVGT_PRIMITIVE_TYPE];
+    bool pipelineLookup = !fast;
+    if (fast && m_iridiaEncoderGen != m_iridiaFast.encoderGen)
+    {
+        pipelineLookup = true;
+        g_iridiaFastDrawStats[1].fetch_add(1, std::memory_order_relaxed);
+    }
+    else if (fast && (drawcallContext.vertexBufferDirtyMask || primRaw != m_iridiaFast.primType))
+    {
+        uint32 k = 0;
+        for (auto& group : fetchShader->bufferGroups)
+            if (k >= m_iridiaFast.nStrides || group.getCurrentBufferStride(LatteGPUState.contextRegister) != m_iridiaFast.strides[k++])
+                pipelineLookup = true;
+        if (primRaw != m_iridiaFast.primType)
+            pipelineLookup = true;
+        if (pipelineLookup)
+            g_iridiaFastDrawStats[1].fetch_add(1, std::memory_order_relaxed);
+    }
+    PipelineObject* pipelineObj;
+    if (pipelineLookup || fastMode == 2)
+    {
+        pipelineObj = m_pipelineCache->GetRenderPipelineState(fetchShader, vertexShader, geometryShader, pixelShader, m_state.m_lastUsedFBO.m_attachmentsInfo, m_state.m_activeFBO.m_attachmentsInfo, m_state.m_activeFBO.m_fbo->m_size, count, LatteGPUState.contextNew);
+        if (!pipelineLookup && pipelineObj != m_iridiaFast.pipelineObj)
+            g_iridiaFastDrawStats[2].fetch_add(1, std::memory_order_relaxed), g_iridiaFastDrawMis[0].fetch_add(1, std::memory_order_relaxed);
+        if (fastMode)
+        {
+            m_iridiaFast.pipelineObj = pipelineObj;
+            m_iridiaFast.primType = primRaw;
+            m_iridiaFast.encoderGen = m_iridiaEncoderGen;
+            m_iridiaFast.nStrides = 0;
+            for (auto& group : fetchShader->bufferGroups)
+                if (m_iridiaFast.nStrides < Latte::GPU_LIMITS::NUM_VERTEX_BUFFERS)
+                    m_iridiaFast.strides[m_iridiaFast.nStrides++] = group.getCurrentBufferStride(LatteGPUState.contextRegister);
+        }
+    }
+    else
+        pipelineObj = m_iridiaFast.pipelineObj;
     if (!pipelineObj->m_pipeline)
         return;
 
@@ -1223,21 +1847,23 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
 
 	// Depth stencil state
 
-	// Disable depth write when there is no depth attachment
-	auto& depthControl = LatteGPUState.contextNew.DB_DEPTH_CONTROL;
-	bool depthWriteEnable = depthControl.get_Z_WRITE_ENABLE();
-	if (!m_state.m_activeFBO.m_fbo->depthBuffer.texture)
-	    depthControl.set_Z_WRITE_ENABLE(false);
-
-	MTL::DepthStencilState* depthStencilState = m_depthStencilCache->GetDepthStencilState(LatteGPUState.contextNew);
+	// Disable depth write when there is no depth attachment (Iridia: passed to the cache instead of rewriting
+	// DB_DEPTH_CONTROL around the lookup on every draw)
+	MTL::DepthStencilState* depthStencilState;
+	if (fast && fastMode != 2)
+	    depthStencilState = m_iridiaFast.depthStencil; // context registers and the framebuffer are fixed in a sequence
+	else
+	{
+	    depthStencilState = m_depthStencilCache->GetDepthStencilState(LatteGPUState.contextNew, !m_state.m_activeFBO.m_fbo->depthBuffer.texture);
+	    if (fast && depthStencilState != m_iridiaFast.depthStencil)
+	        g_iridiaFastDrawStats[2].fetch_add(1, std::memory_order_relaxed), g_iridiaFastDrawMis[1].fetch_add(1, std::memory_order_relaxed);
+	    m_iridiaFast.depthStencil = depthStencilState;
+	}
 	if (depthStencilState != encoderState.m_depthStencilState)
 	{
 	    renderCommandEncoder->setDepthStencilState(depthStencilState);
 		encoderState.m_depthStencilState = depthStencilState;
 	}
-
-	// Restore the original depth write state
-	depthControl.set_Z_WRITE_ENABLE(depthWriteEnable);
 
 	// Stencil reference
 	bool stencilEnable = LatteGPUState.contextNew.DB_DEPTH_CONTROL.get_STENCIL_ENABLE();
@@ -1410,7 +2036,9 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
         if (offset != INVALID_OFFSET)
         {
             // Bind
-            SetBuffer(renderCommandEncoder, GetMtlShaderType(vertexShader->shaderType, usesGeometryShader), m_memoryManager->GetBufferCache(), offset, GET_MTL_VERTEX_BUFFER_INDEX(i));
+            IridiaBindCacheBuffer(renderCommandEncoder, GetMtlShaderType(vertexShader->shaderType, usesGeometryShader), offset, m_iridiaVbSize[i], GET_MTL_VERTEX_BUFFER_INDEX(i));
+            m_memoryManager->MarkBufferCacheUse(offset, m_iridiaVbSize[i], m_iridiaSerial);
+            m_iridiaPassReads.emplace_back(offset, m_iridiaVbSize[i]);
         }
     }
 
@@ -1419,16 +2047,26 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
 	LatteStreamout_PrepareDrawcall(count, instanceCount);
 
 	// Uniform buffers, textures and samplers
-	BindStageResources(renderCommandEncoder, vertexShader, usesGeometryShader);
+	const uint64 iridiaBind0 = iridiaDrawTimer.t0 ? IridiaTimelineNow() : 0;
+	// Iridia (item 5): a stage's support buffer is unchanged in a continued draw when its ALU constants and uniform
+	// buffer bindings are not dirty (the rest of it comes from context registers, textures and the viewport, which a
+	// sequence keeps)
+	BindStageResources(renderCommandEncoder, vertexShader, usesGeometryShader, fast, !drawcallContext.aluConstVSDirty && drawcallContext.vsUniformBufferDirtyMask == 0);
 	if (usesGeometryShader && geometryShader)
-	    BindStageResources(renderCommandEncoder, geometryShader, usesGeometryShader);
-	BindStageResources(renderCommandEncoder, pixelShader, usesGeometryShader);
+	    BindStageResources(renderCommandEncoder, geometryShader, usesGeometryShader, fast, drawcallContext.gsUniformBufferDirtyMask == 0);
+	BindStageResources(renderCommandEncoder, pixelShader, usesGeometryShader, fast, !drawcallContext.aluConstPSDirty && drawcallContext.psUniformBufferDirtyMask == 0);
+	if (fastMode)
+	    m_iridiaFast.valid = true;
+	if (iridiaBind0)
+	    g_iridiaDrawNs[1].fetch_add(IridiaTimelineNow() - iridiaBind0, std::memory_order_relaxed);
 
 	// Draw
 	if (usesGeometryShader)
 	{
 	    if (hostIndexType != INDEX_TYPE::NONE)
 		    SetBuffer(renderCommandEncoder, METAL_SHADER_TYPE_OBJECT, indexAllocationMtl->mtlBuffer, indexAllocationMtl->bufferOffset, vertexShader->resourceMapping.indexBufferBinding);
+	    if (hostIndexType != INDEX_TYPE::NONE && MetalSynchronizedHeapAllocator::DbgOn()) [[unlikely]]
+		    m_memoryManager->GetIndexAllocator().DbgUse(indexAllocationMtl, GetCurrentCommandBuffer(), hostIndexType == INDEX_TYPE::U16 ? 2 : 4);
 
 		uint8 hostIndexTypeU8 = (uint8)hostIndexType;
 		renderCommandEncoder->setObjectBytes(&hostIndexTypeU8, sizeof(hostIndexTypeU8), vertexShader->resourceMapping.indexTypeBinding);
@@ -1449,6 +2087,8 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
        	{
        	    auto mtlIndexType = GetMtlIndexType(hostIndexType);
       		renderCommandEncoder->drawIndexedPrimitives(mtlPrimitiveType, hostIndexCount, mtlIndexType, indexAllocationMtl->mtlBuffer, indexAllocationMtl->bufferOffset, instanceCount, baseVertex, baseInstance);
+      		if (MetalSynchronizedHeapAllocator::DbgOn()) [[unlikely]]
+      		    m_memoryManager->GetIndexAllocator().DbgUse(indexAllocationMtl, GetCurrentCommandBuffer(), hostIndexType == INDEX_TYPE::U16 ? 2 : 4);
        	}
        	else
        	{
@@ -1457,6 +2097,7 @@ void MetalRenderer::draw_execute(uint32 baseVertex, uint32 baseInstance, uint32 
 	}
 
 	m_state.m_isFirstDrawInRenderPass = false;
+	s_seq.draws++;
 
 	// Occlusion queries
 	if (m_occlusionQuery.m_active)
@@ -1484,10 +2125,25 @@ void MetalRenderer::draw_endSequence()
 		LatteRenderTarget_trackUpdates();
 	bool hasReadback = LatteTextureReadback_Update();
 	m_recordedDrawcalls++;
+	// Iridia study: IRIDIA_LATTE_SPIN_NS=<n> busy-waits n ns per draw on this thread (off by default). Sensitivity
+	// test for moving encoding off this thread: if added time here does not lower fps, removing it will not raise it.
+	static const uint64 s_spinNs = getenv("IRIDIA_LATTE_SPIN_NS") ? strtoull(getenv("IRIDIA_LATTE_SPIN_NS"), nullptr, 10) : 0;
+	if (s_spinNs)
+	{
+		static mach_timebase_info_data_t tb = [] { mach_timebase_info_data_t t; mach_timebase_info(&t); return t; }();
+		const uint64 end = mach_absolute_time() + s_spinNs * tb.denom / tb.numer;
+		while (mach_absolute_time() < end) {}
+	}
 	// The number of draw calls needs to twice as big, since we are interrupting the render pass
 	// TODO: ucomment?
-	if (m_recordedDrawcalls >= m_commitTreshold * 2/* || hasReadback*/)
+	// Iridia study: IRIDIA_INPASS_COMMIT=<n> sets the in-pass multiplier (default 2). A commit inside a render pass
+	// splits it: the reopened pass reloads its attachments and its vertex stage waits for the first half's fragments.
+	static const uint32 s_inPassMult = getenv("IRIDIA_INPASS_COMMIT") ? (uint32)atoi(getenv("IRIDIA_INPASS_COMMIT")) : 2;
+	if (m_recordedDrawcalls >= m_commitTreshold * s_inPassMult/* || hasReadback*/)
 	{
+		static const bool s_noResume = getenv("IRIDIA_NO_RESUME") != nullptr;
+		if (!s_noResume && m_commandEncoder && m_encoderType == MetalEncoderType::Render && m_state.m_lastUsedFBO.m_fbo)
+			m_iridiaResumeFBO = m_state.m_lastUsedFBO;
 		CommitCommandBuffer();
 
         // TODO: where should this be called?
@@ -1616,7 +2272,10 @@ void MetalRenderer::occlusionQuery_destroy(LatteQueryObject* queryObj) {
 
 void MetalRenderer::occlusionQuery_flush() {
     if (m_occlusionQuery.m_lastCommandBuffer)
+    {
+        IridiaWaitTimer iridiaWait(6);
         m_occlusionQuery.m_lastCommandBuffer->waitUntilCompleted();
+    }
 }
 
 void MetalRenderer::occlusionQuery_updateState() {
@@ -1734,12 +2393,14 @@ MTL::CommandBuffer* MetalRenderer::GetCommandBuffer()
 	    MTL::CommandBuffer* mtlCommandBuffer = m_commandQueue->commandBuffer()->retain();
 		pool->release();
 		m_currentCommandBuffer = {mtlCommandBuffer};
+		m_iridiaSerial++;
 
 		// Wait for the previous command buffer
 		if (m_eventValue != -1)
 		    mtlCommandBuffer->encodeWait(m_event, m_eventValue);
 
 		m_recordedDrawcalls = 0;
+		m_iridiaCmdDraws = 0;
 		m_commitTreshold = m_defaultCommitTreshlod;
 
         // Debug
@@ -1755,6 +2416,7 @@ MTL::CommandBuffer* MetalRenderer::GetCommandBuffer()
 
 MTL::RenderCommandEncoder* MetalRenderer::GetTemporaryRenderCommandEncoder(MTL::RenderPassDescriptor* renderPassDescriptor)
 {
+    IridiaFlushClears();
     EndEncoding();
 
     auto commandBuffer = GetCommandBuffer();
@@ -1762,11 +2424,19 @@ MTL::RenderCommandEncoder* MetalRenderer::GetTemporaryRenderCommandEncoder(MTL::
     auto pool = NS::AutoreleasePool::alloc()->init();
     auto renderCommandEncoder = commandBuffer->renderCommandEncoder(renderPassDescriptor)->retain();
     pool->release();
+    if (IridiaEnvOn("IRIDIA_ENC_LABELS"))
+    {
+        fprintf(stderr, "IRIDIA_ENC R temp %s\n", IridiaRenderPassKey(renderPassDescriptor).c_str());
+        renderCommandEncoder->setLabel(NS::String::string(("temp " + IridiaRenderPassKey(renderPassDescriptor)).c_str(), NS::UTF8StringEncoding));
+    }
+    if (IridiaSeqOn())
+        IridiaSeq(fmt::format("temp {}{}", IridiaRenderPassKey(renderPassDescriptor), IridiaRpIds(renderPassDescriptor)));
 #ifdef CEMU_DEBUG_ASSERT
     renderCommandEncoder->setLabel(GetLabel("Temporary render command encoder", renderCommandEncoder));
 #endif
     m_commandEncoder = renderCommandEncoder;
     m_encoderType = MetalEncoderType::Render;
+    m_iridiaPassReads.clear();
 
     // Debug
     m_performanceMonitor.m_renderPasses++;
@@ -1774,11 +2444,30 @@ MTL::RenderCommandEncoder* MetalRenderer::GetTemporaryRenderCommandEncoder(MTL::
     return renderCommandEncoder;
 }
 
+
 // Some render passes clear the attachments, forceRecreate is supposed to be used in those cases
+// Iridia diagnostics: who ends a render pass with a blit/compute encoder (IRIDIA_PASS_SPLITS=1, every 5 s)
+static void IridiaCountSplit(void* ra, const std::string& pass)
+{
+    static std::map<std::pair<uintptr_t, std::string>, uint32> hits;
+    static auto last = std::chrono::steady_clock::now();
+    Dl_info info{};
+    dladdr((void*)&IridiaCountSplit, &info);
+    hits[{(uintptr_t)ra - (uintptr_t)info.dli_fbase, pass}]++;
+    if (std::chrono::steady_clock::now() - last < std::chrono::seconds(5))
+        return;
+    last = std::chrono::steady_clock::now();
+    for (auto& [k, n] : hits)
+        if (n >= 50)
+            fprintf(stderr, "IRIDIA_PASS_SPLITS %x %u %s\n", (unsigned)k.first, n, k.second.c_str());
+    hits.clear();
+}
+
 MTL::RenderCommandEncoder* MetalRenderer::GetRenderCommandEncoder(bool forceRecreate)
 {
     bool fboChanged = m_state.m_fboChanged;
     m_state.m_fboChanged = false;
+    const MetalEncoderType prevType = m_commandEncoder ? m_encoderType : MetalEncoderType::None;
 
     // Check if we need to begin a new render pass
     if (m_commandEncoder)
@@ -1819,34 +2508,151 @@ MTL::RenderCommandEncoder* MetalRenderer::GetRenderCommandEncoder(bool forceRecr
             }
         }
 
-        EndEncoding();
+        // Iridia study: IRIDIA_BOUNDARY_COMMIT=<n> commits at a render pass boundary once the command buffer holds n
+        // draws (the sequence-count threshold lets ~460 draws pile up). The pass ends here anyway, so no pass is split
+        // and the GPU gets the work sooner.
+        static const uint32 s_boundaryCommit = getenv("IRIDIA_BOUNDARY_COMMIT") ? (uint32)atoi(getenv("IRIDIA_BOUNDARY_COMMIT")) : 0;
+        if (s_boundaryCommit && m_iridiaCmdDraws >= s_boundaryCommit && m_encoderType == MetalEncoderType::Render)
+            CommitCommandBuffer();
+        else
+            EndEncoding();
     }
 
+    // Iridia: a pass cut by a draw-count commit reopens with the same attachments when they cover the active ones
+    // (the pipelines mask the ones not bound), so a following draw that binds one of them again keeps the pass
+    MetalActiveFBOState passFBO = m_state.m_activeFBO;
+    if (CachedFBOMtl* r = m_iridiaResumeFBO.m_fbo; r && r != passFBO.m_fbo)
+    {
+        CachedFBOMtl* f = passFBO.m_fbo;
+        bool covers = true;
+        for (uint8 i = 0; i < 8 && covers; i++)
+            if (f->colorBuffer[i].texture && f->colorBuffer[i].texture != r->colorBuffer[i].texture)
+                covers = false;
+        if (covers && f->depthBuffer.texture && (f->depthBuffer.texture != r->depthBuffer.texture || (f->depthBuffer.hasStencil && !r->depthBuffer.hasStencil)))
+            covers = false;
+        if (covers)
+            passFBO = m_iridiaResumeFBO;
+    }
+    m_iridiaResumeFBO = {nullptr};
+
+    // Iridia: pending clears (IridiaDeferClear) of this pass's color attachments become its load actions; the rest
+    // run now, before the command buffer is taken (running them can commit it)
+    MTL::RenderPassDescriptor* iridiaRp = passFBO.m_fbo->GetRenderPassDescriptor();
+    std::vector<std::pair<IridiaPendingClear, int>> iridiaFolded;
+    if (!m_iridiaPendingClears.empty())
+    {
+        // the pass's area: the smallest attachment (a clear load action only covers that)
+        uint32 passW = ~0u, passH = ~0u;
+        auto sizeOf = [&](MTL::RenderPassAttachmentDescriptor* at) {
+            if (MTL::Texture* t = at->texture())
+            {
+                passW = std::min<uint32>(passW, std::max<uint32>(1, (uint32)t->width() >> at->level()));
+                passH = std::min<uint32>(passH, std::max<uint32>(1, (uint32)t->height() >> at->level()));
+            }
+        };
+        for (int i = 0; i < 8; i++)
+            sizeOf(iridiaRp->colorAttachments()->object(i));
+        sizeOf(iridiaRp->depthAttachment());
+        sizeOf(iridiaRp->stencilAttachment());
+        if (iridiaRp->renderTargetWidth()) passW = std::min<uint32>(passW, (uint32)iridiaRp->renderTargetWidth());
+        if (iridiaRp->renderTargetHeight()) passH = std::min<uint32>(passH, (uint32)iridiaRp->renderTargetHeight());
+        std::vector<IridiaPendingClear> rest;
+        for (auto& c : m_iridiaPendingClears)
+        {
+            const uint32 cw = std::max<uint32>(1, (uint32)c.texture->width() >> c.mip), ch = std::max<uint32>(1, (uint32)c.texture->height() >> c.mip);
+            if (cw != passW || ch != passH) { rest.push_back(c); continue; } // the pass would clear only part of it
+            int index = -1;
+            for (int i = 0; i < 8 && index < 0; i++)
+            {
+                auto at = iridiaRp->colorAttachments()->object(i);
+                MTL::Texture* t = at->texture();
+                if (!t) continue;
+                MTL::Texture* base = t->parentTexture() ? t->parentTexture() : t;
+                const sint32 slice = (sint32)at->slice() + (t->parentTexture() ? (sint32)t->parentRelativeSlice() : 0);
+                const sint32 level = (sint32)at->level() + (t->parentTexture() ? (sint32)t->parentRelativeLevel() : 0);
+                if (base == c.texture && slice == c.slice && level == c.mip && t->pixelFormat() == c.texture->pixelFormat() &&
+                    t->arrayLength() == 1 && t->textureType() != MTL::TextureType3D && at->loadAction() == MTL::LoadActionLoad)
+                    index = i;
+            }
+            if (index >= 0)
+                iridiaFolded.emplace_back(c, index);
+            else
+                rest.push_back(c);
+        }
+        m_iridiaPendingClears = std::move(rest);
+        IridiaFlushClears();
+    }
     auto commandBuffer = GetCommandBuffer();
 
     auto pool = NS::AutoreleasePool::alloc()->init();
-    auto renderCommandEncoder = commandBuffer->renderCommandEncoder(m_state.m_activeFBO.m_fbo->GetRenderPassDescriptor())->retain();
+    if (IridiaSeqOn())
+        IridiaSeq(fmt::format("render {}{}{}", IridiaRenderPassKey(iridiaRp), forceRecreate ? " (forced)" : "", IridiaRpIds(iridiaRp)));
+    if (IridiaPassProfOn(m_device))
+    {
+        auto sa = iridiaRp->sampleBufferAttachments()->object(0);
+        const uint32 idx = IridiaPassAlloc(commandBuffer, IridiaPassKey(IridiaRenderPassKey(iridiaRp)));
+        sa->setSampleBuffer(s_pp.buf);
+        sa->setStartOfVertexSampleIndex(idx); sa->setEndOfVertexSampleIndex(idx + 1);
+        sa->setStartOfFragmentSampleIndex(idx + 2); sa->setEndOfFragmentSampleIndex(idx + 3);
+    }
+    for (auto& [c, i] : iridiaFolded)
+    {
+        iridiaRp->colorAttachments()->object(i)->setLoadAction(MTL::LoadActionClear);
+        iridiaRp->colorAttachments()->object(i)->setClearColor(c.color);
+        g_iridiaClears[2].fetch_add(1, std::memory_order_relaxed);
+    }
+    auto renderCommandEncoder = commandBuffer->renderCommandEncoder(iridiaRp)->retain();
+    for (auto& [c, i] : iridiaFolded)
+    {
+        iridiaRp->colorAttachments()->object(i)->setLoadAction(MTL::LoadActionLoad); // the cached descriptor stays as it was
+        c.texture->release();
+    }
+    static const bool s_iridiaLabels = getenv("IRIDIA_ENC_LABELS") != nullptr; // Iridia: pass names in Metal System Trace
+    if (s_iridiaLabels)
+    {
+        fprintf(stderr, "IRIDIA_ENC R %s\n", IridiaRenderPassKey(iridiaRp).c_str());
+        renderCommandEncoder->setLabel(NS::String::string(IridiaRenderPassKey(iridiaRp).c_str(), NS::UTF8StringEncoding));
+    }
+    if (s_pp.on)
+        iridiaRp->sampleBufferAttachments()->object(0)->setSampleBuffer(nullptr);
     pool->release();
 #ifdef CEMU_DEBUG_ASSERT
     renderCommandEncoder->setLabel(GetLabel("Render command encoder", renderCommandEncoder));
 #endif
     m_commandEncoder = renderCommandEncoder;
     m_encoderType = MetalEncoderType::Render;
+    m_iridiaPassReads.clear();
 
     // Update state
-    m_state.m_lastUsedFBO = m_state.m_activeFBO;
+    m_state.m_lastUsedFBO = passFBO;
     m_state.m_isFirstDrawInRenderPass = true;
 
     ResetEncoderState();
 
     // Debug
     m_performanceMonitor.m_renderPasses++;
+    {
+        // Iridia diagnostics (g_iridiaPasses): same attachments as the previous render pass?
+        static const void* s_prev[9] = {};
+        const void* cur[9] = {};
+        if (CachedFBOMtl* f = m_state.m_activeFBO.m_fbo)
+        {
+            for (uint8 i = 0; i < 8; i++)
+                cur[i] = f->colorBuffer[i].texture;
+            cur[8] = f->depthBuffer.texture;
+        }
+        g_iridiaPasses[0].fetch_add(1, std::memory_order_relaxed);
+        if (memcmp(cur, s_prev, sizeof(cur)) == 0)
+            g_iridiaPasses[prevType == MetalEncoderType::Blit || prevType == MetalEncoderType::Compute ? 1 : prevType == MetalEncoderType::Render ? 2 : 3].fetch_add(1, std::memory_order_relaxed);
+        memcpy(s_prev, cur, sizeof(cur));
+    }
 
     return renderCommandEncoder;
 }
 
 MTL::ComputeCommandEncoder* MetalRenderer::GetComputeCommandEncoder()
 {
+    IridiaFlushClears();
     if (m_commandEncoder)
     {
         if (m_encoderType == MetalEncoderType::Compute)
@@ -1854,13 +2660,39 @@ MTL::ComputeCommandEncoder* MetalRenderer::GetComputeCommandEncoder()
             return (MTL::ComputeCommandEncoder*)m_commandEncoder;
         }
 
+        if (m_encoderType == MetalEncoderType::Render && IridiaEnvOn("IRIDIA_PASS_SPLITS"))
+            IridiaCountSplit(__builtin_return_address(0), m_state.m_lastUsedFBO.m_fbo ? IridiaRenderPassKey(m_state.m_lastUsedFBO.m_fbo->GetRenderPassDescriptor()) : std::string("?"));
         EndEncoding();
     }
 
     auto commandBuffer = GetCommandBuffer();
 
     auto pool = NS::AutoreleasePool::alloc()->init();
-    auto computeCommandEncoder = commandBuffer->computeCommandEncoder()->retain();
+    MTL::ComputeCommandEncoder* computeCommandEncoder;
+    if (IridiaSeqOn())
+    {
+        Dl_info info{}; dladdr((void*)&IridiaSeqOn, &info);
+        IridiaSeq(fmt::format("compute from {:x}", (uintptr_t)__builtin_return_address(0) - (uintptr_t)info.dli_fbase));
+    }
+    if (IridiaPassProfOn(m_device))
+    {
+        auto pd = MTL::ComputePassDescriptor::alloc()->init();
+        const uint32 idx = IridiaPassAlloc(commandBuffer, IridiaPassKey("compute"));
+        auto sa = pd->sampleBufferAttachments()->object(0);
+        sa->setSampleBuffer(s_pp.buf);
+        sa->setStartOfEncoderSampleIndex(idx); sa->setEndOfEncoderSampleIndex(idx + 1);
+        computeCommandEncoder = commandBuffer->computeCommandEncoder(pd)->retain();
+        pd->release();
+    }
+    else
+        computeCommandEncoder = commandBuffer->computeCommandEncoder()->retain();
+    if (IridiaEnvOn("IRIDIA_ENC_LABELS"))
+    {
+        Dl_info info{}; dladdr((void*)&IridiaSeqOn, &info);
+        fprintf(stderr, "IRIDIA_ENC C %x\n", (unsigned)((uintptr_t)__builtin_return_address(0) - (uintptr_t)info.dli_fbase));
+        char lb[32]; snprintf(lb, sizeof(lb), "C %x", (unsigned)((uintptr_t)__builtin_return_address(0) - (uintptr_t)info.dli_fbase));
+        computeCommandEncoder->setLabel(NS::String::string(lb, NS::UTF8StringEncoding));
+    }
     pool->release();
     m_commandEncoder = computeCommandEncoder;
     m_encoderType = MetalEncoderType::Compute;
@@ -1872,6 +2704,7 @@ MTL::ComputeCommandEncoder* MetalRenderer::GetComputeCommandEncoder()
 
 MTL::BlitCommandEncoder* MetalRenderer::GetBlitCommandEncoder()
 {
+    IridiaFlushClears();
     if (m_commandEncoder)
     {
         if (m_encoderType == MetalEncoderType::Blit)
@@ -1879,13 +2712,39 @@ MTL::BlitCommandEncoder* MetalRenderer::GetBlitCommandEncoder()
             return (MTL::BlitCommandEncoder*)m_commandEncoder;
         }
 
+        if (m_encoderType == MetalEncoderType::Render && IridiaEnvOn("IRIDIA_PASS_SPLITS"))
+            IridiaCountSplit(__builtin_return_address(0), m_state.m_lastUsedFBO.m_fbo ? IridiaRenderPassKey(m_state.m_lastUsedFBO.m_fbo->GetRenderPassDescriptor()) : std::string("?"));
         EndEncoding();
     }
 
     auto commandBuffer = GetCommandBuffer();
 
     auto pool = NS::AutoreleasePool::alloc()->init();
-    auto blitCommandEncoder = commandBuffer->blitCommandEncoder()->retain();
+    MTL::BlitCommandEncoder* blitCommandEncoder;
+    if (IridiaSeqOn())
+    {
+        Dl_info info{}; dladdr((void*)&IridiaSeqOn, &info);
+        IridiaSeq(fmt::format("blit from {:x}", (uintptr_t)__builtin_return_address(0) - (uintptr_t)info.dli_fbase));
+    }
+    if (IridiaPassProfOn(m_device))
+    {
+        auto pd = MTL::BlitPassDescriptor::alloc()->init();
+        const uint32 idx = IridiaPassAlloc(commandBuffer, IridiaPassKey("blit"));
+        auto sa = pd->sampleBufferAttachments()->object(0);
+        sa->setSampleBuffer(s_pp.buf);
+        sa->setStartOfEncoderSampleIndex(idx); sa->setEndOfEncoderSampleIndex(idx + 1);
+        blitCommandEncoder = commandBuffer->blitCommandEncoder(pd)->retain();
+        pd->release();
+    }
+    else
+        blitCommandEncoder = commandBuffer->blitCommandEncoder()->retain();
+    if (IridiaEnvOn("IRIDIA_ENC_LABELS"))
+    {
+        Dl_info info{}; dladdr((void*)&IridiaSeqOn, &info);
+        fprintf(stderr, "IRIDIA_ENC B %x\n", (unsigned)((uintptr_t)__builtin_return_address(0) - (uintptr_t)info.dli_fbase));
+        char lb[32]; snprintf(lb, sizeof(lb), "B %x", (unsigned)((uintptr_t)__builtin_return_address(0) - (uintptr_t)info.dli_fbase));
+        blitCommandEncoder->setLabel(NS::String::string(lb, NS::UTF8StringEncoding));
+    }
     pool->release();
     m_commandEncoder = blitCommandEncoder;
     m_encoderType = MetalEncoderType::Blit;
@@ -1899,10 +2758,25 @@ void MetalRenderer::EndEncoding()
 {
     if (m_commandEncoder)
     {
+        if (IridiaSeqOn())
+        {
+            Dl_info info{}; dladdr((void*)&IridiaSeqOn, &info);
+            void* ra = __builtin_return_address(0);
+            IridiaSeq(fmt::format("  end from {:x}", (uintptr_t)ra - (uintptr_t)info.dli_fbase));
+        }
+        const bool wasRender = m_encoderType == MetalEncoderType::Render;
         m_commandEncoder->endEncoding();
         m_commandEncoder->release();
         m_commandEncoder = nullptr;
         m_encoderType = MetalEncoderType::None;
+        if (wasRender && !m_iridiaRedirects.empty())
+        {
+            auto pool = NS::AutoreleasePool::alloc()->init();
+            MTL::BlitCommandEncoder* blit = GetCommandBuffer()->blitCommandEncoder();
+            IridiaApplyRedirects(blit);
+            blit->endEncoding();
+            pool->release();
+        }
 
         // Commit the command buffer if enough draw calls have been recorded
         if (m_recordedDrawcalls >= m_commitTreshold)
@@ -1915,6 +2789,7 @@ void MetalRenderer::CommitCommandBuffer()
     if (!m_currentCommandBuffer.m_commandBuffer)
         return;
 
+    IridiaFlushClears();
     EndEncoding();
 
     ProcessFinishedCommandBuffers();
@@ -1932,10 +2807,18 @@ void MetalRenderer::CommitCommandBuffer()
         auto mtlCommandBuffer = m_currentCommandBuffer.m_commandBuffer;
         mtlCommandBuffer->encodeSignalEvent(m_event, m_eventValue);
 
+        if (m_iridiaWarmGate)
+        {
+            if (m_iridiaInFlight.fetch_add(1, std::memory_order_relaxed) == 0)
+                m_iridiaInFlight.notify_one(); // wakes the warm-up thread
+            mtlCommandBuffer->addCompletedHandler([this](MTL::CommandBuffer*) { m_iridiaInFlight.fetch_sub(1, std::memory_order_relaxed); });
+        }
         mtlCommandBuffer->commit();
+        IridiaTL(TL_COMMIT, 0, (uint32)((uintptr_t)mtlCommandBuffer >> 4));
         m_currentCommandBuffer.m_commited = true;
 
         m_executingCommandBuffers.push_back(mtlCommandBuffer);
+        m_iridiaExecutingSerials.push_back(m_iridiaSerial);
 
         // Debug
         //m_commandQueue->insertDebugCaptureBoundary();
@@ -1950,8 +2833,28 @@ void MetalRenderer::ProcessFinishedCommandBuffers()
         auto commandBuffer = *it;
         if (CommandBufferCompleted(commandBuffer))
         {
+            const double gpuTime = commandBuffer->GPUEndTime() - commandBuffer->GPUStartTime(); // Iridia: IRIDIA_DIAG
+            if (gpuTime > 0.0 && gpuTime < 1.0)
+            {
+                g_iridiaGpuBusyNs.fetch_add((uint64_t)(gpuTime * 1e9), std::memory_order_relaxed);
+                // GPU busy without counting overlapping command buffers twice (union of their start-end spans)
+                static double s_lastEnd = 0.0;
+                const double start = std::max(commandBuffer->GPUStartTime(), s_lastEnd);
+                if (commandBuffer->GPUEndTime() > start)
+                    g_iridiaGpuUnionNs.fetch_add((uint64_t)((commandBuffer->GPUEndTime() - start) * 1e9), std::memory_order_relaxed);
+                s_lastEnd = std::max(s_lastEnd, commandBuffer->GPUEndTime());
+                g_iridiaGpuCmdBufs.fetch_add(1, std::memory_order_relaxed);
+                if (g_iridiaTimelineOn.load(std::memory_order_relaxed))
+                {
+                    IridiaTimelineRecordAt((uint64_t)(commandBuffer->GPUStartTime() * 1e9), TL_GPU_B, 0, (uint32)((uintptr_t)commandBuffer >> 4));
+                    IridiaTimelineRecordAt((uint64_t)(commandBuffer->GPUEndTime() * 1e9), TL_GPU_E, 0, (uint32)((uintptr_t)commandBuffer >> 4));
+                }
+            }
+            if (s_pp.on)
+                IridiaPassResolve(m_device, commandBuffer);
             m_memoryManager->CleanupBuffers(commandBuffer);
             commandBuffer->release();
+            m_iridiaExecutingSerials.erase(m_iridiaExecutingSerials.begin() + (it - m_executingCommandBuffers.begin()));
             it = m_executingCommandBuffers.erase(it);
         }
         else
@@ -2029,11 +2932,45 @@ bool MetalRenderer::CheckIfRenderPassNeedsFlush(LatteDecompilerShader* shader)
 }
 */
 
-void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandEncoder, LatteDecompilerShader* shader, bool usesGeometryShader)
+void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandEncoder, LatteDecompilerShader* shader, bool usesGeometryShader, bool fast, bool supportStatic)
 {
     auto mtlShaderType = GetMtlShaderType(shader->shaderType, usesGeometryShader);
+    const int fastMode = IridiaFastDrawMode();
 
-    sint32 textureCount = shader->resourceMapping.getTextureCount();
+    // Iridia (item 5): textures and samplers can't change inside a draw sequence (a texture or sampler register
+    // write ends it), so a continued draw replays the bindings the sequence's full draw made for this stage. The
+    // Set* calls still compare with the encoder state, so a new encoder in the middle of a sequence gets them all.
+    const uint32 fastStage = (uint32)GetMtlGeneralShaderType(shader->shaderType);
+    auto& fastTex = m_iridiaFast.tex[fastStage];
+    uint32& fastTexCount = m_iridiaFast.nTex[fastStage];
+    // the binding stage (vertex vs object) also follows the primitive type (rects use the mesh path)
+    static MetalShaderType s_fastTexType[3];
+    const bool replayTextures = fast && m_iridiaFast.texValid[fastStage] && s_fastTexType[fastStage] == mtlShaderType && fastMode != 2;
+    if (replayTextures)
+    {
+        for (uint32 k = 0; k < fastTexCount; k++)
+        {
+            if (fastTex[k].sampler)
+                SetSamplerState(renderCommandEncoder, mtlShaderType, fastTex[k].sampler, fastTex[k].binding);
+            SetTexture(renderCommandEncoder, mtlShaderType, fastTex[k].texture, fastTex[k].binding);
+        }
+    }
+    const bool checkTextures = fast && fastMode == 2 && m_iridiaFast.texValid[fastStage];
+    IridiaFastDraw::TexBind checkTex[32];
+    uint32 checkCount = 0;
+    auto recordTex = [&](uint32 binding, MTL::Texture* texture, MTL::SamplerState* sampler) {
+        if (checkTextures) { if (checkCount < 32) checkTex[checkCount++] = {binding, texture, sampler}; return; }
+        if (fastTexCount < 32) fastTex[fastTexCount++] = {binding, texture, sampler};
+        else m_iridiaFast.texValid[fastStage] = false; // too many to record: this stage takes the full path
+    };
+    if (!replayTextures && !checkTextures && fastMode)
+    {
+        fastTexCount = 0;
+        m_iridiaFast.texValid[fastStage] = true;
+        s_fastTexType[fastStage] = mtlShaderType;
+    }
+
+    sint32 textureCount = replayTextures ? 0 : shader->resourceMapping.getTextureCount();
 	for (int i = 0; i < textureCount; ++i)
 	{
 		const auto relative_textureUnit = shader->resourceMapping.getRelativeTextureUnitFromRelativeBindingPoint(i);
@@ -2079,17 +3016,20 @@ void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandE
            	else
                 SetTexture(renderCommandEncoder, mtlShaderType, m_nullTexture2D, binding);
             SetSamplerState(renderCommandEncoder, mtlShaderType, m_nearestSampler, binding);
+            recordTex(binding, textureDim == Latte::E_DIM::DIM_1D ? m_nullTexture1D : m_nullTexture2D, m_nearestSampler);
             continue;
 		}
 
 		if (textureDim == Latte::E_DIM::DIM_1D && (textureView->dim != Latte::E_DIM::DIM_1D))
 		{
 		    SetTexture(renderCommandEncoder, mtlShaderType, m_nullTexture1D, binding);
+		    recordTex(binding, m_nullTexture1D, nullptr);
 			continue;
 		}
 		else if (textureDim == Latte::E_DIM::DIM_2D && (textureView->dim != Latte::E_DIM::DIM_2D && textureView->dim != Latte::E_DIM::DIM_2D_MSAA))
 		{
 		    SetTexture(renderCommandEncoder, mtlShaderType, m_nullTexture2D, binding);
+		    recordTex(binding, m_nullTexture2D, nullptr);
 			continue;
 		}
 
@@ -2127,6 +3067,15 @@ void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandE
 		auto& boundTexture = m_state.m_encoderState.m_textures[mtlShaderType][binding];
 		MTL::Texture* mtlTexture = textureView->GetSwizzledView(word4);
 		SetTexture(renderCommandEncoder, mtlShaderType, mtlTexture, binding);
+		recordTex(binding, mtlTexture, sampler);
+	}
+	if (checkTextures)
+	{
+	    bool same = checkCount == fastTexCount;
+	    for (uint32 k = 0; same && k < checkCount; k++)
+	        same = checkTex[k].binding == fastTex[k].binding && checkTex[k].texture == fastTex[k].texture && checkTex[k].sampler == fastTex[k].sampler;
+	    if (!same)
+	        g_iridiaFastDrawStats[2].fetch_add(1, std::memory_order_relaxed), g_iridiaFastDrawMis[2].fetch_add(1, std::memory_order_relaxed);
 	}
 
 	// Support buffer
@@ -2153,7 +3102,18 @@ void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandE
 		UNREACHABLE;
 	}
 
-	if (shader->resourceMapping.uniformVarsBufferBindingPoint >= 0)
+	// Iridia (item 5): the last upload of this stage, kept for the identical-uniform skip and the continued draws
+	struct LastUpload { uint64 serial = ~0ull; size_t size = 0; MTL::Buffer* buffer = nullptr; size_t offset = 0; const uint8* data = nullptr; const LatteDecompilerShader* shader = nullptr; };
+	static LastUpload s_last[3];
+	LastUpload& last = s_last[GetMtlGeneralShaderType(shader->shaderType)];
+	const bool reuseSupport = fast && supportStatic && shader->uniform.loc_verticesPerInstance < 0 && last.buffer && last.shader == shader &&
+		last.serial == m_iridiaSerial && last.size == shader->uniform.uniformRangeSize && fastMode != 2;
+	if (shader->resourceMapping.uniformVarsBufferBindingPoint >= 0 && reuseSupport)
+	{
+		g_iridiaUniformReuse[0].fetch_add(1, std::memory_order_relaxed);
+		SetBuffer(renderCommandEncoder, mtlShaderType, last.buffer, last.offset, shader->resourceMapping.uniformVarsBufferBindingPoint);
+	}
+	else if (shader->resourceMapping.uniformVarsBufferBindingPoint >= 0)
 	{
 		if (shader->uniform.list_ufTexRescale.empty() == false)
 		{
@@ -2220,12 +3180,31 @@ void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandE
 		}
 
 		size_t size = shader->uniform.uniformRangeSize;
-		auto& bufferAllocator = m_memoryManager->GetStagingAllocator();
-		auto allocation = bufferAllocator.AllocateBufferMemory(size, 1);
-		memcpy(allocation.memPtr, supportBufferData, size);
-		bufferAllocator.FlushReservation(allocation);
+		// Iridia: a draw whose uniform block for this stage is byte-identical to the previous upload in the same
+		// command buffer binds that upload again instead of copying a new one (the ring keeps it until the command
+		// buffer completes). IRIDIA_UNIFORM_REUSE=0 turns it off (A/B).
+		static const bool s_reuseOn = !getenv("IRIDIA_UNIFORM_REUSE") || atoi(getenv("IRIDIA_UNIFORM_REUSE")) != 0;
+		// check mode: a continued draw that would have reused the support buffer must produce the same bytes
+		if (fast && fastMode == 2 && supportStatic && shader->uniform.loc_verticesPerInstance < 0 && last.buffer && last.shader == shader &&
+			last.serial == m_iridiaSerial && last.size == size && memcmp(last.data, supportBufferData, size) != 0)
+			g_iridiaFastDrawStats[2].fetch_add(1, std::memory_order_relaxed), g_iridiaFastDrawMis[3].fetch_add(1, std::memory_order_relaxed);
+		if (s_reuseOn && last.serial == m_iridiaSerial && last.size == size && last.buffer && memcmp(last.data, supportBufferData, size) == 0)
+		{
+			last.shader = shader;
+			g_iridiaUniformReuse[0].fetch_add(1, std::memory_order_relaxed);
+			SetBuffer(renderCommandEncoder, mtlShaderType, last.buffer, last.offset, shader->resourceMapping.uniformVarsBufferBindingPoint);
+		}
+		else
+		{
+			auto& bufferAllocator = m_memoryManager->GetStagingAllocator();
+			auto allocation = bufferAllocator.AllocateBufferMemory(size, 1);
+			memcpy(allocation.memPtr, supportBufferData, size);
+			bufferAllocator.FlushReservation(allocation);
+			g_iridiaUniformReuse[1].fetch_add(1, std::memory_order_relaxed);
+			last = { m_iridiaSerial, size, allocation.mtlBuffer, allocation.bufferOffset, (const uint8*)allocation.memPtr, shader };
 
-		SetBuffer(renderCommandEncoder, mtlShaderType, allocation.mtlBuffer, allocation.bufferOffset, shader->resourceMapping.uniformVarsBufferBindingPoint);
+			SetBuffer(renderCommandEncoder, mtlShaderType, allocation.mtlBuffer, allocation.bufferOffset, shader->resourceMapping.uniformVarsBufferBindingPoint);
+		}
 	}
 
 	// Uniform buffers
@@ -2244,7 +3223,9 @@ void MetalRenderer::BindStageResources(MTL::RenderCommandEncoder* renderCommandE
     		if (offset == INVALID_OFFSET)
                 continue;
 
-            SetBuffer(renderCommandEncoder, mtlShaderType, m_memoryManager->GetBufferCache(), offset, binding);
+            IridiaBindCacheBuffer(renderCommandEncoder, mtlShaderType, offset, m_iridiaUbSize[GetMtlGeneralShaderType(shader->shaderType)][i], binding);
+            m_memoryManager->MarkBufferCacheUse(offset, m_iridiaUbSize[GetMtlGeneralShaderType(shader->shaderType)][i], m_iridiaSerial);
+            m_iridiaPassReads.emplace_back(offset, m_iridiaUbSize[GetMtlGeneralShaderType(shader->shaderType)][i]);
 		}
 	}
 
@@ -2271,6 +3252,7 @@ void MetalRenderer::ClearColorTextureInternal(MTL::Texture* mtlTexture, sint32 s
 
     // Debug
     m_performanceMonitor.m_clears++;
+    g_iridiaClears[0].fetch_add(1, std::memory_order_relaxed); // Iridia: color clears
 }
 
 void MetalRenderer::CopyBufferToBuffer(MTL::Buffer* src, uint32 srcOffset, MTL::Buffer* dst, uint32 dstOffset, uint32 size, MTL::RenderStages after, MTL::RenderStages before)

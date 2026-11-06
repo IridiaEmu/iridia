@@ -1,4 +1,5 @@
 #include "Cafe/HW/Latte/Core/LatteConst.h"
+#include "util/containers/robin_hood.h"
 #include "Cafe/HW/Latte/Core/LatteShaderAssembly.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "Cafe/HW/Latte/ISA/LatteReg.h"
@@ -8,6 +9,7 @@
 #include "Cafe/HW/Latte/Core/LattePerformanceMonitor.h"
 #ifdef ENABLE_VULKAN
 #include "Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.h"
+#include "util/containers/robin_hood.h"
 #endif
 #include "Cafe/GraphicPack/GraphicPack2.h"
 #include "HW/Latte/Core/Latte.h"

@@ -133,7 +133,8 @@ class MetalSynchronizedHeapAllocator
 	};
 
   public:
-	MetalSynchronizedHeapAllocator(class MetalRenderer* mtlRenderer, MTL::ResourceOptions options, size_t minimumBufferAllocSize) : m_mtlr(mtlRenderer), m_chunkedHeap(m_mtlr, options, minimumBufferAllocSize) {}
+	MetalSynchronizedHeapAllocator(class MetalRenderer* mtlRenderer, MTL::ResourceOptions options, size_t minimumBufferAllocSize) : m_mtlr(mtlRenderer), m_chunkedHeap(m_mtlr, options, minimumBufferAllocSize), m_bumpOptions(GetResourceOptions(options)) {}
+	~MetalSynchronizedHeapAllocator();
 	MetalSynchronizedHeapAllocator(const MetalSynchronizedHeapAllocator&) = delete; // disallow copy
 
 	struct AllocatorReservation
@@ -143,6 +144,7 @@ class MetalSynchronizedHeapAllocator
 		uint32 bufferOffset;
 		uint32 size;
 		uint32 bufferIndex;
+		uint64 dbgId; // IRIDIA_INDEX_BUMP_DEBUG region id (0: not tracked)
 	};
 
 	AllocatorReservation* AllocateBufferMemory(uint32 size, uint32 alignment);
@@ -160,4 +162,50 @@ class MetalSynchronizedHeapAllocator
 	MemoryPool<AllocatorReservation> m_poolAllocatorReservation{32};
 	// release queue
 	std::unordered_map<MTL::CommandBuffer*, std::vector<CHAddr>> m_releaseQueue;
+
+	// Iridia study (IRIDIA_INDEX_BUMP=1, off by default): allocations are carved in order from 4 MB chunks. A chunk
+	// counts its live allocations; once it is no longer the one being filled and its last allocation is released,
+	// it goes on the release queue of the command buffer current at that moment (like the heap's frees) and is
+	// reused after that command buffer finishes. bufferIndex = chunk index.
+	struct BumpChunk
+	{
+		MTL::Buffer* buffer;
+		uint8* ptr;
+		uint32 size;
+		uint32 used;
+		uint32 live;
+	};
+	static bool BumpOn();
+	AllocatorReservation* BumpAllocate(uint32 size, uint32 alignment);
+	void BumpRelease(uint32 chunkIndex);
+	MTL::ResourceOptions m_bumpOptions;
+	std::vector<BumpChunk> m_bumpChunks;
+	std::vector<uint32> m_bumpFree;
+	uint32 m_bumpCurrent{0xFFFFFFFF};
+	std::unordered_map<MTL::CommandBuffer*, std::vector<uint32>> m_bumpReleaseQueue;
+
+	// Iridia debug (IRIDIA_INDEX_BUMP_DEBUG=1, with the bump allocator): every allocation is a tracked region with a
+	// checksum taken when it is filled and the list of command buffers that drew from it. Checks: alignment, overlap
+	// with a region still in flight, a chunk reused while a command buffer that read it hasn't finished, a draw from
+	// a released or unfilled region, and contents that changed before the last command buffer reading them finished.
+  public:
+	static bool DbgOn();
+	void DbgUse(AllocatorReservation* res, MTL::CommandBuffer* cb, uint32 indexSize);
+	void DbgReport();
+  private:
+	struct DbgRegion
+	{
+		uint32 chunk, offset, size, checksum;
+		bool filled, released, orphan;
+		std::vector<MTL::CommandBuffer*> users;
+	};
+	void DbgAlloc(AllocatorReservation* res, uint32 alignment, bool chunkReused);
+	void DbgCompleted(MTL::CommandBuffer* cb);
+	void DbgLog(int kind, const DbgRegion& r, const char* what);
+	std::unordered_map<uint64, DbgRegion> m_dbgRegions;
+	std::vector<std::vector<uint64>> m_dbgChunkRegions; // per chunk: regions of the current fill + orphans
+	std::unordered_map<MTL::CommandBuffer*, std::vector<uint64>> m_dbgCbUses;
+	uint64 m_dbgNextId{1};
+	uint64 m_dbgStats[9]{}; // allocs, uses, misaligned, overlap, reuse in flight, use after release, use before fill, changed before encode, changed before GPU done
+	uint64 m_dbgChunkReuses{0};
 };

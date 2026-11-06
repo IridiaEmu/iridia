@@ -1,3 +1,4 @@
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 #include "Cafe/OS/common/OSCommon.h"
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
 #include "Cafe/HW/Espresso/PPCCallback.h"
@@ -64,6 +65,16 @@ void gx2Export_GX2SwapScanBuffers(PPCInterpreter_t* hCPU)
 
 	uint64 tick64 = PPCInterpreter_getMainCoreCycleCounter() / 20ULL;
 	lastSwapTime = tick64;
+	g_iridiaPace[5]++; // Iridia study
+	extern std::atomic<uint32> g_iridiaGuestSwaps; // LatteTiming.cpp (IRIDIA_VRR)
+	g_iridiaGuestSwaps.fetch_add(1, std::memory_order_release);
+	IridiaTL(TL_SWAPREQ, (uint16)coreinit::OSGetCoreId());
+	if (const uint64 fs = g_iridiaFrameStartNs.exchange(0, std::memory_order_relaxed); fs)
+	{
+		const uint64 d = IridiaTimelineNow() - fs;
+		g_iridiaFrameHist[d < 16666667 ? 0 : d < 33333333 ? 1 : 2].fetch_add(1, std::memory_order_relaxed);
+		g_iridiaFrameSumUs.fetch_add(d / 1000, std::memory_order_relaxed);
+	}
 	// count flip request
 	// is this updated via a PM4 MEM_WRITE operation?
 

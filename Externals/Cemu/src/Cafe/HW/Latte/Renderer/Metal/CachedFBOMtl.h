@@ -17,6 +17,8 @@ public:
 	    return m_renderPassDescriptor;
 	}
 
+	void IridiaRefreshTextures(); // a view's MTL texture was recreated
+
 private:
     MTL::RenderPassDescriptor* m_renderPassDescriptor = nullptr;
 };

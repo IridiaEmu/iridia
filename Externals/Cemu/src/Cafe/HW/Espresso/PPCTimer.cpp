@@ -3,6 +3,8 @@
 #include "util/helpers/fspinlock.h"
 #include "util/highresolutiontimer/HighResolutionTimer.h"
 #include "Common/cpu_features.h"
+#include "Cafe/HW/Espresso/PPCState.h"
+#include "Cafe/HW/Espresso/IridiaCounters.h"
 
 #if defined(ARCH_X86_64)
 #include <immintrin.h>
@@ -126,6 +128,15 @@ FSpinlock sTimerSpinlock;
 // thread safe
 uint64 PPCTimer_getFromRDTSC()
 {
+#ifdef IRIDIA_COUNTERS
+	if (g_iridiaCntOn.load(std::memory_order_relaxed))
+	{
+		PPCInterpreter_t* inst = PPCInterpreter_getCurrentInstance();
+		g_iridiaCntTimer[inst ? std::min<uint32>(inst->spr.UPIR, 2) : 3].fetch_add(1, std::memory_order_relaxed);
+		if (sTimerSpinlock.is_locked())
+			IRIDIA_CNT(CNT_TIMER_CONTENDED, 1);
+	}
+#endif
 	sTimerSpinlock.lock();
 	_mm_mfence();
 	uint64 rdtscCurrentMeasure = __rdtsc();

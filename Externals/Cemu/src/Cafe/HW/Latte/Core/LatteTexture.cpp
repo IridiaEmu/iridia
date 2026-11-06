@@ -1318,6 +1318,33 @@ LatteTexture::LatteTexture(Latte::E_DIM dim, MPTR physAddress, MPTR physMipAddre
 			}
 		}
 	}
+	// Iridia: optional lower internal resolution (IRIDIA_RES_SCALE=75 or 50, percent; off by default).
+	// Game-agnostic: scales tiled single-mip 2D surfaces whose size is a screen size (720p, 1080p, 480p GamePad and
+	// their 1/2, 1/4, 1/8), the same way a resolution graphic pack's texture rules do. IRIDIA_TEXLOG=1 prints sizes.
+	{
+		static const int s_resScale = []() { const char* e = getenv("IRIDIA_RES_SCALE"); int v = e ? atoi(e) : 100; return (v >= 25 && v < 100) ? v : 100; }();
+		static const bool s_texLog = getenv("IRIDIA_TEXLOG") && getenv("IRIDIA_TEXLOG")[0] == '1';
+		const bool tiled = tileMode != Latte::E_HWTILEMODE::TM_LINEAR_GENERAL && tileMode != Latte::E_HWTILEMODE::TM_LINEAR_ALIGNED;
+		const bool flat = (dim == Latte::E_DIM::DIM_2D || dim == Latte::E_DIM::DIM_2D_MSAA) && depth == 1 && mipLevels == 1;
+		bool screenSized = false;
+		if (tiled && flat)
+		{
+			static const uint32 kBase[3][2] = {{1280, 720}, {1920, 1080}, {854, 480}};
+			for (const auto& b : kBase)
+				for (uint32 d = 1; d <= 8; d *= 2)
+					if (width == b[0] / d && (height == b[1] / d || height == ((b[1] / d + 15) & ~15u)))
+						screenSized = true; // heights are often padded to a multiple of 16 (640x368)
+		}
+		if (s_texLog)
+			cemuLog_log(LogType::Force, "IRIDIA_TEX {}x{}x{} fmt {:04x} tile {} mips {} depth {} dim {} screen {}", width, height, depth, (uint32)format, (uint32)tileMode, mipLevels, isDepth ? 1 : 0, (uint32)dim, screenSized ? 1 : 0);
+		if (s_resScale < 100 && screenSized && !this->overwriteInfo.hasResolutionOverwrite)
+		{
+			this->overwriteInfo.hasResolutionOverwrite = true;
+			this->overwriteInfo.width = std::max<sint32>(1, (sint32)((width * s_resScale + 50) / 100));
+			this->overwriteInfo.height = std::max<sint32>(1, (sint32)((height * s_resScale + 50) / 100));
+			this->overwriteInfo.depth = depth;
+		}
+	}
 	// determine if this texture should ever be mirrored to CPU RAM
 	bool readbackLinear = this->tileMode == Latte::E_HWTILEMODE::TM_LINEAR_ALIGNED;
 	// small tiled render targets may be read by the CPU

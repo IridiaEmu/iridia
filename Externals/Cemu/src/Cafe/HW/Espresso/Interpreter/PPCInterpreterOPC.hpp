@@ -45,12 +45,18 @@ static void PPCInterpreter_MFTB(PPCInterpreter_t* hCPU, uint32 opcode)
 	PPC_OPC_TEMPL_XO(opcode, rD, spr1, spr2);
 	spr = spr1 | (spr2 << 5);
 	// get core cycle counter
+	IRIDIA_CNT(CNT_MFTB, 1);
 	uint64 coreTime = ppcItpCtrl::getTB(hCPU);
 
 	switch (spr)
 	{
 	case 268: // TBL
 		hCPU->gpr[rD] = (uint32)(coreTime & 0xFFFFFFFF);
+		if (g_iridiaTimelineOn.load(std::memory_order_relaxed)) [[unlikely]] // Iridia study: guest time reads (id 0xfffe)
+		{
+			IridiaTL(TL_HLE, (uint16)PPCInterpreter_getCoreIndex(hCPU), 0xfffe);
+			IridiaTL(TL_HLE_LR, (uint16)PPCInterpreter_getCoreIndex(hCPU), hCPU->instructionPointer);
+		}
 		break;
 	case 269: // TBU
 		hCPU->gpr[rD] = (uint32)((coreTime >> 32) & 0xFFFFFFFF);

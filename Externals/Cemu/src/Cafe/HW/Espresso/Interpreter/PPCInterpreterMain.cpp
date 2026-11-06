@@ -33,9 +33,20 @@ TLS_WORKAROUND_NOINLINE PPCInterpreter_t* PPCInterpreter_getCurrentInstance()
 	return ppcInterpreterCurrentInstance;
 }
 
+// Iridia study: the instance running on each emulated core (or nullptr), read by the guest profiler
+PPCInterpreter_t* volatile g_iridiaCoreInstance[3] = {};
+thread_local sint32 t_iridiaLastCore = -1;
+
 TLS_WORKAROUND_NOINLINE void PPCInterpreter_setCurrentInstance(PPCInterpreter_t* hCPU)
 {
 	ppcInterpreterCurrentInstance = hCPU;
+	if (hCPU && hCPU->spr.UPIR < 3)
+	{
+		t_iridiaLastCore = hCPU->spr.UPIR;
+		g_iridiaCoreInstance[hCPU->spr.UPIR] = hCPU;
+	}
+	else if (!hCPU && t_iridiaLastCore >= 0)
+		g_iridiaCoreInstance[t_iridiaLastCore] = nullptr;
 }
 
 uint64 PPCInterpreter_getMainCoreCycleCounter()

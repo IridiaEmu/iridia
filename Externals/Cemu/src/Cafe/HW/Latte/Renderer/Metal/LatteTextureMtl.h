@@ -6,6 +6,9 @@
 #include "HW/Latte/ISA/LatteReg.h"
 #include "util/ChunkedHeap/ChunkedHeap.h"
 
+// Iridia: host texture memory in bytes and texture count: [0] guest BC formats, [1] everything else
+extern std::atomic<sint64> g_iridiaTexBytes[2], g_iridiaTexCount[2];
+
 class LatteTextureMtl : public LatteTexture
 {
 public:
@@ -19,6 +22,11 @@ public:
 
 	void AllocateOnHost() override;
 
+	// Iridia: textures start without the pixel format view usage (keeps lossless compression; opt-in IRIDIA_NO_PFV=1).
+	// A view that reinterprets the format (beyond an sRGB pair) needs it: the texture is then recreated with it once.
+	bool IridiaNeedsPfv(MTL::PixelFormat viewFormat) const;
+	void IridiaEnsurePfv();
+
 	bool m_isAlternateFormat{}; // true if Metal pixel format does not 1:1 match Latte format
 
 protected:
@@ -28,4 +36,7 @@ private:
 	class MetalRenderer* m_mtlr;
 
 	MTL::Texture* m_texture;
+	// Iridia: host memory of this texture, counted in g_iridiaTexBytes (BC guest formats vs the rest)
+	sint64 m_iridiaBytes = 0;
+	void IridiaCountBytes();
 };

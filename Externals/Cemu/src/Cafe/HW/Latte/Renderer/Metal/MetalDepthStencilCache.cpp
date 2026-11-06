@@ -13,17 +13,23 @@ MetalDepthStencilCache::~MetalDepthStencilCache()
     m_depthStencilCache.clear();
 }
 
-MTL::DepthStencilState* MetalDepthStencilCache::GetDepthStencilState(const LatteContextRegister& lcr)
+MTL::DepthStencilState* MetalDepthStencilCache::GetDepthStencilState(const LatteContextRegister& lcr, bool noDepthWrite)
 {
-    uint64 stateHash = CalculateDepthStencilHash(lcr);
+    uint64 stateHash = CalculateDepthStencilHash(lcr, noDepthWrite);
+    if (m_lastState && stateHash == m_lastHash)
+        return m_lastState;
     auto& depthStencilState = m_depthStencilCache[stateHash];
     if (depthStencilState)
+    {
+        m_lastHash = stateHash;
+        m_lastState = depthStencilState;
         return depthStencilState;
+    }
 
 	// Depth stencil state
 	bool depthEnable = lcr.DB_DEPTH_CONTROL.get_Z_ENABLE();
 	auto depthFunc = lcr.DB_DEPTH_CONTROL.get_Z_FUNC();
-	bool depthWriteEnable = lcr.DB_DEPTH_CONTROL.get_Z_WRITE_ENABLE();
+	bool depthWriteEnable = lcr.DB_DEPTH_CONTROL.get_Z_WRITE_ENABLE() && !noDepthWrite;
 
 	NS_STACK_SCOPED MTL::DepthStencilDescriptor* desc = MTL::DepthStencilDescriptor::alloc()->init();
 	if (depthEnable)
@@ -84,17 +90,21 @@ MTL::DepthStencilState* MetalDepthStencilCache::GetDepthStencilState(const Latte
 	}
 
 	depthStencilState = m_mtlr->GetDevice()->newDepthStencilState(desc);
+	m_lastHash = stateHash;
+	m_lastState = depthStencilState;
 
 	return depthStencilState;
 }
 
-uint64 MetalDepthStencilCache::CalculateDepthStencilHash(const LatteContextRegister& lcr)
+uint64 MetalDepthStencilCache::CalculateDepthStencilHash(const LatteContextRegister& lcr, bool noDepthWrite)
 {
     uint32* ctxRegister = lcr.GetRawView();
 
     // Hash
     uint64 stateHash = 0;
     uint32 depthControl = ctxRegister[Latte::REGADDR::DB_DEPTH_CONTROL];
+    if (noDepthWrite)
+        depthControl &= ~(1u << 2); // Z_WRITE_ENABLE
 	bool stencilTestEnable = depthControl & 1;
 	if (stencilTestEnable)
 	{

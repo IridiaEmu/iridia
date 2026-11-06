@@ -1,4 +1,5 @@
 #pragma once
+#include "Cafe/HW/Espresso/IridiaCounters.h"
 #include "Cafe/HW/Latte/ISA/LatteReg.h"
 #include "Cafe/HW/Espresso/Const.h"
 
@@ -73,6 +74,8 @@ void gx2WriteGather_submit_(uint32 coreIndex, uint32be* writePtr, const T& arg, 
 template <typename ...Targs>
 inline void gx2WriteGather_submit(Targs... args)
 {
+	IRIDIA_CNT(CNT_GX2_MULTI_CALLS, 1);
+	IRIDIA_CNT(CNT_GX2_MULTI_WORDS, sizeof...(Targs));
 	uint32 coreIndex = PPCInterpreter_getCurrentCoreIndex();
 	if (GX2::s_perCoreCBState[coreIndex].currentWritePtr == nullptr)
 	{

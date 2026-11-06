@@ -1,3 +1,5 @@
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
+#include "Cafe/HW/Espresso/IridiaCounters.h"
 #include "Cafe/HW/Latte/Core/Latte.h"
 #include "Cafe/HW/Latte/Core/LatteDraw.h"
 #include "Cafe/OS/common/OSCommon.h"
@@ -19,6 +21,7 @@ namespace GX2
 
 void gx2WriteGather_submitU32AsBE(uint32 v)
 {
+	IRIDIA_CNT(CNT_GX2_WORD_CALLS, 1);
 	uint32 coreIndex = PPCInterpreter_getCoreIndex(PPCInterpreter_getCurrentInstance());
 	if (GX2::s_perCoreCBState[coreIndex].currentWritePtr == nullptr)
 		return;
@@ -29,6 +32,7 @@ void gx2WriteGather_submitU32AsBE(uint32 v)
 
 void gx2WriteGather_submitU32AsLE(uint32 v)
 {
+	IRIDIA_CNT(CNT_GX2_WORD_CALLS, 1);
 	uint32 coreIndex = PPCInterpreter_getCoreIndex(PPCInterpreter_getCurrentInstance());
 	if (GX2::s_perCoreCBState[coreIndex].currentWritePtr == nullptr)
 		return;
@@ -39,6 +43,8 @@ void gx2WriteGather_submitU32AsLE(uint32 v)
 
 void gx2WriteGather_submitU32AsLEArray(uint32* v, uint32 numValues)
 {
+	IRIDIA_CNT(CNT_GX2_ARRAY_CALLS, 1);
+	IRIDIA_CNT(CNT_GX2_ARRAY_WORDS, numValues);
 	uint32 coreIndex = PPCInterpreter_getCoreIndex(PPCInterpreter_getCurrentInstance());
 	if (GX2::s_perCoreCBState[coreIndex].currentWritePtr == nullptr)
 		return;
@@ -291,7 +297,7 @@ namespace GX2
 			else
 			{
 				// current buffer is empty so we dont need to queue it
-				if (numU32sForNextBuffer > s_commandState->commandPoolSizeInU32s)
+				if (numU32sForNextBuffer > coreCBState.bufferSizeInU32s)
 					GX2Command_StartNewCommandBuffer(numU32sForNextBuffer);
 			}
 		}
@@ -318,7 +324,12 @@ namespace GX2
 	bool GX2WaitTimeStamp(uint64 tsWait)
 	{
 		// handle GPU timeout here? But for now we timeout after 60 seconds
+		const auto t0 = std::chrono::steady_clock::now(); // Iridia study: CPU time spent waiting for the GPU
+		IridiaTL(TL_WAITTS_B, (uint16)coreinit::OSGetCoreId());
 		TCL::TCLWaitTimestamp(TCL::TCLTimestampId::TIMESTAMP_LAST_BUFFER_RETIRED, tsWait, Espresso::TIMER_CLOCK * 60);
+		IridiaTL(TL_WAITTS_E, (uint16)coreinit::OSGetCoreId());
+		g_iridiaPace[10]++;
+		g_iridiaPace[11] += (uint32)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
 		return true;
 	}
 

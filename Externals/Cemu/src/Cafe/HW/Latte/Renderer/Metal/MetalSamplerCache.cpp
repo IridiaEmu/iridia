@@ -89,9 +89,16 @@ MetalSamplerCache::~MetalSamplerCache()
 MTL::SamplerState* MetalSamplerCache::GetSamplerState(const LatteContextRegister& lcr, LatteConst::ShaderType shaderType, uint32 stageSamplerIndex, const _LatteRegisterSetSampler* samplerWords)
 {
     uint64 stateHash = CalculateSamplerHash(lcr, shaderType, stageSamplerIndex, samplerWords);
+    const uint32 stageSlot = shaderType == LatteConst::ShaderType::Vertex ? 0 : (shaderType == LatteConst::ShaderType::Pixel ? 1 : 2);
+    auto* last = stageSamplerIndex < Latte::GPU_LIMITS::NUM_SAMPLERS_PER_STAGE ? &m_lastPerSlot[stageSlot][stageSamplerIndex] : nullptr;
+    if (last && last->state && last->hash == stateHash)
+        return last->state;
     auto& samplerState = m_samplerCache[stateHash];
     if (samplerState)
+    {
+        if (last) *last = {stateHash, samplerState};
         return samplerState;
+    }
 
 	// Sampler state
 
@@ -166,6 +173,7 @@ MTL::SamplerState* MetalSamplerCache::GetSamplerState(const LatteContextRegister
     samplerDescriptor->setBorderColor(borderColor);
 
     samplerState = m_mtlr->GetDevice()->newSamplerState(samplerDescriptor);
+    if (last) *last = {stateHash, samplerState};
 
     return samplerState;
 }

@@ -164,10 +164,15 @@ private:
 			uint32 nextIndex = BSF(m_bucketUseMask>>bucketIndex);
 			bucketIndex += nextIndex;
 		}
+		// Iridia: the first bucket holds ranges that may be smaller than the request; scanning a long chain of such
+		// fragments made this allocator ~7% of the GPU thread (BotW index buffers). Look at a bounded number there,
+		// then move on: every range in a higher bucket is large enough (only alignment can still fail).
+		const uint32 firstBucket = bucketIndex;
 		while (bucketIndex < 31)
 		{
 			AllocRange* range = m_bucketFreeRange[bucketIndex];
-			while (range)
+			uint32 scanBudget = bucketIndex == firstBucket ? 16 : 0xFFFFFFFF;
+			while (range && scanBudget--)
 			{
 				if (range->size >= size)
 				{

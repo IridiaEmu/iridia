@@ -113,6 +113,7 @@ void Renderer::RequestScreenshot(ScreenshotSaveFunction onSaveScreenshot)
 {
 	m_screenshot_requested = true;
 	m_on_save_screenshot = onSaveScreenshot;
+	m_screenshot_state = ScreenshotState::None; // Iridia study: with no GamePad window the state stayed on 'Pad' and later requests were ignored
 }
 
 void Renderer::CancelScreenshotRequest()

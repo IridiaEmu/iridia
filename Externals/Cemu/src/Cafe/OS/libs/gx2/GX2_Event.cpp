@@ -1,3 +1,5 @@
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
+extern uint32 g_iridiaLastWrmAddr; // Iridia diagnostics (LatteCommandProcessor.cpp)
 #include "Cafe/OS/common/OSCommon.h"
 #include "GX2_Command.h"
 #include "GX2_Event.h"
@@ -9,6 +11,10 @@
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
 #include "config/ActiveSettings.h"
 #include "util/helpers/ConcurrentQueue.h"
+
+// Iridia study: variable vblank (LatteTiming.cpp)
+bool IridiaVrrEnabled();
+extern std::atomic<int> g_iridiaVsyncWaiters, g_iridiaFlipWaiters;
 
 namespace GX2
 {
@@ -173,6 +179,11 @@ namespace GX2
 		if (eventType == GX2CallbackEventType::VSYNC)
 		{
 			__OSLockScheduler();
+			IridiaTL(TL_VBLANK);
+			{
+				if (g_iridiaLastWrmAddr)
+					IridiaTL(TL_VBLANK_VAL, 0, _swapEndianU32(*(uint32*)memory_getPointerFromPhysicalOffset(g_iridiaLastWrmAddr)));
+			}
 			g_vsyncThreadQueue->wakeupEntireWaitQueue(false);
 			__OSUnlockScheduler();
 		}
@@ -200,18 +211,34 @@ namespace GX2
 
 	void GX2WaitForVsync()
 	{
+		g_iridiaPace[2]++; // Iridia study
+		IridiaTL(TL_VSYNC_B, (uint16)coreinit::OSGetCoreId());
+		const auto t0 = std::chrono::steady_clock::now();
+		// Iridia study (IRIDIA_VRR): tell the GPU thread a vblank is awaited, it may deliver one early
+		const bool vrr = IridiaVrrEnabled();
+		if (vrr) { g_iridiaVsyncWaiters++; IridiaLatteWake(); }
 		__OSLockScheduler();
 		g_vsyncThreadQueue.GetPtr()->queueAndWait(coreinit::OSGetCurrentThread());
 		__OSUnlockScheduler();
+		if (vrr) g_iridiaVsyncWaiters--;
+		g_iridiaPace[6] += (uint32)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
+		IridiaTL(TL_VSYNC_E, (uint16)coreinit::OSGetCoreId());
+		g_iridiaFrameStartNs.store(IridiaTimelineNow(), std::memory_order_relaxed);
 	}
 
 	void GX2WaitForFlip()
 	{
+		g_iridiaPace[3]++; // Iridia study
 		if ((sint32)(_swapEndianU32(LatteGPUState.sharedArea->flipRequestCountBE) == _swapEndianU32(LatteGPUState.sharedArea->flipExecuteCountBE)))
 			return; // dont wait if no flip is requested
+		const auto t0 = std::chrono::steady_clock::now();
+		const bool vrr = IridiaVrrEnabled();
+		if (vrr) { g_iridiaFlipWaiters++; IridiaLatteWake(); }
 		__OSLockScheduler();
 		g_flipThreadQueue.GetPtr()->queueAndWait(coreinit::OSGetCurrentThread());
 		__OSUnlockScheduler();
+		if (vrr) g_iridiaFlipWaiters--;
+		g_iridiaPace[7] += (uint32)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
 	}
 
 	bool GX2DrawDone()

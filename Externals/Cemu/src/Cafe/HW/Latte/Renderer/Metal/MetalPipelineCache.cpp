@@ -115,9 +115,13 @@ MetalPipelineCache::~MetalPipelineCache()
 PipelineObject* MetalPipelineCache::GetRenderPipelineState(const LatteFetchShader* fetchShader, const LatteDecompilerShader* vertexShader, const LatteDecompilerShader* geometryShader, const LatteDecompilerShader* pixelShader, const MetalAttachmentsInfo& lastUsedAttachmentsInfo, const MetalAttachmentsInfo& activeAttachmentsInfo, Vector2i extend, uint32 indexCount, const LatteContextRegister& lcr)
 {
     uint64 hash = CalculatePipelineHash(fetchShader, vertexShader, geometryShader, pixelShader, lastUsedAttachmentsInfo, activeAttachmentsInfo, lcr);
+    // Iridia (MORNING9 item 4): the last lookup first (std::map stays: the cache loader inserts from other threads)
+    if (m_lastPipelineObj && hash == m_lastPipelineHash)
+        return m_lastPipelineObj;
     PipelineObject*& pipelineObj = m_pipelineCache[hash];
+    m_lastPipelineHash = hash;
     if (pipelineObj)
-        return pipelineObj;
+        return m_lastPipelineObj = pipelineObj;
 
     pipelineObj = new PipelineObject();
 
@@ -148,7 +152,7 @@ PipelineObject* MetalPipelineCache::GetRenderPipelineState(const LatteFetchShade
 	// Save to cache
     AddCurrentStateToCache(hash, lastUsedAttachmentsInfo);
 
-    return pipelineObj;
+    return m_lastPipelineObj = pipelineObj;
 }
 
 uint64 MetalPipelineCache::CalculatePipelineHash(const LatteFetchShader* fetchShader, const LatteDecompilerShader* vertexShader, const LatteDecompilerShader* geometryShader, const LatteDecompilerShader* pixelShader, const MetalAttachmentsInfo& lastUsedAttachmentsInfo, const MetalAttachmentsInfo& activeAttachmentsInfo, const LatteContextRegister& lcr)

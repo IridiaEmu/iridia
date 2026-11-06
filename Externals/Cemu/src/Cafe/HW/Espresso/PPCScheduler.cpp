@@ -81,10 +81,14 @@ PPCInterpreter_t* PPCCore_executeCallbackInternal(uint32 functionMPTR)
 			// try to enter recompiler immediately
 			PPCRecompiler_attemptEnter(hCPU, hCPU->instructionPointer);
 			// execute any remaining instructions in interpreter
+#ifdef CEMU_TBI
+			PPCInterpreterSlim_run(hCPU);
+#else
 			while ((--hCPU->remainingCycles) >= 0)
 			{
 				PPCInterpreterSlim_executeInstruction(hCPU);
 			};
+#endif
 		}
 		if (hCPU->instructionPointer == 0)
 		{

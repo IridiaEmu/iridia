@@ -1,3 +1,5 @@
+#include <set>
+#include <mutex>
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureViewMtl.h"
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureMtl.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalRenderer.h"
@@ -62,7 +64,8 @@ LatteTextureViewMtl::LatteTextureViewMtl(MetalRenderer* mtlRenderer, LatteTextur
 
 LatteTextureViewMtl::~LatteTextureViewMtl()
 {
-    m_rgbaView->release();
+    if (m_rgbaView)
+        m_rgbaView->release();
 	for (sint32 i = 0; i < std::size(m_viewCache); i++)
     {
         if (m_viewCache[i].key != INVALID_SWIZZLE)
@@ -185,7 +188,55 @@ MTL::Texture* LatteTextureViewMtl::CreateSwizzledView(uint32 gpuSamplerSwizzle)
     levelCount = std::max(levelCount, (uint32)1);
 
     auto pixelFormat = GetMtlPixelFormat(format, m_baseTexture->isDepth);
+    if (m_baseTexture->IridiaNeedsPfv(pixelFormat))
+        m_baseTexture->IridiaEnsurePfv();
+    // Iridia test: IRIDIA_PFV_TEST=<n> also makes a throwaway uint view on the first n renderable 4-byte color
+    // textures, which forces the recreate path above (the picture must stay the same)
+    static const int s_pfvTest = getenv("IRIDIA_PFV_TEST") ? atoi(getenv("IRIDIA_PFV_TEST")) : 0;
+    static int s_pfvTestDone = 0;
+    if (s_pfvTestDone < s_pfvTest && (m_baseTexture->GetTexture()->usage() & MTL::TextureUsageRenderTarget) && (pixelFormat == MTL::PixelFormatRGBA8Unorm || pixelFormat == MTL::PixelFormatBGRA8Unorm) && m_baseTexture->GetTexture()->textureType() == MTL::TextureType2D)
+    {
+        s_pfvTestDone++;
+        static const bool s_noFix = getenv("IRIDIA_PFV_TEST_NOFIX") != nullptr; // positive control for the validation layer
+        if (!s_noFix && m_baseTexture->IridiaNeedsPfv(MTL::PixelFormatR32Uint))
+            m_baseTexture->IridiaEnsurePfv();
+        m_baseTexture->GetTexture()->newTextureView(MTL::PixelFormatR32Uint)->release();
+    }
     MTL::Texture* texture = m_baseTexture->GetTexture()->newTextureView(pixelFormat, textureType, NS::Range::Make(baseLevel, levelCount), NS::Range::Make(baseLayer, layerCount), swizzle);
+    // Iridia diagnostics: IRIDIA_VIEW_FMT=1 logs each (texture format, view format) pair once, for the pixel format view usage study
+    static const bool s_viewFmt = getenv("IRIDIA_VIEW_FMT") != nullptr;
+    if (s_viewFmt && pixelFormat != m_baseTexture->GetTexture()->pixelFormat())
+    {
+        static std::mutex s_m; static std::set<std::pair<int, int>> s_seen;
+        std::lock_guard l(s_m);
+        if (s_seen.emplace((int)m_baseTexture->GetTexture()->pixelFormat(), (int)pixelFormat).second)
+            fprintf(stderr, "IRIDIA_VIEW_FMT texture %d view %d (gx2 %x) %ux%u rt %d\n", (int)m_baseTexture->GetTexture()->pixelFormat(), (int)pixelFormat, (uint32)format, m_baseTexture->width, m_baseTexture->height, (int)((m_baseTexture->GetTexture()->usage() & MTL::TextureUsageRenderTarget) != 0));
+    }
 
     return texture;
+}
+
+void LatteTextureViewMtl::IridiaRecreateViews()
+{
+    if (m_rgbaView)
+    {
+        m_rgbaView->release();
+        m_rgbaView = CreateSwizzledView(RGBA_SWIZZLE);
+    }
+    for (auto& entry : m_viewCache)
+    {
+        if (entry.key != INVALID_SWIZZLE)
+        {
+            entry.texture->release();
+            entry.texture = CreateSwizzledView(entry.key);
+        }
+    }
+    for (auto& [key, texture] : m_fallbackViewCache)
+    {
+        if (texture)
+        {
+            texture->release();
+            texture = CreateSwizzledView(key);
+        }
+    }
 }

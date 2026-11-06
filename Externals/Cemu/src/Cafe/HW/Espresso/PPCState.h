@@ -104,6 +104,8 @@ struct PPCInterpreter_t
 
 	// extra variables for recompiler
 	void* rspTemp;
+	// Iridia study: the running host thread's block lookup cache (threaded block interpreter)
+	void* tbCache;
 };
 
 // parameter access (legacy C style)
@@ -160,6 +162,12 @@ void PPCInterpreter_nextInstruction(PPCInterpreter_t* cpuInterpreter);
 void PPCInterpreter_jumpToInstruction(PPCInterpreter_t* cpuInterpreter, uint32 newIP);
 
 void PPCInterpreterSlim_executeInstruction(PPCInterpreter_t* hCPU);
+void PPCInterpreter_invalidateDecodeCache(uint32 startAddr, uint32 endAddr); // Iridia study: code changed
+void PPCInterpreter_tbCountSet(bool on); // Iridia study: instruction-mix counter (IRIDIA_TB_COUNT builds)
+void PPCInterpreter_tbCountDump(const char* path);
+int PPCInterpreter_aotGenerate(const char* path, double coverage, uint32 maxBlocks); // Iridia AOT generator (IRIDIA_TB_COUNT builds)
+void PPCInterpreterSlim_run(PPCInterpreter_t* hCPU); // Iridia study: run until the timeslice ends (CEMU_TBI)
+void PPCInterpreter_bindTBCache(PPCInterpreter_t* hCPU, uint32 coreIndex); // Iridia study: per-core block cache (CEMU_TBI)
 void PPCInterpreterFull_executeInstruction(PPCInterpreter_t* hCPU);
 
 // misc

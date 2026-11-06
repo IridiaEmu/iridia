@@ -7,6 +7,139 @@
 #include "Cafe/OS/libs/coreinit/coreinit_Alarm.h"
 #include "input/InputManager.h"
 #include "WindowSystem.h"
+#include "Cafe/HW/Latte/Renderer/Renderer.h"
+
+// Iridia study: IRIDIA_AUTOPILOT=1 drives the GamePad on a fixed timeline (seconds since the first VPADRead)
+// so benchmarks repeat without a player: A taps through the title/Continue, then Link stands still while the
+// camera turns. IRIDIA_SHOTS=<dir> saves screenshots (PPM) at fixed times for glitch checks.
+std::atomic<sint64> g_iridiaRunStartMs{0}; // Iridia study: steady_clock ms when the autopilot run phase began
+extern std::atomic<int> g_iridiaGameplaySeconds;
+
+// Iridia Wii U app: GamePad input from the host app (touch controls / game controllers), used when no Cemu
+// controller is mapped to channel 0. Written by the app, read here on every VPADRead.
+#include "Cafe/OS/libs/vpad/IridiaExternalPad.h"
+IridiaExternalPad g_iridiaExternalPad;
+
+namespace iridia_external
+{
+	static uint32 s_lastHold = 0;
+	static void Fill(VPADStatus* status)
+	{
+		if (!g_iridiaExternalPad.active.load(std::memory_order_relaxed))
+			return;
+		uint32 hold = g_iridiaExternalPad.buttons.load(std::memory_order_relaxed);
+		const float lx = g_iridiaExternalPad.lx.load(std::memory_order_relaxed), ly = g_iridiaExternalPad.ly.load(std::memory_order_relaxed);
+		const float rx = g_iridiaExternalPad.rx.load(std::memory_order_relaxed), ry = g_iridiaExternalPad.ry.load(std::memory_order_relaxed);
+		// stick direction bits, like Cemu's emulated GamePad (menus read these)
+		if (ly > 0.5f) hold |= 0x10000000; if (ly < -0.5f) hold |= 0x08000000;
+		if (lx < -0.5f) hold |= 0x40000000; if (lx > 0.5f) hold |= 0x20000000;
+		if (ry > 0.5f) hold |= 0x01000000; if (ry < -0.5f) hold |= 0x00800000;
+		if (rx < -0.5f) hold |= 0x04000000; if (rx > 0.5f) hold |= 0x02000000;
+		status->hold = hold;
+		// controls check: one line whenever what the game reads changes (buttons, or a stick by a quarter)
+		static int s_lastQ = 0;
+		const int q = ((int)std::lround(lx * 4) + 8) | (((int)std::lround(ly * 4) + 8) << 4) | (((int)std::lround(rx * 4) + 8) << 8) | (((int)std::lround(ry * 4) + 8) << 12);
+		if (hold != s_lastHold || q != s_lastQ)
+		{
+			fprintf(stderr, "IRIDIA_INPUT game reads buttons=%08x left=%.2f,%.2f right=%.2f,%.2f\n", hold, lx, ly, rx, ry);
+			s_lastQ = q;
+		}
+		status->trig = hold & ~s_lastHold;
+		status->release = s_lastHold & ~hold;
+		s_lastHold = hold;
+		status->leftStick.x = lx;
+		status->leftStick.y = ly;
+		status->rightStick.x = rx;
+		status->rightStick.y = ry;
+		// touch, with the raw panel mapping of Cemu's emulated GamePad (x/y stay at the last point after release)
+		static uint16 s_tx = 0, s_ty = 0;
+		const bool down = g_iridiaExternalPad.touchDown.load(std::memory_order_relaxed);
+		if (down)
+		{
+			const float x = std::clamp(g_iridiaExternalPad.touchX.load(std::memory_order_relaxed), 0.0f, 1.0f);
+			const float y = std::clamp(g_iridiaExternalPad.touchY.load(std::memory_order_relaxed), 0.0f, 1.0f);
+			s_tx = (uint16)(x * 3883.0f + 92.0f);
+			s_ty = (uint16)(4095.0f - y * 3694.0f - 254.0f);
+		}
+		status->tpData.touch = down ? kTpTouchOn : kTpTouchOff;
+		status->tpData.validity = down ? kTpValid : kTpInvalid;
+		status->tpData.x = s_tx;
+		status->tpData.y = s_ty;
+		status->tpProcessed1 = status->tpData;
+		status->tpProcessed2 = status->tpData;
+		static bool s_lastDown = false;
+		if (down != s_lastDown)
+		{
+			fprintf(stderr, "IRIDIA_INPUT touch %s raw=%u,%u\n", down ? "down" : "up", s_tx, s_ty);
+			s_lastDown = down;
+		}
+	}
+}
+
+namespace iridia_autopilot
+{
+	// read on first use: the iOS app sets these per launch (-cafeEnv) after static initialization
+	static bool Enabled() { static const bool v = getenv("IRIDIA_AUTOPILOT") != nullptr; return v; }
+	static const char* ShotDir() { static const char* v = getenv("IRIDIA_SHOTS"); return v; }
+	static std::chrono::steady_clock::time_point s_start, s_runStart;
+	static bool s_started = false, s_running = false;
+	static int s_nextShot = 0;
+	static constexpr int kShots = 8; // every 15 s from 15 s after the run starts
+
+	static std::optional<std::string> SavePPM(const std::vector<uint8>& rgb, int w, int h, bool mainWindow, int idx)
+	{
+		if (!mainWindow)
+			return std::nullopt;
+		std::string path = fmt::format("{}/shot{:02}.ppm", ShotDir(), idx);
+		if (FILE* f = fopen(path.c_str(), "wb"))
+		{
+			fprintf(f, "P6\n%d %d\n255\n", w, h);
+			fwrite(rgb.data(), 1, rgb.size(), f);
+			fclose(f);
+			fprintf(stderr, "IRIDIA_SHOT %s\n", path.c_str());
+		}
+		return std::nullopt;
+	}
+
+	// Taps A every 4 s until gameplay is on screen (title -> Continue -> load; works at any boot speed and
+	// never presses A in the field), then 10 s later starts the run: Link stands still while the camera turns.
+	static void Apply(VPADStatus* status)
+	{
+		if (!Enabled())
+			return;
+		auto now = std::chrono::steady_clock::now();
+		if (!s_started) { s_start = now; s_started = true; }
+		const double t = std::chrono::duration<double>(now - s_start).count();
+		const int gameplay = g_iridiaGameplaySeconds.load();
+		uint32 hold = 0;
+		if (gameplay == 0 && t >= 8.0 && fmod(t - 8.0, 4.0) < 0.15)
+			hold |= 0x8000; // A
+		status->hold = (uint32)status->hold | hold;
+		status->trig = (uint32)status->trig | hold;
+		if (!s_running && gameplay >= 10)
+		{
+			s_running = true;
+			s_runStart = now;
+			g_iridiaRunStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+			fprintf(stderr, "IRIDIA_RUN_START t=%u\n", (unsigned)(GetTickCount() / 1000));
+		}
+		if (!s_running)
+			return;
+		const double r = std::chrono::duration<double>(now - s_runStart).count();
+		status->leftStick.x = 0.0f;
+		status->leftStick.y = 0.0f;
+		// IRIDIA_AUTOPILOT_STILL=1: the camera stays still too (screenshots of two runs then show the same view, for
+		// pixel comparisons between builds)
+		static const bool s_still = getenv("IRIDIA_AUTOPILOT_STILL") != nullptr;
+		status->rightStick.x = s_still ? 0.0f : 0.35f;
+		status->rightStick.y = 0.0f;
+		if (ShotDir() && s_nextShot < kShots && r >= 15.0 * (s_nextShot + 1) && g_renderer)
+		{
+			int idx = s_nextShot++;
+			g_renderer->RequestScreenshot([idx](const std::vector<uint8>& d, int w, int h, bool mw) { return SavePPM(d, w, h, mw, idx); });
+		}
+	}
+}
 
 #ifdef PUBLIC_RELASE
 #define vpadbreak() 
@@ -250,6 +383,10 @@ namespace vpad
 					status->vpadErr = -1;
 				return 0;
 			}
+			iridia_external::Fill(status);
+			iridia_autopilot::Apply(status);
+			static uint32 s_fills = 0;
+			if ((++s_fills % 600) == 1) fprintf(stderr, "IRIDIA_INPUT pad read #%u (touch path)\n", s_fills);
 			if (error)
 				*error = VPAD_READ_ERR_NONE;
 			return 1;
@@ -286,6 +423,10 @@ namespace vpad
 				}
 			}
 			controller->VPADRead(*status, vpad::g_vpad.controller_data[channel].btn_repeat);
+			static uint32 s_ctrlReads = 0;
+			if ((++s_ctrlReads % 600) == 1) fprintf(stderr, "IRIDIA_INPUT pad read #%u via a Cemu controller profile (touch NOT merged)\n", s_ctrlReads);
+			if (channel == 0)
+				iridia_autopilot::Apply(status);
 			if (error)
 				*error = VPAD_READ_ERR_NONE;
 			return 1;

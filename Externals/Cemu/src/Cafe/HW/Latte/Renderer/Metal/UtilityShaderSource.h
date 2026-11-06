@@ -30,7 +30,8 @@ vertex VertexOut vertexFullscreen(ushort vid [[vertex_id]]) {
 //    return tex.sample(samplr, in.texCoord);
 //}
 
-vertex void vertexCopyBufferToBuffer(uint vid [[vertex_id]], device uint8_t* src [[buffer(GET_BUFFER_BINDING(0))]], device uint8_t* dst [[buffer(GET_BUFFER_BINDING(1))]]) {
+// Iridia: one 32-bit word per vertex (was one byte), used for in-pass streamout copies
+vertex void vertexCopyBufferToBuffer(uint vid [[vertex_id]], device uint* src [[buffer(GET_BUFFER_BINDING(0))]], device uint* dst [[buffer(GET_BUFFER_BINDING(1))]]) {
     dst[vid] = src[vid];
 }
 

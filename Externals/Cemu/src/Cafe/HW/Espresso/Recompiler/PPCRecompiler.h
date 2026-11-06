@@ -171,5 +171,13 @@ extern void ATTR_MS_ABI (*PPCRecompiler_leaveRecompilerCode_unvisited)();
 // recompiler interface
 
 void PPCRecompiler_recompileIfUnvisited(uint32 enterAddress);
+#define IRIDIA_NOJIT_INLINE_ENTER 1
+#if defined(CEMU_NO_JIT) && defined(IRIDIA_NOJIT_INLINE_ENTER)
+// Iridia study: no recompiler in a no-JIT build, so these are empty (they were real calls from every interpreted
+// bl/blr/bctr and every time slice).
+inline void PPCRecompiler_attemptEnter(struct PPCInterpreter_t* hCPU, uint32 enterAddress) {}
+inline void PPCRecompiler_attemptEnterWithoutRecompile(struct PPCInterpreter_t* hCPU, uint32 enterAddress) {}
+#else
 void PPCRecompiler_attemptEnter(struct PPCInterpreter_t* hCPU, uint32 enterAddress);
 void PPCRecompiler_attemptEnterWithoutRecompile(struct PPCInterpreter_t* hCPU, uint32 enterAddress);
+#endif

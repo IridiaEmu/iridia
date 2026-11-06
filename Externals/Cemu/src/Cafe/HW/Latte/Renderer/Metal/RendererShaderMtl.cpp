@@ -1,4 +1,6 @@
 #include "Cafe/HW/Latte/Renderer/Metal/RendererShaderMtl.h"
+#include <objc/message.h>
+#include <objc/runtime.h>
 #include "Cafe/HW/Latte/Renderer/Metal/MetalRenderer.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalCommon.h"
 
@@ -279,6 +281,17 @@ MTL::Library* RendererShaderMtl::LibraryFromSource()
     NS_STACK_SCOPED MTL::CompileOptions* options = MTL::CompileOptions::alloc()->init();
     if (g_current_game_profile->GetShaderFastMath())
         options->setFastMathEnabled(true);
+    // Iridia study: IRIDIA_MATH_MODE=safe|relaxed|fast overrides the math mode (MTLMathMode, iOS 18 / macOS 15), to
+    // check whether fast math changes the translated shaders' results (e.g. drops the mul_nonIEEE zero guard)
+    if (const char* mm = getenv("IRIDIA_MATH_MODE"))
+    {
+        const long mode = !strcmp(mm, "safe") ? 0 : !strcmp(mm, "relaxed") ? 1 : 2;
+        if (mode != 2)
+            options->setFastMathEnabled(false);
+        static SEL s_setMathMode = sel_registerName("setMathMode:");
+        if (class_respondsToSelector(object_getClass((id)options), s_setMathMode))
+            ((void (*)(id, SEL, long))objc_msgSend)((id)options, s_setMathMode, mode);
+    }
 
     if (m_mtlr->GetPositionInvariance())
     {
@@ -287,7 +300,13 @@ MTL::Library* RendererShaderMtl::LibraryFromSource()
     }
 
     NS::Error* error = nullptr;
+	const auto iridiaT0 = std::chrono::steady_clock::now();
 	MTL::Library* library = m_mtlr->GetDevice()->newLibrary(ToNSString(m_mslCode), options, &error);
+	{
+		extern std::atomic<uint64> g_iridiaLib[2]; // Iridia diagnostic: shader library builds, count and ns (IRIDIA_PSO line)
+		g_iridiaLib[0].fetch_add(1, std::memory_order_relaxed);
+		g_iridiaLib[1].fetch_add((uint64)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - iridiaT0).count(), std::memory_order_relaxed);
+	}
 	if (error)
     {
         cemuLog_log(LogType::Force, "failed to create library from source: {} -> {}", error->localizedDescription()->utf8String(), m_mslCode.c_str());
@@ -354,6 +373,11 @@ void RendererShaderMtl::CompileInternal()
 
     m_function = library->newFunction(ToNSString("main0"));
     library->release();
+    // Iridia diagnostics: IRIDIA_SHADER_LABELS=1 names each function like its shader dump file (<base>_<aux>_<vs|ps|gs>),
+    // so the Instruments shader profiler can be matched to the translated source
+    static const bool s_shaderLabels = getenv("IRIDIA_SHADER_LABELS") != nullptr;
+    if (s_shaderLabels && m_function)
+        m_function->setLabel(ToNSString(fmt::format("{:016x}_{:016x}_{}", m_baseHash, m_auxHash, m_type == ShaderType::kVertex ? "vs" : m_type == ShaderType::kFragment ? "ps" : "gs")));
 
 	// Count shader compilation
 	if (ShouldCountCompilation())

@@ -6,11 +6,19 @@
 #include "DirectSoundAPI.h"
 #endif
 #include "config/CemuConfig.h"
+#if IRIDIA_IOS_AUDIO
+#include "IOSAudioAPI.h"
+#endif
 #if HAS_CUBEB
 #include "CubebAPI.h"
 #endif
 
 std::shared_mutex g_audioMutex;
+// Iridia diagnostics: output callbacks that found too little sound queued (a gap), all callbacks, and blocks the
+// emulator produced that didn't fit in the queue (dropped: sound made faster than it plays). Printed as IRIDIA_AUDIO.
+std::atomic<uint32_t> g_iridiaAudioUnderruns{0}, g_iridiaAudioCallbacks{0}, g_iridiaAudioDropped{0};
+// callbacks in which IridiaStretch (IRIDIA_AUDIO_STRETCH=1) stretched or compressed the sound
+std::atomic<uint32_t> g_iridiaAudioStretched{0};
 AudioAPIPtr g_tvAudio;
 AudioAPIPtr g_padAudio;
 AudioAPIPtr g_portalAudio;
@@ -87,6 +95,9 @@ void IAudioAPI::InitializeStatic()
 #if HAS_CUBEB
 	s_availableApis[Cubeb] = CubebAPI::InitializeStatic();
 #endif
+#if IRIDIA_IOS_AUDIO
+	s_availableApis[Cubeb] = true;
+#endif
 }
 
 bool IAudioAPI::IsAudioAPIAvailable(AudioAPI api)
@@ -157,6 +168,10 @@ AudioAPIPtr IAudioAPI::CreateDevice(AudioAPI api, const DeviceDescriptionPtr& de
 		return std::make_unique<XAudio2API>(tmp->GetDeviceId(), samplerate, channels, samples_per_block, bits_per_sample);
 	}
 #endif
+#if IRIDIA_IOS_AUDIO
+	case Cubeb:
+		return std::make_unique<IOSAudioAPI>(samplerate, channels, samples_per_block, bits_per_sample);
+#endif
 #if HAS_CUBEB
 	case Cubeb:
 	{
@@ -189,6 +204,10 @@ std::vector<IAudioAPI::DeviceDescriptionPtr> IAudioAPI::GetDevices(AudioAPI api)
 	{
 		return XAudio2API::GetDevices();
 	}
+#endif
+#if IRIDIA_IOS_AUDIO
+	case Cubeb:
+		return IOSAudioAPI::GetDevices();
 #endif
 #if HAS_CUBEB
 	case Cubeb:

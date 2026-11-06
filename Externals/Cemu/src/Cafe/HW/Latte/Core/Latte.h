@@ -186,3 +186,5 @@ void Latte_Start();
 void Latte_Stop();
 bool Latte_GetStopSignal(); // returns true if stop was requested or if in stopped state
 void LatteThread_Exit();
+
+extern std::atomic<uint32> g_iridiaPace[12]; // Iridia study: frame-pacing counters (LatteTiming.cpp)

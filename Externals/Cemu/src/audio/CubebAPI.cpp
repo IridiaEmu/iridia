@@ -30,6 +30,8 @@ static void state_cb(cubeb_stream* stream, void* user, cubeb_state state)
 	}*/
 }
 
+extern std::atomic<uint32_t> g_iridiaAudioUnderruns, g_iridiaAudioCallbacks, g_iridiaAudioDropped; // IAudioAPI.cpp
+
 long CubebAPI::data_cb(cubeb_stream* stream, void* user, const void* inputbuffer, void* outputbuffer, long nframes)
 {
 	auto* thisptr = (CubebAPI*)user;
@@ -39,10 +41,17 @@ long CubebAPI::data_cb(cubeb_stream* stream, void* user, const void* inputbuffer
 	const auto size = (size_t)nframes * thisptr->m_channels * (thisptr->m_bitsPerSample/8);
 
 	std::unique_lock lock(thisptr->m_mutex);
-	if (thisptr->m_buffer.empty())
+	if (thisptr->m_stretch)
+	{
+		if (!thisptr->m_stretch->Render((sint16*)outputbuffer, (uint32)nframes, thisptr->m_buffer))
+			g_iridiaAudioUnderruns.fetch_add(1, std::memory_order_relaxed);
+		lock.unlock();
+	}
+	else if (thisptr->m_buffer.empty())
 	{
 		// we got no data, just write silence
 		memset(outputbuffer, 0x00, size);
+		g_iridiaAudioUnderruns.fetch_add(1, std::memory_order_relaxed);
 	}
 	else
 	{
@@ -52,8 +61,13 @@ long CubebAPI::data_cb(cubeb_stream* stream, void* user, const void* inputbuffer
 		lock.unlock();
 		// fill rest with silence
 		if (copied != size)
+		{
 			memset((uint8*)outputbuffer + copied, 0x00, size - copied);
+			g_iridiaAudioUnderruns.fetch_add(1, std::memory_order_relaxed);
+		}
 	}
+	IridiaAudioWavDump(outputbuffer, size, thisptr->m_channels);
+	g_iridiaAudioCallbacks.fetch_add(1, std::memory_order_relaxed);
 
 	return nframes;
 }
@@ -92,6 +106,8 @@ CubebAPI::CubebAPI(cubeb_devid devid, uint32 samplerate, uint32 channels, uint32
 	cubeb_get_min_latency(s_context, &output_params, &latency);
 
 	m_buffer.reserve((size_t)m_bytesPerBlock * kBlockCount);
+	if (IridiaStretchEnabled())
+		m_stretch = std::make_unique<IridiaStretch>((int)channels);
 
 	if (cubeb_stream_init(s_context, &m_stream, "Cemu Cubeb output",
 	                      nullptr, nullptr,
@@ -123,6 +139,7 @@ bool CubebAPI::FeedBlock(sint16* data)
 	if (m_buffer.capacity() <= m_buffer.size() + m_bytesPerBlock)
 	{
 		cemuLog_logDebug(LogType::Force, "dropped direct sound block since too many buffers are queued");
+		g_iridiaAudioDropped.fetch_add(1, std::memory_order_relaxed);
 		return false;
 	}
 

@@ -1,4 +1,5 @@
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
+#include "Cafe/HW/Latte/Core/IridiaSyncDiag.h"
 #include "Cafe/HW/Latte/LatteAddrLib/LatteAddrLib.h"
 #include "config/ActiveSettings.h"
 #include "Cafe/CafeSystem.h"
@@ -627,6 +628,21 @@ void LatteTextureLoader_UpdateTextureSliceData(LatteTexture* tex, uint32 sliceIn
 	if (texDecoder == nullptr)
 		return;
 
+	// Iridia study: never read a texture from unmapped guest memory (seen as a rare crash in BotW loading in
+	// capacity mode: a texture whose data lies outside every mapped range). Skip the upload instead; the texture
+	// keeps its previous (or cleared) contents. Counted on stderr so it can be seen in test runs.
+	{
+		const MPTR physStart = mipIndex == 0 ? textureLoader.physAddress : textureLoader.physMipAddress + textureLoader.levelOffset;
+		const uint32 surfSize = (uint32)std::max<sint32>(textureLoader.maxOffsetOutdated, 1);
+		if (!memory_isAddressRangeAccessible(memory_physicalToVirtual(physStart), surfSize))
+		{
+			static std::atomic<uint32> s_guardHits{0};
+			if (s_guardHits.fetch_add(1) < 20)
+				fprintf(stderr, "IRIDIA_TEX_GUARD skipped texture phys=%08x size=%u fmt=%04x %ux%u mip=%u\n", physStart, surfSize, (uint32)format, width, height, mipIndex);
+			return;
+		}
+	}
+
 	textureLoader.decodedTexelCountX = texDecoder->getTexelCountX(&textureLoader);
 	textureLoader.decodedTexelCountY = texDecoder->getTexelCountY(&textureLoader);
 
@@ -730,6 +746,7 @@ void LatteTextureLoader_writeReadbackTextureToMemory(LatteTextureDefinition* tex
 	}
 
 	cemuLog_log(LogType::TextureReadback, "[TextureReadback-Write] PhysAddr {:08x} Res {}x{} Fmt {} Slice {} Mip {}", textureData->physAddress, textureData->width, textureData->height, textureData->format, sliceIndex, mipIndex);
+	IridiaReadbackWritten(mipIndex == 0 ? textureLoader.physAddress : textureLoader.physMipAddress + textureLoader.levelOffset, (uint32)textureLoader.maxOffsetOutdated, textureData->width, textureData->height, (uint32)textureData->format, false);
 
 	if (textureData->tileMode == Latte::E_HWTILEMODE::TM_LINEAR_ALIGNED)
 	{

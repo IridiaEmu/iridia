@@ -16,11 +16,28 @@
 #include "Common/cpu_features.h"
 #include "input/InputManager.h"
 #include "Cafe/CafeSystem.h"
+#include "Cafe/HW/Espresso/IridiaCounters.h"
+#include <TargetConditionals.h>
+#if BOOST_OS_MACOS && !TARGET_OS_IPHONE
+#define IRIDIA_NOJIT_SELFCHECK 1
+#endif
+#if IRIDIA_NOJIT_SELFCHECK
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
+#include <libproc.h>
+#include <unistd.h>
+#endif
 #include "Cafe/TitleList/TitleList.h"
 #include "Cafe/TitleList/GameInfo.h"
 #include "Cafe/OS/libs/coreinit/coreinit_Alarm.h"
 #include "Cafe/OS/libs/snd_core/ax.h"
 #include "Cafe/OS/RPL/rpl.h"
+#include "Cafe/OS/RPL/rpl_structs.h"
+extern PPCInterpreter_t* volatile g_iridiaCoreInstance[3]; // Iridia study: guest profiler
+extern std::atomic<sint64> g_iridiaRunStartMs; // Iridia study: set by the autopilot (vpad.cpp)
+#if TARGET_OS_IPHONE
+std::string IridiaNoJitSelfCheck(); // ios_bridge/NoJitCheckIOS.mm
+#endif
 #include "Cafe/HW/Latte/Core/Latte.h"
 #include "Cafe/Filesystem/FST/FST.h"
 #include "Common/FileStream.h"
@@ -406,7 +423,8 @@ void cemu_initForGame()
 		// replace any known function signatures with our HLE implementations and patch bugs in the games
 		GamePatch_scan();
 	}
-	LatteGPUState.isDRCPrimary = ActiveSettings::DisplayDRCEnabled();
+	// Iridia: IRIDIA_DRC_PRIMARY=1 starts on the GamePad picture (app setting "GamePad screen: Instead of TV")
+	LatteGPUState.isDRCPrimary = ActiveSettings::DisplayDRCEnabled() || (getenv("IRIDIA_DRC_PRIMARY") && getenv("IRIDIA_DRC_PRIMARY")[0] == '1');
 	InfoLog_PrintActiveSettings();
 	Latte_Start();
 	// check for debugger entrypoint bp
@@ -910,13 +928,230 @@ namespace CafeSystem
 		cemu_initForGame();
 		// enter scheduler
 		if ((ActiveSettings::GetCPUMode() == CPUMode::MulticoreRecompiler || LaunchSettings::ForceMultiCoreInterpreter()) && !LaunchSettings::ForceInterpreter())
-			coreinit::OSSchedulerBegin(3);
+		{
+			// Iridia study: CEMU_CPU_THREADS=2 runs the 3 emulated cores on 2 host threads (1 | 0+2)
+			const char* threads = getenv("CEMU_CPU_THREADS");
+			coreinit::OSSchedulerBegin((threads && atoi(threads) == 2) ? 2 : 3);
+		}
 		else
 			coreinit::OSSchedulerBegin(1);
 	}
 
+#ifdef CEMU_PGO_GENERATE
+	extern "C" int __llvm_profile_write_file(void);
+	// Iridia study: PGO training builds write their profile after CEMU_PGO_SECONDS of play, then exit.
+	extern "C" void __llvm_profile_reset_counters(void);
+	extern "C" void __llvm_profile_set_filename(const char*);
+	static void StartPGODumpTimer()
+	{
+		// CEMU_PGO_FILE=<path>: where the profile goes (iOS: the app's Documents; LLVM_PROFILE_FILE is read at load,
+		// before the app sets its -cafeEnv switches)
+		if (const char* file = getenv("CEMU_PGO_FILE"))
+			__llvm_profile_set_filename(file);
+		const char* secs = getenv("CEMU_PGO_SECONDS");
+		if (secs)
+		{
+			std::thread([s = atoi(secs)] {
+				std::this_thread::sleep_for(std::chrono::seconds(s));
+				__llvm_profile_write_file();
+				_exit(0);
+			}).detach();
+		}
+		// CEMU_PGO_GAMEPLAY=<s>: train on gameplay only: reset the counters when the autopilot run starts, write the
+		// profile <s> seconds later and exit
+		if (const char* g = getenv("CEMU_PGO_GAMEPLAY"))
+		{
+			std::thread([s = atoi(g)] {
+				while (g_iridiaRunStartMs.load() == 0)
+					std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				__llvm_profile_reset_counters();
+				fprintf(stderr, "IRIDIA_PGO counters reset at run start\n");
+				std::this_thread::sleep_for(std::chrono::seconds(s));
+				__llvm_profile_write_file();
+				fprintf(stderr, "IRIDIA_PGO profile written\n");
+				_exit(0);
+			}).detach();
+		}
+	}
+#endif
+
+	// Iridia study: IRIDIA_GUEST_PROF=<file> samples which guest code each emulated core runs (~1 kHz) from
+	// IRIDIA_GUEST_PROF_DELAY s after the autopilot run starts (default 15) for IRIDIA_GUEST_PROF_SECS s (default 60), then writes per-core
+	// busy/idle shares and the hottest guest functions (start found by scanning back for a stwu r1 prologue).
+	static void StartGuestProfiler()
+	{
+		const char* out = getenv("IRIDIA_GUEST_PROF");
+		if (!out) return;
+		const int delay = getenv("IRIDIA_GUEST_PROF_DELAY") ? atoi(getenv("IRIDIA_GUEST_PROF_DELAY")) : 15; // after the autopilot run starts
+		const int secs = getenv("IRIDIA_GUEST_PROF_SECS") ? atoi(getenv("IRIDIA_GUEST_PROF_SECS")) : 60;
+		std::thread([path = std::string(out), delay, secs] {
+			while (g_iridiaRunStartMs.load() == 0)
+				std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			std::this_thread::sleep_for(std::chrono::seconds(delay));
+			std::unordered_map<uint32, uint32> hits[3];
+			uint64 busy[3] = {}, total = 0;
+			PPCInterpreter_tbCountSet(true);
+#ifdef IRIDIA_COUNTERS
+			g_iridiaCntOn = true;
+			const auto cntStart = std::chrono::steady_clock::now();
+#endif
+			auto end = std::chrono::steady_clock::now() + std::chrono::seconds(secs);
+			while (std::chrono::steady_clock::now() < end)
+			{
+				for (int c = 0; c < 3; c++)
+				{
+					PPCInterpreter_t* inst = g_iridiaCoreInstance[c];
+					if (!inst) continue;
+					uint32 ip = inst->instructionPointer;
+					if (ip < 0x01000000 || ip >= 0x10000000) continue; // not in code (idle fiber, HLE, ...)
+					busy[c]++;
+					hits[c][ip & ~3u]++;
+				}
+				total++;
+				std::this_thread::sleep_for(std::chrono::microseconds(1000));
+			}
+			PPCInterpreter_tbCountSet(false);
+#ifdef IRIDIA_COUNTERS
+			g_iridiaCntOn = false;
+			std::this_thread::sleep_for(std::chrono::milliseconds(200)); // let in-flight counter updates finish
+			IridiaCounters_dump((path + ".cnt").c_str(), std::chrono::duration<double>(std::chrono::steady_clock::now() - cntStart).count());
+#endif
+			PPCInterpreter_tbCountDump((path + ".mix").c_str());
+			// Iridia AOT: IRIDIA_AOT_GEN=<file> writes the compiled-block source for the hottest code seen
+			// (IRIDIA_AOT_COVER = share of executed instructions, default 0.995; IRIDIA_AOT_MAX blocks, default 30000)
+			if (const char* gen = getenv("IRIDIA_AOT_GEN"))
+				PPCInterpreter_aotGenerate(gen, getenv("IRIDIA_AOT_COVER") ? atof(getenv("IRIDIA_AOT_COVER")) : 0.995,
+					getenv("IRIDIA_AOT_MAX") ? (uint32)atoi(getenv("IRIDIA_AOT_MAX")) : 30000);
+			auto funcStart = [](uint32 ip) -> uint32 {
+				for (uint32 a = ip; a + 0x4000 > ip && a >= 0x01000000; a -= 4)
+				{
+					uint32 op = memory_readU32(a);
+					if ((op & 0xFFFF0000) == 0x94210000) // stwu r1, -n(r1)
+						return a;
+					if (op == 0x4E800020 && a != ip) // blr of the previous function: leaf function starts after it
+						return a + 4;
+				}
+				return ip;
+			};
+			// IRIDIA_CODE_DUMP=<hex addr>:<hex len>: also write that guest range raw (big-endian) to <file>.code
+			if (const char* cd = getenv("IRIDIA_CODE_DUMP"))
+			{
+				uint32 ca = 0, cl = 0;
+				if (sscanf(cd, "%x:%x", &ca, &cl) == 2)
+					if (FILE* cf = fopen((path + ".code").c_str(), "wb"))
+					{
+						fwrite(memory_base + ca, 1, cl, cf);
+						fclose(cf);
+					}
+			}
+			FILE* f = fopen(path.c_str(), "w");
+			if (!f) return;
+			fprintf(f, "samples %llu (every ~1 ms for %d s)\n", (unsigned long long)total, secs);
+			std::unordered_map<uint32, uint64> all;
+			for (int c = 0; c < 3; c++)
+			{
+				fprintf(f, "core %d: running guest code %.1f%% of samples\n", c, total ? 100.0 * busy[c] / total : 0.0);
+				std::unordered_map<uint32, uint64> fn;
+				for (auto& [ip, n] : hits[c]) { uint32 s0 = funcStart(ip); fn[s0] += n; all[s0] += n; }
+				std::vector<std::pair<uint32, uint64>> v(fn.begin(), fn.end());
+				std::sort(v.begin(), v.end(), [](auto& a, auto& b) { return a.second > b.second; });
+				for (size_t i = 0; i < v.size() && i < 25; i++)
+				{
+					RPLModule* m = RPLLoader_FindModuleByCodeAddr(v[i].first);
+					fprintf(f, "  %5.1f%%  %08x  %s\n", busy[c] ? 100.0 * v[i].second / busy[c] : 0.0, v[i].first, m ? m->moduleName.c_str() : "?");
+				}
+			}
+			uint64 allBusy = busy[0] + busy[1] + busy[2];
+			std::vector<std::pair<uint32, uint64>> v(all.begin(), all.end());
+			std::sort(v.begin(), v.end(), [](auto& a, auto& b) { return a.second > b.second; });
+			fprintf(f, "all cores, top functions (share of all guest samples) + first 12 instructions:\n");
+			for (size_t i = 0; i < v.size() && i < 40; i++)
+			{
+				RPLModule* m = RPLLoader_FindModuleByCodeAddr(v[i].first);
+				RPLStoredSymbol* sym = rplSymbolStorage_getByAddress(v[i].first);
+				fprintf(f, "  %5.1f%%  %08x  %-12s %-28s", allBusy ? 100.0 * v[i].second / allBusy : 0.0, v[i].first, m ? m->moduleName.c_str() : "?", sym ? (const char*)sym->symbolName : "");
+				for (int k = 0, n = i < 3 ? 64 : 12; k < n; k++) fprintf(f, " %08x", memory_readU32(v[i].first + k * 4)); // top 3: 64 (whole hot loops)
+				fprintf(f, "\n");
+			}
+			fclose(f);
+			fprintf(stderr, "IRIDIA_GUEST_PROF written to %s\n", path.c_str());
+		}).detach();
+	}
+
+#if IRIDIA_NOJIT_SELFCHECK
+	// Iridia study: runtime no-JIT self-check, 5 s after the autopilot run starts (or 60 s after launch without
+	// it): walks this process's whole address space and reports executable memory that no file backs (= code
+	// made at run time). Same test as verify_cemu_no_jit.sh's vmmap pass, without vmmap (which can take minutes).
+	static void StartNoJitSelfCheck()
+	{
+		std::thread([] {
+			for (int i = 0; i < 600 && g_iridiaRunStartMs.load() == 0; i++)
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::sleep_for(std::chrono::seconds(5));
+			mach_vm_address_t addr = 0;
+			uint32 regions = 0, exec = 0, anonExec = 0;
+			std::string details;
+			while (true)
+			{
+				mach_vm_size_t size = 0;
+				natural_t depth = 64;
+				vm_region_submap_info_data_64_t info;
+				mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
+				if (mach_vm_region_recurse(mach_task_self(), &addr, &size, &depth, (vm_region_recurse_info_t)&info, &count) != KERN_SUCCESS)
+					break;
+				regions++;
+				if (info.protection & VM_PROT_EXECUTE) // currently executable (max_protection is rwx for most private memory)
+				{
+					exec++;
+					char path[1024] = {};
+					const int n = proc_regionfilename(getpid(), addr, path, sizeof(path));
+					const bool shared = info.share_mode == SM_SHARED || info.share_mode == SM_TRUESHARED || info.share_mode == SM_COW; // dyld shared cache, images
+					if (n <= 0 && !(shared && !(info.protection & VM_PROT_WRITE) && info.user_tag == 0))
+					{
+						anonExec++;
+						if (details.size() < 600)
+							details += fmt::format(" [{:x}+{:x} prot {} max {} tag {} share {}]", (uint64)addr, (uint64)size, info.protection, info.max_protection, info.user_tag, info.share_mode);
+					}
+				}
+				addr += size;
+			}
+			fprintf(stderr, "IRIDIA_NOJIT_SELF regions=%u exec=%u anon_exec=%u %s%s\n", regions, exec, anonExec, anonExec ? "FAIL" : "PASS", details.c_str());
+		}).detach();
+	}
+#endif
+
+#if TARGET_OS_IPHONE
+	// Iridia Wii U app: runtime no-JIT self-check on iOS (ios_bridge/NoJitCheckIOS.mm walks the whole address space
+	// for executable memory that no loaded image backs). Logged at launch, 5 s after the autopilot run starts (or
+	// 60 s after launch without it), then every 5 minutes, so every phone run reports PASS or FAIL.
+	static void StartNoJitSelfCheckIOS()
+	{
+		std::thread([]() {
+			fprintf(stderr, "IRIDIA_NOJIT_SELF at=launch %s\n", IridiaNoJitSelfCheck().c_str());
+			for (int i = 0; i < 600 && g_iridiaRunStartMs.load() == 0; i++)
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::sleep_for(std::chrono::seconds(5));
+			for (int n = 0;; n++)
+			{
+				fprintf(stderr, "IRIDIA_NOJIT_SELF at=%s %s\n", n == 0 ? "run" : "periodic", IridiaNoJitSelfCheck().c_str());
+				std::this_thread::sleep_for(std::chrono::minutes(5));
+			}
+		}).detach();
+	}
+#endif
+
 	void LaunchForegroundTitle()
 	{
+#if IRIDIA_NOJIT_SELFCHECK
+		StartNoJitSelfCheck();
+#endif
+#if TARGET_OS_IPHONE
+		StartNoJitSelfCheckIOS();
+#endif
+		StartGuestProfiler();
+#ifdef CEMU_PGO_GENERATE
+		StartPGODumpTimer();
+#endif
 		PPCTimer_waitForInit();
 		// start system
 		sSystemRunning = true;

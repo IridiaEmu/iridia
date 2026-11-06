@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IAudioAPI.h"
+#include "IridiaStretch.h"
 
 #include <cubeb/cubeb.h>
 
@@ -48,5 +49,6 @@ private:
 
 	mutable std::shared_mutex m_mutex;
 	std::vector<uint8> m_buffer;
+	std::unique_ptr<IridiaStretch> m_stretch; // IRIDIA_AUDIO_STRETCH=1
 	static long data_cb(cubeb_stream* stream, void* user, const void* inputbuffer, void* outputbuffer, long nframes);
 };

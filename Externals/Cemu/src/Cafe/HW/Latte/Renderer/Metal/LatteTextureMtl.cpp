@@ -2,6 +2,7 @@
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureViewMtl.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalRenderer.h"
 #include "Cafe/HW/Latte/Renderer/Metal/LatteToMtl.h"
+#include "Cafe/HW/Latte/Renderer/Metal/CachedFBOMtl.h"
 
 LatteTextureMtl::LatteTextureMtl(class MetalRenderer* mtlRenderer, Latte::E_DIM dim, MPTR physAddress, MPTR physMipAddress, Latte::E_GX2SURFFMT format, uint32 width, uint32 height, uint32 depth, uint32 pitch, uint32 mipLevels, uint32 swizzle,
 	Latte::E_HWTILEMODE tileMode, bool isDepth)
@@ -78,16 +79,33 @@ LatteTextureMtl::LatteTextureMtl(class MetalRenderer* mtlRenderer, Latte::E_DIM 
 	m_isAlternateFormat = GetMtlPixelFormatInfo(format, isDepth).isAlternateFormat;
 	desc->setPixelFormat(pixelFormat);
 
-	MTL::TextureUsage usage = MTL::TextureUsageShaderRead | MTL::TextureUsagePixelFormatView;
+	// Iridia: leave out the pixel format view usage (it can turn off lossless compression; phone -1.2 ms per frame).
+	// A view that needs it recreates the texture with it (IridiaEnsurePfv).
+	// Off by default: no clear gain on the Mac (-1.1%) or the phone (+0.2%). IRIDIA_NO_PFV=1 turns it on.
+	static const bool s_noPfv = getenv("IRIDIA_NO_PFV") && atoi(getenv("IRIDIA_NO_PFV")) == 1;
+	MTL::TextureUsage usage = MTL::TextureUsageShaderRead | (s_noPfv ? 0 : MTL::TextureUsagePixelFormatView);
 	if (FormatIsRenderable(format))
 		usage |= MTL::TextureUsageRenderTarget;
 	desc->setUsage(usage);
 
 	m_texture = mtlRenderer->GetDevice()->newTexture(desc);
+	g_iridiaTexCount[Latte::IsCompressedFormat(format) ? 0 : 1]++;
+	IridiaCountBytes();
+}
+
+std::atomic<sint64> g_iridiaTexBytes[2], g_iridiaTexCount[2];
+
+void LatteTextureMtl::IridiaCountBytes()
+{
+	const sint64 now = m_texture ? (sint64)m_texture->allocatedSize() : 0;
+	g_iridiaTexBytes[Latte::IsCompressedFormat(format) ? 0 : 1] += now - m_iridiaBytes;
+	m_iridiaBytes = now;
 }
 
 LatteTextureMtl::~LatteTextureMtl()
 {
+	g_iridiaTexBytes[Latte::IsCompressedFormat(format) ? 0 : 1] -= m_iridiaBytes;
+	g_iridiaTexCount[Latte::IsCompressedFormat(format) ? 0 : 1]--;
 	m_texture->release();
 }
 
@@ -105,4 +123,63 @@ LatteTextureView* LatteTextureMtl::CreateView(Latte::E_DIM dim, Latte::E_GX2SURF
 void LatteTextureMtl::AllocateOnHost()
 {
 	// The texture is already allocated
+}
+
+static MTL::PixelFormat IridiaLinearFormat(MTL::PixelFormat f)
+{
+	switch (f)
+	{
+	case MTL::PixelFormatRGBA8Unorm_sRGB: return MTL::PixelFormatRGBA8Unorm;
+	case MTL::PixelFormatBGRA8Unorm_sRGB: return MTL::PixelFormatBGRA8Unorm;
+	case MTL::PixelFormatBC1_RGBA_sRGB: return MTL::PixelFormatBC1_RGBA;
+	case MTL::PixelFormatBC2_RGBA_sRGB: return MTL::PixelFormatBC2_RGBA;
+	case MTL::PixelFormatBC3_RGBA_sRGB: return MTL::PixelFormatBC3_RGBA;
+	case MTL::PixelFormatBC7_RGBAUnorm_sRGB: return MTL::PixelFormatBC7_RGBAUnorm;
+	case MTL::PixelFormatASTC_4x4_sRGB: return MTL::PixelFormatASTC_4x4_LDR;
+	default: return f;
+	}
+}
+
+bool LatteTextureMtl::IridiaNeedsPfv(MTL::PixelFormat viewFormat) const
+{
+	if (viewFormat == m_texture->pixelFormat() || (m_texture->usage() & MTL::TextureUsagePixelFormatView))
+		return false;
+	return IridiaLinearFormat(viewFormat) != IridiaLinearFormat(m_texture->pixelFormat());
+}
+
+void LatteTextureMtl::IridiaEnsurePfv()
+{
+	if (m_texture->usage() & MTL::TextureUsagePixelFormatView)
+		return;
+	static uint32 s_count = 0;
+	fprintf(stderr, "IRIDIA_PFV_RECREATE %u: texture format %d %ux%u mips %u views %u\n", ++s_count, (int)m_texture->pixelFormat(), width, height, (uint32)m_texture->mipmapLevelCount(), (uint32)views.size());
+	m_mtlr->EndEncoding(); // an open render pass may have this texture attached
+
+	NS_STACK_SCOPED MTL::TextureDescriptor* desc = MTL::TextureDescriptor::alloc()->init();
+	desc->setStorageMode(MTL::StorageModePrivate);
+	desc->setTextureType(m_texture->textureType());
+	desc->setPixelFormat(m_texture->pixelFormat());
+	desc->setWidth(m_texture->width());
+	desc->setHeight(m_texture->height());
+	desc->setDepth(m_texture->depth());
+	desc->setArrayLength(m_texture->arrayLength());
+	desc->setMipmapLevelCount(m_texture->mipmapLevelCount());
+	desc->setSampleCount(m_texture->sampleCount());
+	desc->setUsage(m_texture->usage() | MTL::TextureUsagePixelFormatView);
+	MTL::Texture* texture = m_mtlr->GetDevice()->newTexture(desc);
+
+	// the command buffer keeps the old texture alive until the copy has run
+	m_mtlr->GetBlitCommandEncoder()->copyFromTexture(m_texture, texture);
+	m_mtlr->EndEncoding();
+	m_texture->release();
+	m_texture = texture;
+	IridiaCountBytes();
+
+	for (auto view : views)
+	{
+		auto viewMtl = static_cast<LatteTextureViewMtl*>(view);
+		viewMtl->IridiaRecreateViews();
+		for (auto fbo : view->list_associatedFbo)
+			static_cast<CachedFBOMtl*>(fbo)->IridiaRefreshTextures();
+	}
 }

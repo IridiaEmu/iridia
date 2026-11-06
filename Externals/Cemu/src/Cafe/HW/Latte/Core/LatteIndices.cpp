@@ -10,6 +10,8 @@
 #include <arm_neon.h>
 #endif
 
+std::atomic<uint64> g_iridiaIndexStats[3];
+
 struct
 {
 	struct CacheEntry
@@ -658,8 +660,10 @@ void LatteIndices_decode(const void* indexData, LatteIndexType indexType, uint32
 	{
 		return entry.lastPtr == indexData && entry.lastCount == count && entry.lastPrimitiveMode == primitiveMode && entry.lastIndexType == indexType;
 	});
+	extern std::atomic<uint64> g_iridiaIndexStats[3]; // Iridia study (IRIDIA_DRAW_TIMES=1 line): cache hits, decodes, draws without indices
 	if (cacheEntry != LatteIndexCache.entry.end())
 	{
+		g_iridiaIndexStats[0].fetch_add(1, std::memory_order_relaxed);
 		indexMax = cacheEntry->indexMax;
 		renderIndexType = cacheEntry->renderIndexType;
 		outputCount = cacheEntry->outputCount;
@@ -684,6 +688,7 @@ void LatteIndices_decode(const void* indexData, LatteIndexType indexType, uint32
 	uint32 indexOutputSize = LatteIndices_calculateIndexOutputSize(primitiveMode, indexType, count);
 	if (indexOutputSize == 0)
 	{
+		g_iridiaIndexStats[2].fetch_add(1, std::memory_order_relaxed);
 		outputCount = count;
 		indexMax = std::max(count, 1u)-1;
 		renderIndexType = Renderer::INDEX_TYPE::NONE;
@@ -691,6 +696,7 @@ void LatteIndices_decode(const void* indexData, LatteIndexType indexType, uint32
 		return; // no indices
 	}
 	// query index buffer from renderer
+	g_iridiaIndexStats[1].fetch_add(1, std::memory_order_relaxed);
 	indexAllocation = g_renderer->indexData_reserveIndexMemory(indexOutputSize);
 	void* indexOutputPtr = indexAllocation.mem;
 

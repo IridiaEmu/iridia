@@ -112,6 +112,14 @@ public:
 			m_condition.wait(lock);
 	}
 
+	// Iridia study: wait until non-zero or until the timeout passes (may return early)
+	void waitUntilNonZeroFor(std::chrono::microseconds timeout)
+	{
+		std::unique_lock lock(m_mutex);
+		if (m_count == 0)
+			m_condition.wait_for(lock, timeout);
+	}
+
 	bool isZero() const
 	{
 		return m_count == 0;

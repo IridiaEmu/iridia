@@ -310,6 +310,25 @@ namespace erreula
 
 	void ErrEulaAppearError(AppearArg* arg)
 	{
+		{
+			// Iridia study: record which error the game shows and who called it
+			std::string txt = arg->text ? boost::nowide::narrow(GetText(arg->text.GetPtr())) : "";
+			PPCInterpreter_t* cpu = PPCInterpreter_getCurrentInstance();
+			std::string chain;
+			if (cpu)
+			{
+				chain = fmt::format("LR={:08x}", cpu->spr.LR);
+				uint32 sp = cpu->gpr[1];
+				for (int i = 0; i < 8 && sp; i++)
+				{
+					uint32 next = memory_readU32(sp);
+					if (!next) break;
+					chain += fmt::format(" {:08x}", memory_readU32(next + 4));
+					sp = next;
+				}
+			}
+			fprintf(stderr, "IRIDIA_ERREULA type=%u code=%u text=\"%s\" %s\n", (uint32)arg->errorType.value(), (uint32)arg->errorCode, txt.c_str(), chain.c_str());
+		}
 		g_errEula.currentDialog = *arg;
 		if(g_errEula.errEulaInstance)
 			g_errEula.errEulaInstance->DoAppearError(arg);

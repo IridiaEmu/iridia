@@ -1,3 +1,4 @@
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalLayerHandle.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalLayer.h"
 
@@ -29,6 +30,7 @@ bool MetalLayerHandle::AcquireDrawable()
     if (m_drawable)
         return true;
 
+    IridiaWaitTimer iridiaWait(3);
     m_drawable = m_layer->nextDrawable();
     if (!m_drawable)
     {

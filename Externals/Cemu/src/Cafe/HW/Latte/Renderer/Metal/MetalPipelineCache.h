@@ -29,6 +29,8 @@ private:
     class MetalRenderer* m_mtlr;
 
     std::map<uint64, PipelineObject*> m_pipelineCache;
+    uint64 m_lastPipelineHash = 0;
+    PipelineObject* m_lastPipelineObj = nullptr;
     FSpinlock m_pipelineCacheLock;
 
 	std::thread* m_pipelineCacheStoreThread;

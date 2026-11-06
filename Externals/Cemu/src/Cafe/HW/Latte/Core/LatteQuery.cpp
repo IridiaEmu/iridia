@@ -4,6 +4,7 @@
 
 #include "Cafe/HW/Latte/Core/LatteQueryObject.h"
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
+#include "Cafe/HW/Latte/Core/IridiaSyncDiag.h"
 
 #define GPU7_QUERY_TYPE_OCCLUSION	(1)
 
@@ -61,6 +62,8 @@ void LatteQuery_finishGX2Query(LatteGX2QueryInformation* gx2Query)
 	*(uint64*)(queryObjectData + 6) = 0;
 
 	*(uint64*)(queryObjectData + 8) = 0; // overwrites the 'OCPU' magic constant letting GX2QueryGetOcclusionResult know that the query is finished (for CPU queries)
+	if (IridiaSyncLogOn())
+		IridiaQueryFinished(gx2Query->queryMPTR);
 }
 
 void LatteQuery_UpdateFinishedQueries()
@@ -108,7 +111,19 @@ void LatteQuery_UpdateFinishedQueries()
 void LatteQuery_UpdateFinishedQueriesForceFinishAll()
 {
 	cemu_assert_debug(_currentlyActiveRendererQuery == nullptr);
+	uint64_t iridiaT0 = 0;
+	if (g_iridiaSync.inSync)
+	{
+		g_iridiaSync.qInFlight = (uint32_t)list_queriesInFlight.size();
+		g_iridiaSync.qGx2Active = (uint32_t)list_activeGX2Queries2.size();
+		iridiaT0 = IridiaNowNs();
+	}
 	g_renderer->occlusionQuery_flush(); // guarantees that all query commands have been submitted and finished processing
+	if (g_iridiaSync.inSync)
+	{
+		g_iridiaSync.qWaitMs = (IridiaNowNs() - iridiaT0) / 1e6;
+		g_iridiaSync.qWaited = g_iridiaSync.qWaitMs > 0.05;
+	}
 	while (true)
 	{
 		LatteQuery_UpdateFinishedQueries();

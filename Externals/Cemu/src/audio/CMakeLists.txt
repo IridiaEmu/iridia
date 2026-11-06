@@ -20,6 +20,12 @@ if(WIN32)
 	)
 endif()
 
+if(IOS)
+	# Iridia Wii U app: RemoteIO output in place of cubeb
+	target_sources(CemuAudio PRIVATE IOSAudioAPI.mm IOSAudioAPI.h)
+	target_compile_definitions(CemuAudio PRIVATE IRIDIA_IOS_AUDIO=1)
+endif()
+
 if(ENABLE_CUBEB)
 	target_sources(CemuAudio PRIVATE
 		CubebAPI.cpp

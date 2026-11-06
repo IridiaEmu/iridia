@@ -142,6 +142,7 @@ void PPCRecompiler_enter(PPCInterpreter_t* hCPU, PPCREC_JUMP_ENTRY funcPtr)
 	}
 }
 
+#if !(defined(CEMU_NO_JIT) && defined(IRIDIA_NOJIT_INLINE_ENTER))
 void PPCRecompiler_attemptEnterWithoutRecompile(PPCInterpreter_t* hCPU, uint32 enterAddress)
 {
 	cemu_assert_debug(hCPU->instructionPointer == enterAddress);
@@ -174,6 +175,7 @@ void PPCRecompiler_attemptEnter(PPCInterpreter_t* hCPU, uint32 enterAddress)
 		PPCRecompiler_enter(hCPU, funcPtr);
 	}
 }
+#endif
 bool PPCRecompiler_ApplyIMLPasses(ppcImlGenContext_t& ppcImlGenContext);
 
 PPCRecFunction_t* PPCRecompiler_recompileFunction(PPCFunctionBoundaryTracker::PPCRange_t range, std::set<uint32>& entryAddresses, std::vector<std::pair<MPTR, uint32>>& entryPointsOut, PPCFunctionBoundaryTracker& boundaryTracker)
@@ -235,7 +237,9 @@ PPCRecFunction_t* PPCRecompiler_recompileFunction(PPCFunctionBoundaryTracker::PP
 		return nullptr;
 	}
 
-#if defined(ARCH_X86_64)
+#if defined(CEMU_NO_JIT)
+	return nullptr; // no code generation in this build
+#elif defined(ARCH_X86_64)
 	// emit x64 code
 	bool x64GenerationSuccess = PPCRecompiler_generateX64Code(ppcRecFunc, &ppcImlGenContext);
 	if (x64GenerationSuccess == false)
@@ -595,6 +599,7 @@ void PPCRecompiler_deleteFunction(PPCRecFunction_t* func)
 
 void PPCRecompiler_invalidateRange(uint32 startAddr, uint32 endAddr)
 {
+	PPCInterpreter_invalidateDecodeCache(startAddr, endAddr); // Iridia study: code changed
 	if (!s_ppcRecompilerState.initialized)
 		return;
 	if (startAddr >= PPC_REC_CODE_AREA_SIZE)
@@ -668,6 +673,10 @@ void PPCRecompiler_initPlatform()
 void PPCRecompiler_init()
 {
 	s_ppcRecompilerState.recompilerEnableCount = 0;
+#ifdef CEMU_NO_JIT
+	cemuLog_log(LogType::Force, "No-JIT build: recompiler not available, using the interpreter");
+	return;
+#endif
 	if (ActiveSettings::GetCPUMode() == CPUMode::SinglecoreInterpreter)
 	{
 		cemuLog_log(LogType::Force, "Using singlecore interpreter");
@@ -686,7 +695,9 @@ void PPCRecompiler_init()
 	cemuLog_logDebug(LogType::Force, "Reserving {}MB for recompiler instance data", (sint32)(sizeof(PPCRecompilerInstanceData_t) / 1024 / 1024));
 	ppcRecompilerInstanceData = (PPCRecompilerInstanceData_t*)MemMapper::ReserveMemory(nullptr, sizeof(PPCRecompilerInstanceData_t), MemMapper::PAGE_PERMISSION::P_RW);
 	MemMapper::AllocateMemory(&(ppcRecompilerInstanceData->_x64XMM_xorNegateMaskBottom), sizeof(PPCRecompilerInstanceData_t) - offsetof(PPCRecompilerInstanceData_t, _x64XMM_xorNegateMaskBottom), MemMapper::PAGE_PERMISSION::P_RW, true);
-#ifdef ARCH_X86_64
+#if defined(CEMU_NO_JIT)
+	// unreachable: PPCRecompiler_init returns early
+#elif defined(ARCH_X86_64)
 	PPCRecompilerX64Gen_generateRecompilerInterfaceFunctions();
 #elif defined(__aarch64__)
 	PPCRecompilerAArch64Gen_generateRecompilerInterfaceFunctions();

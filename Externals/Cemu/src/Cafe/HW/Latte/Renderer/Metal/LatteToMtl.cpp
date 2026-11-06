@@ -1,7 +1,9 @@
+#include <atomic>
 #include "Cafe/HW/Latte/Renderer/Metal/LatteToMtl.h"
 #include "Cemu/Logging/CemuLogging.h"
 #include "HW/Latte/Core/LatteTextureLoader.h"
 #include "HW/Latte/Renderer/Metal/MetalCommon.h"
+#include "HW/Latte/Renderer/Metal/IridiaAstcDecoders.h"
 
 std::map<Latte::E_GX2SURFFMT, MetalPixelFormatInfo> MTL_COLOR_FORMAT_TABLE = {
     {Latte::E_GX2SURFFMT::INVALID_FORMAT, {MTL::PixelFormatInvalid, MetalDataType::NONE, 0}},
@@ -168,6 +170,54 @@ void CheckForPixelFormatSupport(const MetalPixelFormatSupport& support)
         MTL_COLOR_FORMAT_TABLE[Latte::E_GX2SURFFMT::R5_G5_B5_A1_UNORM].textureDecoder = TextureDecoder_R5_G5_B5_A1_UNORM_swappedRB_To_RGBA8::getInstance();
     }
 
+    if (!support.m_supportsBC)
+    {
+        // Iridia Wii U app: no BC compression (iOS Simulator): decode on the CPU to float formats, like Cemu's
+        // OpenGL fallback does.
+        auto setUncompressed = [](Latte::E_GX2SURFFMT f, MTL::PixelFormat pf, size_t bytes, TextureDecoder* dec) {
+            auto& e = MTL_COLOR_FORMAT_TABLE[f];
+            e.pixelFormat = pf;
+            e.bytesPerBlock = bytes;
+            e.blockTexelSize = {1, 1};
+            e.textureDecoder = dec;
+            e.isAlternateFormat = true;
+        };
+        setUncompressed(Latte::E_GX2SURFFMT::BC1_UNORM, MTL::PixelFormatRGBA32Float, 16, TextureDecoder_BC1_UNORM_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC1_SRGB, MTL::PixelFormatRGBA32Float, 16, TextureDecoder_BC1_SRGB_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC2_UNORM, MTL::PixelFormatRGBA32Float, 16, TextureDecoder_BC2_UNORM_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC2_SRGB, MTL::PixelFormatRGBA32Float, 16, TextureDecoder_BC2_SRGB_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC3_UNORM, MTL::PixelFormatRGBA32Float, 16, TextureDecoder_BC3_UNORM_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC3_SRGB, MTL::PixelFormatRGBA32Float, 16, TextureDecoder_BC3_SRGB_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC4_UNORM, MTL::PixelFormatRG32Float, 8, TextureDecoder_BC4_UNORM_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC4_SNORM, MTL::PixelFormatRG32Float, 8, TextureDecoder_BC4_UNORM_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC5_UNORM, MTL::PixelFormatRG32Float, 8, TextureDecoder_BC5_UNORM_uncompress::getInstance());
+        setUncompressed(Latte::E_GX2SURFFMT::BC5_SNORM, MTL::PixelFormatRG32Float, 8, TextureDecoder_BC5_SNORM_uncompress::getInstance());
+
+        // Iridia study: IRIDIA_BC_ASTC=1 transcodes the unorm BC formats to ASTC 4x4 at upload instead (1 byte per
+        // texel instead of 16; ASTC is lossy, see IridiaAstc.h). The snorm BC4/BC5 formats keep the decode above
+        // (ASTC has no signed formats).
+        if (getenv("IRIDIA_BC_ASTC") && atoi(getenv("IRIDIA_BC_ASTC")) == 1)
+        {
+            using IridiaAstc::Src;
+            auto setAstc = [](Latte::E_GX2SURFFMT f, bool srgb, TextureDecoder* dec) {
+                auto& e = MTL_COLOR_FORMAT_TABLE[f];
+                e.pixelFormat = srgb ? MTL::PixelFormatASTC_4x4_sRGB : MTL::PixelFormatASTC_4x4_LDR;
+                e.bytesPerBlock = 16;
+                e.blockTexelSize = {4, 4};
+                e.textureDecoder = dec;
+                e.isAlternateFormat = true;
+            };
+            setAstc(Latte::E_GX2SURFFMT::BC1_UNORM, false, TextureDecoder_BC_To_ASTC<Src::BC1, false>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC1_SRGB, true, TextureDecoder_BC_To_ASTC<Src::BC1, true>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC2_UNORM, false, TextureDecoder_BC_To_ASTC<Src::BC2, false>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC2_SRGB, true, TextureDecoder_BC_To_ASTC<Src::BC2, true>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC3_UNORM, false, TextureDecoder_BC_To_ASTC<Src::BC3, false>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC3_SRGB, true, TextureDecoder_BC_To_ASTC<Src::BC3, true>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC4_UNORM, false, TextureDecoder_BC_To_ASTC<Src::BC4, false>::getInstance());
+            setAstc(Latte::E_GX2SURFFMT::BC5_UNORM, false, TextureDecoder_BC_To_ASTC<Src::BC5, false>::getInstance());
+        }
+    }
+
     // Depth
    	MTL_DEPTH_FORMAT_TABLE[Latte::E_GX2SURFFMT::D24_S8_UNORM].textureDecoder = TextureDecoder_D24_S8::getInstance();
    	MTL_DEPTH_FORMAT_TABLE[Latte::E_GX2SURFFMT::D24_S8_FLOAT].textureDecoder = TextureDecoder_NullData64::getInstance(); // TODO: why?
@@ -187,6 +237,22 @@ void CheckForPixelFormatSupport(const MetalPixelFormatSupport& support)
 
 const MetalPixelFormatInfo GetMtlPixelFormatInfo(Latte::E_GX2SURFFMT format, bool isDepth)
 {
+    // Iridia (MORNING9 item 4): remember the table entry per format (map nodes never move and are never erased; an
+    // entry changed in place by CheckForPixelFormatSupport stays visible), so the per-draw hashes skip the map search
+    static std::atomic<const MetalPixelFormatInfo*> s_entry[2][0x1000] = {}; // also read by the pipeline compile threads
+    const uint32 fi = (uint32)format;
+    if (fi < 0x1000)
+    {
+        if (const MetalPixelFormatInfo* e = s_entry[isDepth][fi].load(std::memory_order_relaxed))
+            return *e;
+        auto& table = isDepth ? MTL_DEPTH_FORMAT_TABLE : MTL_COLOR_FORMAT_TABLE;
+        auto it = table.find(format);
+        if (it != table.end())
+        {
+            s_entry[isDepth][fi].store(&it->second, std::memory_order_relaxed);
+            return it->second;
+        }
+    }
     if (isDepth)
     {
         auto it = MTL_DEPTH_FORMAT_TABLE.find(format);

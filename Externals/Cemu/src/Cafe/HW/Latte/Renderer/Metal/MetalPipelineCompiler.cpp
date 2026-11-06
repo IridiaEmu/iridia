@@ -12,6 +12,9 @@
 #include "Cafe/HW/Latte/Core/LatteShader.h"
 
 #include <chrono>
+#include <atomic>
+std::atomic<uint64> g_iridiaPso[4];
+std::atomic<uint64> g_iridiaLib[2];
 
 extern std::atomic_int g_compiling_pipelines;
 extern std::atomic_int g_compiling_pipelines_async;
@@ -375,6 +378,13 @@ bool MetalPipelineCompiler::Compile(bool forceCompile, bool isRenderThread, bool
     auto end = std::chrono::high_resolution_clock::now();
 
     auto creationDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    {
+        // Iridia diagnostic (IRIDIA_PSO line, printed by LattePerformanceMonitor): pipeline creation on the
+        // GPU command thread (stalls a frame) and on the compile threads, count and ns per second
+        extern std::atomic<uint64> g_iridiaPso[4];
+        g_iridiaPso[isRenderThread ? 0 : 2].fetch_add(1, std::memory_order_relaxed);
+        g_iridiaPso[isRenderThread ? 1 : 3].fetch_add((uint64)creationDuration, std::memory_order_relaxed);
+    }
 
    	if (error)
    	{

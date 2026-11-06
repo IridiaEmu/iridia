@@ -3,6 +3,7 @@
 
 #include "HW/Latte/Core/LattePM4.h"
 #include "OS/libs/coreinit/coreinit_Time.h"
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 
 namespace TCL
 {
@@ -81,6 +82,11 @@ namespace TCL
 		return true;
 	}
 
+	bool TCLGPUHasRBWork()
+	{
+		return tclRingBufferA_readIndex.load(std::memory_order::relaxed) != tclRingBufferA_writeIndex.load(std::memory_order::acquire);
+	}
+
 	void TCLWaitForRBSpace(uint32be numU32s)
 	{
 		uint32 writeIndex = tclRingBufferA_writeIndex.load(std::memory_order::relaxed);
@@ -111,6 +117,7 @@ namespace TCL
 		}
 
 		tclRingBufferA_writeIndex.store(writeIndex, std::memory_order::release);
+		IridiaLatteWake();
 	}
 
 	#define EVENT_TYPE_TS		5

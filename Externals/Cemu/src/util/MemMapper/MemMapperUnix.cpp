@@ -19,6 +19,13 @@ namespace MemMapper
 	int GetProt(PAGE_PERMISSION permissionFlags)
 	{
 		int  p = 0;
+#ifdef CEMU_NO_JIT
+		if (HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_EXECUTE))
+		{
+			fprintf(stderr, "CEMU_NO_JIT: executable memory requested; refusing\n");
+			abort();
+		}
+#endif
 		if (HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_READ) && HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_WRITE) && HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_EXECUTE))
 			p = PROT_READ | PROT_WRITE | PROT_EXEC;
 		else if (HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_READ) && HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_WRITE) && !HAS_FLAG(permissionFlags, PAGE_PERMISSION::P_EXECUTE))

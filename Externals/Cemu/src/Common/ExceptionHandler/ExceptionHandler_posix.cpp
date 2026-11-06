@@ -76,6 +76,16 @@ void handlerDumpingSignal(int sig, siginfo_t *info, void *context)
 
     if(!CrashLog_Create())
         return; // give up if crashlog was already created
+#if defined(__APPLE__) && defined(__aarch64__)
+	{
+		// Iridia study: fault address and a few registers (debugging aid)
+		ucontext_t* uc = (ucontext_t*)context;
+		fprintf(stderr, "IRIDIA_CRASH addr=%p pc=%llx sp=%llx x19=%llx x20=%llx x21=%llx lr=%llx\n", info->si_addr,
+			(unsigned long long)uc->uc_mcontext->__ss.__pc, (unsigned long long)uc->uc_mcontext->__ss.__sp,
+			(unsigned long long)uc->uc_mcontext->__ss.__x[19], (unsigned long long)uc->uc_mcontext->__ss.__x[20],
+			(unsigned long long)uc->uc_mcontext->__ss.__x[21], (unsigned long long)uc->uc_mcontext->__ss.__lr);
+	}
+#endif
 
     char* sigName = strsignal(sig);
 	if (sigName)

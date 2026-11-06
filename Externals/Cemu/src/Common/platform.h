@@ -1,6 +1,12 @@
 #pragma once
 
 #include <boost/predef/os.h>
+#if BOOST_OS_IOS
+// Iridia Wii U app: iOS is Darwin like macOS; the core's macOS paths (POSIX, Mach, Metal) apply. The few
+// AppKit-specific pieces check TARGET_OS_IPHONE / IOS themselves.
+#undef BOOST_OS_MACOS
+#define BOOST_OS_MACOS BOOST_OS_IOS
+#endif
 #include <cstdint>
 
 #if BOOST_OS_WINDOWS

@@ -66,6 +66,9 @@ bool ActiveSettings::DisplayDRCEnabled()
 
 CPUMode ActiveSettings::GetCPUMode()
 {
+#ifdef CEMU_NO_JIT
+	return CPUMode::SinglecoreInterpreter; // multi-core interpreter via --force-multicore-interpreter
+#endif
 	auto mode = g_current_game_profile->GetCPUMode().value_or(CPUMode::Auto);
 
 	if (mode == CPUMode::Auto)
@@ -103,6 +106,11 @@ bool ActiveSettings::RenderUpsideDownEnabled()
 
 bool ActiveSettings::WaitForGX2DrawDoneEnabled()
 {
+	// Iridia: IRIDIA_PERF_MODE=1 ("Performance mode", opt-in, never the default) skips the full GPU sync at
+	// GX2DrawDone. Faster, but texture readbacks and occlusion results may arrive a frame later than the game expects.
+	static const bool s_perfMode = getenv("IRIDIA_PERF_MODE") && atoi(getenv("IRIDIA_PERF_MODE")) == 1;
+	if (s_perfMode)
+		return false;
 	return GetConfig().gx2drawdone_sync;
 }
 
@@ -181,7 +189,8 @@ NetworkService ActiveSettings::GetNetworkService()
 
 bool ActiveSettings::DumpShadersEnabled()
 {
-	return s_dump_shaders;
+	static const bool s_iridiaDump = getenv("IRIDIA_DUMP_SHADERS") != nullptr; // Iridia study: dump translated shaders without the debug menu
+	return s_dump_shaders || s_iridiaDump;
 }
 
 bool ActiveSettings::DumpTexturesEnabled()

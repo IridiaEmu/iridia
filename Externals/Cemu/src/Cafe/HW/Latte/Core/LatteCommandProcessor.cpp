@@ -1,4 +1,5 @@
 #include "Cafe/HW/Latte/ISA/RegDefines.h"
+#include "Cafe/HW/Latte/Core/IridiaSyncDiag.h"
 #include "Cafe/OS/libs/gx2/GX2.h" // for write gatherer and special state. Get rid of dependency
 #include "Cafe/OS/libs/gx2/GX2_Event.h" // for notification callbacks
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
@@ -9,6 +10,7 @@
 #include "Cafe/HW/Latte/Core/LatteIndices.h"
 #include "Cafe/HW/Latte/Core/LatteBufferCache.h"
 #include "Cafe/HW/Latte/Core/LattePM4.h"
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 #include "Cafe/HW/Latte/Core/LatteSurfaceCopy.h"
 
 #include "Cafe/OS/libs/coreinit/coreinit_Time.h"
@@ -165,8 +167,49 @@ void LatteCP_signalEnterWait()
 * Read a U32 from the command buffer
 * If no data is available then wait in a busy loop
 */
+// Iridia study: GPU-thread waits back off to short sleeps instead of spinning (IRIDIA_SPIN=1: old behaviour)
+// Iridia: WAIT_REG_MEM polls 256 times, then yields, then naps 20 us after this many rounds (yielding keeps the core
+// busy). IRIDIA_WRM_NAP_AFTER=<n> sets it (energy A/B); default 4096.
+static uint32 s_iridiaWrmNapAfter() { static const uint32 v = getenv("IRIDIA_WRM_NAP_AFTER") ? (uint32)atoi(getenv("IRIDIA_WRM_NAP_AFTER")) : 4096; return v; }
+static bool s_iridiaSpin() { static const bool v = getenv("IRIDIA_SPIN") != nullptr || getenv("IRIDIA_SPIN_GPU") != nullptr; return v; } // IRIDIA_SPIN_GPU: only the GPU thread spins // read on first use: the app sets study switches after load
+
+// Iridia: GPU-thread sleep with wake-up (IridiaPerf.h). Opt-in, IRIDIA_LATTE_WAKE=1: slower on the Mac with phone
+// settings (27 vs 35 fps, more CPU per frame; the longer-sleeping thread likely lands on slower cores).
+static bool s_iridiaNap() { static const bool v = getenv("IRIDIA_LATTE_WAKE") == nullptr; return v; }
+static std::mutex s_latteSleepMutex;
+static std::condition_variable s_latteSleepCv;
+static std::atomic<bool> s_latteSleeping{false};
+bool LatteAsyncCommands_hasPending();
+
+void IridiaLatteWake()
+{
+	std::atomic_thread_fence(std::memory_order_seq_cst); // the new work is visible before the sleeper flag is read
+	if (s_latteSleeping.load(std::memory_order_relaxed))
+	{
+		std::lock_guard<std::mutex> lock(s_latteSleepMutex);
+		s_latteSleepCv.notify_one();
+	}
+}
+
+// sleeps until woken or the next vblank is due (at most 2 ms); returns at once if work is already there
+static void IridiaLatteSleep()
+{
+	const uint64 now = HighResolutionTimer::now().getTick();
+	uint64 LatteTiming_NextEventTick(uint64 now);
+	const uint64 next = LatteTiming_NextEventTick(now);
+	if (next <= now)
+		return;
+	const uint64 us = std::min<uint64>((next - now) * 1000000ull / HighResolutionTimer::getFrequency(), 2000);
+	std::unique_lock<std::mutex> lock(s_latteSleepMutex);
+	s_latteSleeping.store(true, std::memory_order_seq_cst);
+	if (!TCL::TCLGPUHasRBWork() && !LatteAsyncCommands_hasPending() && !Latte_GetStopSignal())
+		s_latteSleepCv.wait_for(lock, std::chrono::microseconds(us));
+	s_latteSleeping.store(false, std::memory_order_relaxed);
+}
+
 uint32 LatteCP_readU32Deprc()
 {
+	uint32 idleRounds = 0;
 	// no display list active
 	while (true)
 	{
@@ -174,6 +217,7 @@ uint32 LatteCP_readU32Deprc()
 		if ( TCL::TCLGPUReadRBWord(cmdWord) )
 			return cmdWord;
 
+		IridiaWaitTimer iridiaWait(0);
 		g_renderer->NotifyLatteCommandProcessorIdle(); // let the renderer know in case it wants to flush any commands
 		performanceMonitor.gpuTime_idleTime.beginMeasuring();
 		// no command data available, spin in a busy loop for a bit then check again
@@ -191,7 +235,15 @@ uint32 LatteCP_readU32Deprc()
 		// still no command data available, do some other tasks
 		LatteTiming_HandleTimedVsync();
 		LatteAsyncCommands_checkAndExecute();
-		std::this_thread::yield();
+		if (!s_iridiaSpin() && ++idleRounds > 16)
+		{
+			if (s_iridiaNap())
+				std::this_thread::sleep_for(std::chrono::microseconds(20));
+			else
+				IridiaLatteSleep();
+		}
+		else
+			std::this_thread::yield();
 		performanceMonitor.gpuTime_idleTime.endMeasuring();
 	}
 	UNREACHABLE;
@@ -446,6 +498,30 @@ LatteCMDPtr LatteCP_itNumInstances(LatteCMDPtr cmd, uint32 nWords)
 	return cmd;
 }
 
+// Iridia diagnostics (IRIDIA_WRM_STATS=1): time the GPU thread waits per wait-for-memory address, printed once a
+// second with the IRIDIA_PERF line (GPU thread only, no lock needed)
+static bool s_iridiaWrmStats() { static const bool v = getenv("IRIDIA_WRM_STATS") != nullptr; return v; }
+struct IridiaWrmStat { uint64 us = 0; uint32 n = 0; uint32 op = 0; uint32 lastValue = 0; uint32 lastWant = 0; };
+static std::unordered_map<uint32, IridiaWrmStat> s_iridiaWrm;
+uint32 g_iridiaLastWrmAddr = 0;
+void IridiaPrintWrmStats()
+{
+	if (!s_iridiaWrmStats())
+		return;
+	std::vector<std::pair<uint64, uint32>> top;
+	for (auto& [a, st] : s_iridiaWrm)
+		top.emplace_back(st.us, a);
+	std::sort(top.rbegin(), top.rend());
+	std::string line = "IRIDIA_WRM";
+	for (size_t i = 0; i < top.size() && i < 6; i++)
+	{
+		const IridiaWrmStat& st = s_iridiaWrm[top[i].second];
+		line += fmt::format(" {:08x}:{}ms/{}x op{} want{:x} got{:x}", top[i].second, st.us / 1000, st.n, st.op, st.lastWant, st.lastValue);
+	}
+	fprintf(stderr, "%s\n", line.c_str());
+	s_iridiaWrm.clear();
+}
+
 LatteCMDPtr LatteCP_itWaitRegMem(LatteCMDPtr cmd, uint32 nWords)
 {
 	cemu_assert_debug(nWords == 6);
@@ -476,10 +552,19 @@ LatteCMDPtr LatteCP_itWaitRegMem(LatteCMDPtr cmd, uint32 nWords)
 	LatteCP_signalEnterWait();
 
 	bool stalls = false;
+	uint32 waitRounds = 0;
 	if ((word0 & 0x10) != 0)
 	{
 		// wait for memory address
 		performanceMonitor.gpuTime_fenceTime.beginMeasuring();
+		IridiaWaitTimer iridiaWait(1);
+		extern uint32 g_iridiaLastWrmAddr;
+		g_iridiaLastWrmAddr = physAddr;
+		IridiaTL(TL_WRM_WANT, (uint16)compareOp, fenceValue);
+		IridiaTL(TL_WRM_HAVE, 0, _swapEndianU32(*fencePtr) & fenceMask);
+		struct WrmRecord { uint32 a, op, want; uint32* p; std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+			~WrmRecord() { if (!s_iridiaWrmStats()) return; auto& st = s_iridiaWrm[a]; st.us += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count(); st.n++; st.op = op; st.lastWant = want; st.lastValue = _swapEndianU32(*p); } }
+			wrmRecord{ physAddr, compareOp, fenceValue, fencePtr };
 		while (true)
 		{
 			uint32 fenceMemValue = _swapEndianU32(*fencePtr);
@@ -534,6 +619,13 @@ LatteCMDPtr LatteCP_itWaitRegMem(LatteCMDPtr cmd, uint32 nWords)
 			// check if any GPU events happened
 			LatteTiming_HandleTimedVsync();
 			LatteAsyncCommands_checkAndExecute();
+			if (!s_iridiaSpin())
+			{
+				if (++waitRounds > s_iridiaWrmNapAfter())
+					std::this_thread::sleep_for(std::chrono::microseconds(20));
+				else if (waitRounds > 256)
+					std::this_thread::yield();
+			}
 		}
 		performanceMonitor.gpuTime_fenceTime.endMeasuring();
 	}
@@ -722,6 +814,16 @@ LatteCMDPtr LatteCP_itSetPredication(LatteCMDPtr cmd, uint32 nWords)
 	return cmd;
 }
 
+// Iridia (MORNING9 item 4): the draw tick only ages textures in the texture cache (lastAccessTick, 100 ms scale), so
+// the clock is read every 32 draws instead of every draw (it was ~0.8% of the GPU command thread on the Mac)
+static uint32 IridiaDrawTick()
+{
+	static uint32 s_n = 0, s_tick = 0;
+	if ((s_n++ & 31) == 0)
+		s_tick = GetTickCount();
+	return s_tick;
+}
+
 LatteCMDPtr LatteCP_itDrawIndex2(LatteCMDPtr cmd, uint32 nWords, DrawPassContext& drawPassCtx)
 {
 	cemu_assert_debug(nWords == 5);
@@ -731,7 +833,7 @@ LatteCMDPtr LatteCP_itDrawIndex2(LatteCMDPtr cmd, uint32 nWords, DrawPassContext
 	uint32 count = LatteReadCMD();
 	uint32 ukn3 = LatteReadCMD();
 
-	LatteGPUState.currentDrawCallTick = GetTickCount();
+	LatteGPUState.currentDrawCallTick = IridiaDrawTick();
 	drawPassCtx.executeDraw(count, false, physIndices);
 	return cmd;
 }
@@ -741,7 +843,7 @@ LatteCMDPtr LatteCP_itDrawIndexAuto(LatteCMDPtr cmd, uint32 nWords, DrawPassCont
 	cemu_assert_debug(nWords == 2);
 	uint32 count = LatteReadCMD();
 	uint32 ukn = LatteReadCMD();
-	LatteGPUState.currentDrawCallTick = GetTickCount();
+	LatteGPUState.currentDrawCallTick = IridiaDrawTick();
 	// todo - better way to identify compute drawcalls
 	auto& sqConfig = LatteGPUState.contextNew.SQ_CONFIG;
 	if (sqConfig.get_PS_PRIO() == 0 && sqConfig.get_VS_PRIO() == 1 && sqConfig.get_GS_PRIO() == 2 && sqConfig.get_ES_PRIO() == 3)
@@ -767,7 +869,7 @@ LatteCMDPtr LatteCP_itDrawImmediate(LatteCMDPtr cmd, uint32 nWords, DrawPassCont
 	if (_tempIndexArrayMPTR == MPTR_NULL)
 		_tempIndexArrayMPTR = coreinit_allocFromSysArea(0x4000 * sizeof(uint32), 0x4);
 
-	LatteGPUState.currentDrawCallTick = GetTickCount();
+	LatteGPUState.currentDrawCallTick = IridiaDrawTick();
 	// calculate size of index data in packet and read indices
 	uint32 numIndexU32s;
 	auto indexType = LatteGPUState.contextNew.VGT_DMA_INDEX_TYPE.get_INDEX_TYPE();
@@ -1413,8 +1515,13 @@ void LatteCP_processCommandBuffer(DrawPassContext& drawPassCtx)
 				}
 				case IT_HLE_SYNC_ASYNC_OPERATIONS:
 				{
+					IridiaWaitTimer iridiaWait(2);
+					if (IridiaSyncLogOn())
+						IridiaSyncBegin();
 					LatteTextureReadback_UpdateFinishedTransfers(true);
 					LatteQuery_UpdateFinishedQueriesForceFinishAll();
+					if (IridiaSyncLogOn())
+						IridiaSyncEnd();
 					break;
 				}
 				default:
@@ -1722,8 +1829,13 @@ void LatteCP_ProcessRingbuffer()
 			case IT_HLE_SYNC_ASYNC_OPERATIONS:
 			{
 				//LatteCP_skipWords<LatteCP_readU32Deprc>(nWords);
+				IridiaWaitTimer iridiaWait(2);
+				if (IridiaSyncLogOn())
+					IridiaSyncBegin();
 				LatteTextureReadback_UpdateFinishedTransfers(true);
 				LatteQuery_UpdateFinishedQueriesForceFinishAll();
+				if (IridiaSyncLogOn())
+					IridiaSyncEnd();
 				break;
 			}
 			default:

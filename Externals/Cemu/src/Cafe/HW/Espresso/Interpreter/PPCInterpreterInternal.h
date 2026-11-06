@@ -1,4 +1,5 @@
 #pragma once
+#include <bit>
 
 #include "Cafe/HW/Espresso/PPCState.h"
 
@@ -116,13 +117,20 @@
 #define PPC_OPC_TEMPL3_XO() sint32 rD, rA, rB; rD=((opcode)>>21)&0x1f;rA=((opcode)>>16)&0x1f;rB=((opcode)>>11)&0x1f
 #define PPC_OPC_TEMPL_X_CR() sint32 crD, crA, crB; crD=((opcode)>>21)&0x1f;crA=((opcode)>>16)&0x1f;crB=((opcode)>>11)&0x1f
 
+// Iridia: a whole CR field (LT, GT, EQ, SO bytes) in one 32-bit store instead of four byte stores
+static_assert(CR_BIT_LT == 0 && CR_BIT_GT == 1 && CR_BIT_EQ == 2 && CR_BIT_SO == 3);
+static_assert(std::endian::native == std::endian::little);
+static inline void ppc_setCRField(PPCInterpreter_t* hCPU, uint32 field, uint32 lt, uint32 gt, uint32 eq, uint32 so)
+{
+	const uint32 v = lt | (gt << 8) | (eq << 16) | (so << 24);
+	memcpy(hCPU->cr + field * 4, &v, 4);
+}
+
 static inline void ppc_update_cr0(PPCInterpreter_t* hCPU, uint32 r)
 {
 	cemu_assert_debug(hCPU->xer_so <= 1);
-	hCPU->cr[CR_BIT_SO] = hCPU->xer_so;
-	hCPU->cr[CR_BIT_LT] = ((r != 0) ? 1 : 0) & ((r & 0x80000000) ? 1 : 0);
-	hCPU->cr[CR_BIT_EQ] = (r == 0);
-	hCPU->cr[CR_BIT_GT] = hCPU->cr[CR_BIT_EQ] ^ hCPU->cr[CR_BIT_LT] ^ 1;  // this works because EQ and LT can never be set at the same time. So the only case where GT becomes 1 is when LT=0 and EQ=0
+	const uint32 lt = r >> 31, eq = r == 0;
+	ppc_setCRField(hCPU, 0, lt, (lt | eq) ^ 1, eq, hCPU->xer_so); // GT only when neither LT nor EQ
 }
 
 static inline uint8 ppc_getCRBit(PPCInterpreter_t* hCPU, uint32 r)

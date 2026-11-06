@@ -115,6 +115,17 @@ void LatteThread_HandleOSScreen()
 int Latte_ThreadEntry()
 {
 	SetThreadName("LatteThread");
+#if BOOST_OS_MACOS
+	// Iridia study: IRIDIA_IPHONE_LAYOUT=1 puts the GPU thread on the efficiency cores (background QoS)
+	// IRIDIA_GPU_QOS=fast|utility|background|default overrides it (A/B of where the GPU thread runs).
+	if (getenv("IRIDIA_IPHONE_LAYOUT"))
+	{
+		const char* q = getenv("IRIDIA_GPU_QOS");
+		const qos_class_t cls = !q ? QOS_CLASS_BACKGROUND : !strcmp(q, "fast") ? QOS_CLASS_USER_INTERACTIVE
+			: !strcmp(q, "utility") ? QOS_CLASS_UTILITY : !strcmp(q, "background") ? QOS_CLASS_BACKGROUND : QOS_CLASS_DEFAULT;
+		pthread_set_qos_class_self_np(cls, 0);
+	}
+#endif
 	sint32 w,h;
 	WindowSystem::GetWindowPhysSize(w,h);
 

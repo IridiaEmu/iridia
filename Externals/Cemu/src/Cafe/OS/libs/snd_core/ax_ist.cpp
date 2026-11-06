@@ -979,6 +979,10 @@ namespace snd_core
 		OSInitMessageQueue(__AXIstThreadMsgQueue.GetPtr(), __AXIstThreadMsgArray.GetPtr(), 0x10);
 		// create thread
 		uint8 istThreadAttr = 0;
+		// Iridia study: IRIDIA_AX_CORE=<0-2> pins the audio frame thread (Cemu's own HLE driver thread, not a game
+		// thread) to that core instead of the core that called AXInit (core 0 in BotW, an efficiency core on iPhone)
+		if (const char* v = getenv("IRIDIA_AX_CORE"); v && *v >= '0' && *v <= '2')
+			istThreadAttr = (uint8)(1 << (*v - '0'));
 		coreinit::__OSCreateThreadType(__AXIstThread.GetPtr(), PPCInterpreter_makeCallableExportDepr(AXIst_ThreadEntry), 0, &__AXIstThreadMsgQueue, __AXIstThreadStack.GetPtr() + 0x4000, 0x4000, 14, istThreadAttr, OSThread_t::THREAD_TYPE::TYPE_DRIVER);
 		coreinit::OSResumeThread(__AXIstThread.GetPtr());
 	}

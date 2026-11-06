@@ -83,12 +83,6 @@ add_library(CemuCafe
   HW/Espresso/Recompiler/PPCRecompilerImlGenFPU.cpp
   HW/Espresso/Recompiler/PPCRecompilerIml.h
   HW/Espresso/Recompiler/PPCRecompilerIntermediate.cpp
-  HW/Espresso/Recompiler/BackendX64/BackendX64AVX.cpp
-  HW/Espresso/Recompiler/BackendX64/BackendX64BMI.cpp
-  HW/Espresso/Recompiler/BackendX64/BackendX64.cpp
-  HW/Espresso/Recompiler/BackendX64/BackendX64FPU.cpp
-  HW/Espresso/Recompiler/BackendX64/BackendX64Gen.cpp
-  HW/Espresso/Recompiler/BackendX64/BackendX64GenFPU.cpp
   HW/Espresso/Recompiler/BackendX64/BackendX64.h
   HW/Espresso/Recompiler/BackendX64/X64Emit.hpp
   HW/Espresso/Recompiler/BackendX64/x86Emitter.h
@@ -136,6 +130,8 @@ add_library(CemuCafe
   HW/Latte/Core/LatteTexture.h
   HW/Latte/Core/LatteTextureLegacy.cpp
   HW/Latte/Core/LatteTextureLoader.cpp
+  HW/Latte/Core/IridiaAstc.cpp
+  HW/Latte/Core/IridiaAstc.h
   HW/Latte/Core/LatteTextureLoader.h
   HW/Latte/Core/LatteTextureReadback.cpp
   HW/Latte/Core/LatteTextureReadbackInfo.h
@@ -548,7 +544,7 @@ if (ENABLE_VULKAN)
   )
 endif()
 
-if(APPLE)
+if(APPLE AND NOT IOS)
 	target_sources(CemuCafe PRIVATE
 	    HW/Latte/Renderer/MetalView.mm
 	    HW/Latte/Renderer/MetalView.h
@@ -618,7 +614,18 @@ if(ENABLE_METAL)
     )
 endif()
 
-if(CEMU_ARCHITECTURE MATCHES "(aarch64)|(AARCH64)|(arm64)|(ARM64)")
+# Recompiler backends generate code at run time; a CEMU_NO_JIT build has neither.
+if(NOT CEMU_NO_JIT)
+  target_sources(CemuCafe PRIVATE
+    HW/Espresso/Recompiler/BackendX64/BackendX64AVX.cpp
+    HW/Espresso/Recompiler/BackendX64/BackendX64BMI.cpp
+    HW/Espresso/Recompiler/BackendX64/BackendX64.cpp
+    HW/Espresso/Recompiler/BackendX64/BackendX64FPU.cpp
+    HW/Espresso/Recompiler/BackendX64/BackendX64Gen.cpp
+    HW/Espresso/Recompiler/BackendX64/BackendX64GenFPU.cpp
+  )
+endif()
+if(CEMU_ARCHITECTURE MATCHES "(aarch64)|(AARCH64)|(arm64)|(ARM64)" AND NOT CEMU_NO_JIT)
   target_sources(CemuCafe PRIVATE
     HW/Espresso/Recompiler/BackendAArch64/BackendAArch64.cpp
     HW/Espresso/Recompiler/BackendAArch64/BackendAArch64.h
@@ -681,4 +688,9 @@ endif()
 
 if(WIN32)
 	target_link_libraries(CemuCafe PRIVATE iphlpapi)
+endif()
+
+# Iridia research only (see IRIDIA_AOT_RESEARCH in the top CMakeLists.txt): only this file includes the recorded blocks
+if (IRIDIA_AOT_RESEARCH)
+	set_source_files_properties(HW/Espresso/Interpreter/PPCInterpreterImpl.cpp PROPERTIES COMPILE_DEFINITIONS IRIDIA_AOT_RESEARCH=1)
 endif()

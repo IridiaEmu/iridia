@@ -1,4 +1,5 @@
 #pragma once
+#include <TargetConditionals.h>
 
 #include <Foundation/Foundation.hpp>
 #include <Metal/Metal.hpp>
@@ -11,6 +12,7 @@ struct MetalPixelFormatSupport
 	bool m_supportsRG8Unorm_sRGB;
 	bool m_supportsPacked16BitFormats;
 	bool m_supportsDepth24Unorm_Stencil8;
+	bool m_supportsBC; // Iridia Wii U app: BC texture compression (the iOS Simulator has none)
 
 	MetalPixelFormatSupport() = default;
 	MetalPixelFormatSupport(MTL::Device* device)
@@ -18,7 +20,20 @@ struct MetalPixelFormatSupport
         m_supportsR8Unorm_sRGB = device->supportsFamily(MTL::GPUFamilyApple1);
         m_supportsRG8Unorm_sRGB = device->supportsFamily(MTL::GPUFamilyApple1);
         m_supportsPacked16BitFormats = device->supportsFamily(MTL::GPUFamilyApple1);
+#if TARGET_OS_IPHONE
+        m_supportsDepth24Unorm_Stencil8 = false; // Iridia Wii U app: Mac-only query (no D24S8 on iPhone GPUs)
+#else
         m_supportsDepth24Unorm_Stencil8 = device->depth24Stencil8PixelFormatSupported();
+#endif
+        m_supportsBC = device->supportsBCTextureCompression();
+        // Iridia study: IRIDIA_FORCE_NO_BC=1 takes the no-BC fallback even where BC exists (on the Mac, to reproduce
+        // what a GPU without BC does)
+        if (getenv("IRIDIA_FORCE_NO_BC") && atoi(getenv("IRIDIA_FORCE_NO_BC")) == 1)
+            m_supportsBC = false;
+#if TARGET_OS_SIMULATOR
+        // Iridia Wii U app: the iOS Simulator claims the Apple GPU family but lacks these formats.
+        m_supportsR8Unorm_sRGB = m_supportsRG8Unorm_sRGB = m_supportsPacked16BitFormats = false;
+#endif
 	}
 };
 
@@ -107,7 +122,11 @@ inline bool FormatIsRenderable(Latte::E_GX2SURFFMT format)
 template <typename... T>
 inline bool executeCommand(fmt::format_string<T...> fmt, T&&... args) {
     std::string command = fmt::format(fmt, std::forward<T>(args)...);
+#if TARGET_OS_IPHONE
+    int res = -1; // Iridia Wii U app: no shell on iOS
+#else
     int res = system(command.c_str());
+#endif
     if (res != 0)
     {
         cemuLog_log(LogType::Force, "command \"{}\" failed with exit code {}", command, res);

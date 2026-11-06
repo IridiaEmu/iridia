@@ -1,3 +1,4 @@
+#include "Cafe/HW/Latte/Core/IridiaPerf.h"
 #include "Cafe/HW/Latte/Renderer/Metal/MetalRenderer.h"
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureReadbackMtl.h"
 #include "Cafe/HW/Latte/Renderer/Metal/LatteTextureMtl.h"
@@ -6,6 +7,7 @@ LatteTextureReadbackInfoMtl::~LatteTextureReadbackInfoMtl()
 {
     if (m_commandBuffer)
         m_commandBuffer->release();
+    m_mtlr->IridiaReadbackReleased(m_bufferOffset);
 }
 
 void LatteTextureReadbackInfoMtl::StartTransfer()
@@ -41,6 +43,7 @@ bool LatteTextureReadbackInfoMtl::IsFinished()
 
 void LatteTextureReadbackInfoMtl::ForceFinish()
 {
+    IridiaWaitTimer iridiaWait(5);
     m_commandBuffer->waitUntilCompleted();
 }
 

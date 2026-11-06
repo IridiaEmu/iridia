@@ -196,6 +196,15 @@ void LatteFetchShader::CheckIfVerticesNeedManualFetchMtl(uint32* contextRegister
   		    if (attr.offset + GetMtlVertexFormatSize(attr.format) > bufferStride)
  			    mtlFetchVertexManually = true;
   		}
+		// Iridia study: IRIDIA_MANUAL_FETCH_LOG=1 prints why a fetch shader needs manual vertex fetch
+		static const bool s_log = getenv("IRIDIA_MANUAL_FETCH_LOG") != nullptr;
+		if (s_log && mtlFetchVertexManually)
+		{
+			std::string a;
+			for (sint32 f = 0; f < group.attribCount; f++)
+				a += fmt::format(" off{}+{}(fmt{} div{})", group.attrib[f].offset, GetMtlVertexFormatSize(group.attrib[f].format), (int)group.attrib[f].format, group.attrib[f].aluDivisor);
+			fprintf(stderr, "IRIDIA_MANUAL_FETCH buffer %u stride %u:%s\n", bufferIndex, bufferStride, a.c_str());
+		}
 	}
 }
 #endif

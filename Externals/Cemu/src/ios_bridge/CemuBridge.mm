@@ -32,6 +32,17 @@ extern std::atomic<bool> g_iridiaPaused; // PPCScheduler.cpp
 @end
 
 static bool s_started = false;
+static std::atomic<bool> s_gameEnded{false};
+
+/// The core's callbacks to the app: the game ended by itself (exit, or a return to the system menu), or asked
+/// for a new canvas (nothing to do, the app's layer stays).
+class IridiaSystem : public CafeSystem::SystemImplementation
+{
+public:
+	void CafeRecreateCanvas() override {}
+	void CafePPCProcessExit() override { s_gameEnded = true; }
+};
+static IridiaSystem s_system;
 static std::atomic<bool> s_running{false};
 
 // Same as CemuApp::CreateDefaultMLCFiles.
@@ -139,6 +150,7 @@ static std::string FormatName(const TitleInfo& info)
 	if (!CreateDefaultMLCFiles(ActiveSettings::GetMlcPath()))
 		return @"Can't create the console storage folder.";
 
+	CafeSystem::SetImplementation(&s_system);
 	ActiveSettings::Init();
 	LatteOverlay_init();
 	CemuCommonInit();
@@ -178,23 +190,39 @@ static std::string FormatName(const TitleInfo& info)
 	if (s_running)
 		return @"A game is already running.";
 	const fs::path launchPath = _utf8ToPath(title.path.UTF8String);
+	CafeSystem::PREPARE_STATUS_CODE r;
+	std::string ext = _pathToUtf8(launchPath.extension());
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	if (ext == ".rpx" || ext == ".elf")
+	{
+		// A standalone program (homebrew), not an installed title.
+		r = CafeSystem::PrepareForegroundTitleFromStandaloneRPX(launchPath);
+		if (r != CafeSystem::PREPARE_STATUS_CODE::SUCCESS)
+			return @"This program couldn't be opened.";
+		return [self startForegroundTitleOnLayer:layer width:width height:height];
+	}
 	TitleInfo launchTitle{launchPath};
 	if (!launchTitle.IsValid())
 	{
 		if (launchTitle.GetInvalidReason() == TitleInfo::InvalidReason::NO_DISC_KEY)
-			return @"This disc can't be read without its key. Put keys.txt with the game's disc key in the Games folder.";
+			return @"This disc can't be read without its key. Put keys.txt with the game's disc key in the Wii U folder.";
 		return @"This game can't be opened.";
 	}
 	CafeTitleList::AddTitleFromPath(launchPath);
 	TitleId baseTitleId;
 	if (!CafeTitleList::FindBaseTitleId(launchTitle.GetAppTitleId(), baseTitleId))
 		return @"The game's base files weren't found.";
-	CafeSystem::PREPARE_STATUS_CODE r = CafeSystem::PrepareForegroundTitle(baseTitleId);
+	r = CafeSystem::PrepareForegroundTitle(baseTitleId);
 	if (r == CafeSystem::PREPARE_STATUS_CODE::UNABLE_TO_MOUNT)
 		return @"The game couldn't be opened.";
 	if (r != CafeSystem::PREPARE_STATUS_CODE::SUCCESS)
 		return @"The game failed to start.";
+	return [self startForegroundTitleOnLayer:layer width:width height:height];
+}
 
+/// Graphics, input and the emulated console for the prepared title.
++ (nullable NSString *)startForegroundTitleOnLayer:(CAMetalLayer *)layer width:(int)width height:(int)height
+{
 	auto& wi = WindowSystem::GetWindowInfo();
 	const float scale = (float)layer.contentsScale;
 	wi.width = width;
@@ -217,6 +245,7 @@ static std::string FormatName(const TitleInfo& info)
 	}
 	g_iridiaExternalPad.active = true;
 	s_running = true;
+	s_gameEnded = false;
 	g_iridiaPaused = false;
 	CafeSystem::LaunchForegroundTitle();
 	return nil;
@@ -237,6 +266,11 @@ static std::string FormatName(const TitleInfo& info)
 	wi.window_pad.surface = nullptr;
 	wi.canvas_pad = wi.window_pad;
 	s_running = false;
+}
+
++ (BOOL)hasGameEnded
+{
+	return s_gameEnded.load();
 }
 
 + (void)setPaused:(BOOL)paused

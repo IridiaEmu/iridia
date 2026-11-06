@@ -20,6 +20,29 @@ MetalLayerHandle::~MetalLayerHandle()
         m_layer->release();
 }
 
+MetalLayerHandle::MetalLayerHandle(MetalLayerHandle&& other) noexcept
+    : m_layer(other.m_layer), m_layerScaleX(other.m_layerScaleX), m_layerScaleY(other.m_layerScaleY), m_drawable(other.m_drawable)
+{
+    other.m_layer = nullptr;
+    other.m_drawable = nullptr;
+}
+
+MetalLayerHandle& MetalLayerHandle::operator=(MetalLayerHandle&& other) noexcept
+{
+    if (this != &other)
+    {
+        if (m_layer)
+            m_layer->release();
+        m_layer = other.m_layer;
+        m_layerScaleX = other.m_layerScaleX;
+        m_layerScaleY = other.m_layerScaleY;
+        m_drawable = other.m_drawable;
+        other.m_layer = nullptr;
+        other.m_drawable = nullptr;
+    }
+    return *this;
+}
+
 void MetalLayerHandle::Resize(const Vector2i& size)
 {
     m_layer->setDrawableSize(CGSize{(float)size.x * m_layerScaleX, (float)size.y * m_layerScaleY});

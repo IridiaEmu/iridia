@@ -45,6 +45,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Ends the running game and frees its memory and graphics. The next launchTitle starts fresh.
 + (void)stopGame;
 
+/// True once the running game ended by itself (it exited). Call stopGame to clean up.
++ (BOOL)hasGameEnded;
+
 /// Pauses the game: every emulated core stops at the end of its time slice and the sound is muted.
 + (void)setPaused:(BOOL)paused;
 + (BOOL)isPaused;

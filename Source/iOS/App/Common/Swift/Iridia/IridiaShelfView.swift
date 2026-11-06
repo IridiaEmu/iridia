@@ -75,6 +75,8 @@ struct IridiaShelfView: View {
   let onShowGrid: () -> Void
   let onProperties: (TVGameItem) -> Void
   let onDelete: (TVGameItem) -> Void
+  /// Opens the Wii U tab (nil where the Wii U core isn't built in).
+  var onWiiU: (() -> Void)? = nil
 
   @State private var centred: String?
   /// Choosing a cover from Photos: the game it's for, the picked photo, and a redraw counter.
@@ -433,6 +435,7 @@ struct IridiaShelfView: View {
       tab(L("Games"), symbol: "cube", selected: true) {}
       tab(L("Saves"), symbol: "square.stack.3d.up", selected: false) { if let item = current { onSaves(item) } }
       tab(L("Controllers"), symbol: "gamecontroller", selected: false, action: onControllers)
+      if let onWiiU { tab(L("Wii U"), symbol: "square.stack", selected: false, action: onWiiU) }
     }
     .padding(8)
     .glassSurface(radius: 35)

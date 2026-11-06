@@ -13,6 +13,13 @@ public:
 
     ~MetalLayerHandle();
 
+    // Iridia: owns one reference to the layer, so it moves but never copies (assigning a temporary used to release
+    // the layer twice, which freed the app's layer when a game was stopped).
+    MetalLayerHandle(const MetalLayerHandle&) = delete;
+    MetalLayerHandle& operator=(const MetalLayerHandle&) = delete;
+    MetalLayerHandle(MetalLayerHandle&& other) noexcept;
+    MetalLayerHandle& operator=(MetalLayerHandle&& other) noexcept;
+
     void Resize(const Vector2i& size);
 
     bool AcquireDrawable();

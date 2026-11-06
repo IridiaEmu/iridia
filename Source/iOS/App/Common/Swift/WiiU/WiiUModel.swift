@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// gc-emu: Wii U tab state. Starts the Wii U core (IridiaCafeCore) the first time the tab opens, finds the
+// player's games in Documents/Wii U, and hands a chosen game to the play screen. Players bring their own
+// games and keys.txt, the same way as GameCube games.
+
+#if os(iOS) && canImport(IridiaCafeCore)
+import Foundation
+import IridiaCafeCore
+import SwiftUI
+import UIKit
+
+struct WiiUGame: Identifiable, Hashable {
+  let id: String          // file path
+  let title: CemuTitle
+  var name: String { title.name }
+}
+
+@MainActor
+final class WiiUModel: ObservableObject {
+  static let shared = WiiUModel()
+
+  enum Phase: Equatable { case idle, starting, ready, failed(String) }
+
+  @Published private(set) var phase: Phase = .idle
+  @Published private(set) var games: [WiiUGame] = []
+  @Published private(set) var scanning = false
+  @Published var playing: WiiUGame?
+
+  /// Documents/Wii U: the folder players see in Files ("On My iPhone > Iridia > Wii U").
+  let gamesDir: URL
+  /// Library/Application Support/IridiaCafe: Wii U settings, console storage (mlc01), keys, caches. Hidden from Files.
+  let userDir: URL
+
+  /// "On My iPhone > Iridia > Wii U" (iPad on iPad), as the Files app names it.
+  static var filesPath: String {
+    let device = UIDevice.current.userInterfaceIdiom == .pad ? L("On My iPad") : L("On My iPhone")
+    return "\(device) > \(FilesAppNames.appFolder) > \(folderName)"
+  }
+  static let folderName = "Wii U"
+
+  /// Wii U games need about 2.7 GB while they run; only devices with 8 GB of memory can play them.
+  /// (8 GB devices report a little under 8 GB.)
+  static let canRunGames = ProcessInfo.processInfo.physicalMemory >= 7_000_000_000
+
+  private init() {
+    let fm = FileManager.default
+    gamesDir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(Self.folderName, isDirectory: true)
+    userDir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("IridiaCafe", isDirectory: true)
+    for dir in [gamesDir, userDir] {
+      try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+    }
+  }
+
+  /// Starts the core once (on the first visit to the tab), then looks for games.
+  func start() {
+    guard phase == .idle, Self.canRunGames else { return }
+    phase = .starting
+    copyKeysIfPresent()
+    // "Use less memory": the GPU reads the console's memory directly instead of keeping its own copy
+    // (about 150 MB less, a little slower). Read when the core starts.
+    if UserDefaults.standard.bool(forKey: "cafeLessMemory") { setenv("IRIDIA_BUFFER_HOST", "1", 1) }
+    let user = userDir.path, games = gamesDir.path
+    let resources = (Bundle(for: CemuBridge.self).resourceURL ?? Bundle.main.bundleURL)
+      .appendingPathComponent("CemuData").path
+    Task.detached(priority: .userInitiated) {
+      let error = CemuBridge.start(withUserDir: user, gamesDir: games, resourcesDir: resources)
+      await MainActor.run {
+        if let error {
+          self.phase = .failed(error)
+        } else {
+          self.phase = .ready
+          self.rescan()
+        }
+      }
+    }
+  }
+
+  func rescan() {
+    guard phase == .ready, !scanning, playing == nil else { return }
+    copyKeysIfPresent()
+    scanning = true
+    let dir = gamesDir
+    Task.detached(priority: .userInitiated) {
+      let titles = CemuBridge.scanGames() + Self.homebrew(in: dir)
+      await MainActor.run {
+        self.games = titles.map { WiiUGame(id: $0.path, title: $0) }
+          .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        self.scanning = false
+      }
+    }
+  }
+
+  func play(_ game: WiiUGame) {
+    guard phase == .ready, playing == nil else { return }
+    WiiULastPlayed.mark(game.id)
+    playing = game
+  }
+
+  /// Ends the running game and returns to the library.
+  func quit() {
+    CemuBridge.setPaused(false)
+    CemuBridge.stopGame()
+    playing = nil
+  }
+
+  /// Homebrew programs (.rpx) in the top of the Wii U folder. Installed titles come from the core's scan.
+  nonisolated private static func homebrew(in dir: URL) -> [CemuTitle] {
+    let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+    return files.filter { $0.pathExtension.lowercased() == "rpx" }.map { url in
+      let t = CemuTitle()
+      t.name = url.deletingPathExtension().lastPathComponent
+      t.path = url.path
+      t.format = "homebrew"
+      return t
+    }
+  }
+
+  /// The core reads disc keys from keys.txt in its data folder; players put theirs next to their games.
+  private func copyKeysIfPresent() {
+    let fm = FileManager.default
+    let source = gamesDir.appendingPathComponent("keys.txt")
+    guard fm.fileExists(atPath: source.path) else { return }
+    let target = userDir.appendingPathComponent("keys.txt")
+    try? fm.removeItem(at: target)
+    try? fm.copyItem(at: source, to: target)
+  }
+}
+
+enum WiiULastPlayed {
+  private static let key = "cafeLastPlayed"
+  static func all() -> [String: Date] {
+    (UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]).mapValues { Date(timeIntervalSince1970: $0) }
+  }
+  static func mark(_ id: String) {
+    var all = UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]
+    all[id] = Date().timeIntervalSince1970
+    UserDefaults.standard.set(all, forKey: key)
+  }
+}
+#endif

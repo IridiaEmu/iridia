@@ -285,6 +285,8 @@ struct TVLibraryView: View {
   // MARK: - Multi-select state
 
   @State private var isSelectionMode = false
+  /// gc-emu: the Wii U tab, shown over the GameCube library.
+  @State private var showWiiU = false
   @State private var selectedFilePaths: Set<String> = []
   @State private var platformOverridesVersion: Int = 0
   @State private var showBatchDeleteConfirm = false
@@ -605,6 +607,18 @@ struct TVLibraryView: View {
       .onChangeCompat(of: model.games.count) { _, _ in
         if !showPlatformFilterBar { platformFilter = .all }
       }
+#if os(iOS) && canImport(IridiaCafeCore)
+      .fullScreenCover(isPresented: $showWiiU) {
+        WiiUHomeView(onGameCube: { showWiiU = false })
+      }
+      .onAppear {
+        // Test hook: -wiiuTab YES opens the Wii U tab at launch.
+        if UserDefaults.standard.bool(forKey: "wiiuTab") {
+          NSLog("[WiiU] test hook: opening the Wii U tab")
+          DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { showWiiU = true }
+        }
+      }
+#endif
   }
   /// Game to present in the SwiftUI properties sheet
   @State private var showPropertiesFor: TVGameItem?
@@ -851,7 +865,8 @@ struct TVLibraryView: View {
         onControllers: { showLibraryControllers = true },
         onShowGrid: { withAnimation { libraryStyle = "grid" } },
         onProperties: { showPropertiesFor = $0 },
-        onDelete: { itemPendingDelete = $0 }
+        onDelete: { itemPendingDelete = $0 },
+        onWiiU: wiiUAction
       )
       .sheet(isPresented: $showLibraryControllers) {
         NavigationStack {
@@ -1242,6 +1257,7 @@ struct TVLibraryView: View {
         )
         emptyLibraryUploadAddress
         emptyLibraryActions
+        emptyLibraryWiiUButton
       }
       .padding()
     }
@@ -1252,6 +1268,26 @@ struct TVLibraryView: View {
     ) { _ in
       guard !EmulationState.shared.isActive else { return }
       emptyLibraryWebURL = PVWebServer.shared.urlString ?? ""
+    }
+  }
+
+  /// gc-emu: opens the Wii U tab (nil where the Wii U core isn't built in).
+  private var wiiUAction: (() -> Void)? {
+    #if os(iOS) && canImport(IridiaCafeCore)
+    return { showWiiU = true }
+    #else
+    return nil
+    #endif
+  }
+
+  /// gc-emu: the empty GameCube library still leads to the Wii U tab.
+  @ViewBuilder
+  private var emptyLibraryWiiUButton: some View {
+    if let open = wiiUAction {
+      Button(action: open) {
+        Label(L("Wii U (Experimental)"), systemImage: "square.stack")
+      }
+      .buttonStyle(.bordered)
     }
   }
 

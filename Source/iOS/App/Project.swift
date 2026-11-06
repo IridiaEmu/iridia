@@ -359,6 +359,8 @@ let iCube = Target.target(
         // tvOS renders via native Metal. Linking it on tvOS makes Xcode look for a nonexistent
         // tvOS slice and fail. Condition keeps iOS linking byte-for-byte unchanged.
         .xcframework(path: "../../../Externals/MoltenVK-iOS/MoltenVK.xcframework", condition: .when([.ios])),
+        // gc-emu: the Wii U core (Cemu, interpreter only), built by Externals/Cemu/ios/build_core.sh. iPhone and iPad only.
+        .xcframework(path: "../../../build/xcframework/IridiaCafeCore.xcframework", condition: .when([.ios])),
         .package(product: "PVWebServer"),
         // WS-4 nearby sharing + continuity handoff. Depends on PVSyncRules (the
         // shared "what may leave the device" table) and on PVWebServer, whose route

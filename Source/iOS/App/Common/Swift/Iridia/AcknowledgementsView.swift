@@ -27,6 +27,7 @@ struct AcknowledgementsView: View {
     Credit(name: "Dolphin", detail: "The GameCube and Wii emulator Iridia's core comes from.", license: "GPL-2.0-or-later", url: "https://dolphin-emu.org"),
     Credit(name: "DolphiniOS", detail: "OatmealDome's iOS port of Dolphin.", license: "GPL-2.0-or-later", url: "https://dolphinios.oatmealdome.me"),
     Credit(name: "iCube", detail: "The DolphiniOS fork Iridia is based on (Provenance project, Joe Mattiello).", license: "GPL-2.0-or-later", url: "https://github.com/Provenance-Emu/iCube"),
+    Credit(name: "Cemu", detail: "The Wii U emulator Iridia's experimental Wii U support comes from.", license: "MPL-2.0", url: "https://github.com/cemu-project/Cemu"),
   ]
 
   private let additions: [Credit] = [
@@ -34,6 +35,7 @@ struct AcknowledgementsView: View {
     Credit(name: "LZMA SDK", detail: "7-Zip compression (Igor Pavlov), used by PLzmaSDK.", license: "Public domain", url: "https://www.7-zip.org/sdk.html"),
     Credit(name: "MoltenVK", detail: "Vulkan on Metal, for the optional Vulkan renderer.", license: "Apache-2.0", url: "https://github.com/KhronosGroup/MoltenVK"),
     Credit(name: "Droid Sans", detail: "The GameCube system fonts Dolphin generates for games (no Nintendo fonts are included).", license: "Apache-2.0", url: "https://fonts.google.com/specimen/Droid+Sans"),
+    Credit(name: "Noto Sans CJK", detail: "The Wii U system fonts the Wii U core gives games (no Nintendo fonts are included).", license: "SIL Open Font License 1.1", url: "https://github.com/notofonts/noto-cjk"),
     Credit(name: "Rounded M+", detail: "Rounded display typeface used in some menus.", license: "SIL Open Font License 1.1", url: "https://github.com/google/fonts/tree/main/ofl/roundedmplus1c"),
   ]
 
@@ -112,8 +114,47 @@ struct AcknowledgementsView: View {
         }
       }
 
+      Section(L("Wii U core")) {
+        VStack(alignment: .leading, spacing: 8) {
+          Text(L("The Wii U core is built from Cemu and is licensed under the Mozilla Public License 2.0. Its source code, with our changes, is part of Iridia's source code."))
+            .font(.subheadline)
+          if let url = IridiaLinks.sourceCode {
+            Link(L("Source code"), destination: url)
+          }
+        }
+        .padding(.vertical, 4)
+        NavigationLink(L("Mozilla Public License 2.0")) {
+          ScrollView {
+            Text(Self.bundled("MPL-2.0", "txt"))
+              .font(.system(.footnote, design: .monospaced))
+              .textSelection(.enabled)
+              .padding()
+          }
+          .navigationTitle(L("MPL 2.0"))
+        }
+        NavigationLink(L("Libraries included with the Wii U core")) {
+          ScrollView {
+            Text(.init(Self.bundled("CemuThirdParty", "md")))
+              .font(.footnote)
+              .textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding()
+          }
+          .navigationTitle(L("Wii U Core Libraries"))
+        }
+        NavigationLink(L("Noto Sans CJK font license")) {
+          ScrollView {
+            Text(Self.bundled("NotoSansCJK-OFL", "txt"))
+              .font(.system(.footnote, design: .monospaced))
+              .textSelection(.enabled)
+              .padding()
+          }
+          .navigationTitle(L("Noto Sans CJK"))
+        }
+      }
+
       Section {
-        Text(L("GameCube and Wii are trademarks of Nintendo. Iridia is not affiliated with, endorsed or sponsored by Nintendo or the Dolphin Team. Only play games you own."))
+        Text(L("GameCube, Wii and Wii U are trademarks of Nintendo. Iridia is not affiliated with, endorsed or sponsored by Nintendo, the Dolphin Team or the Cemu project. Only play games you own."))
           .font(.footnote)
           .foregroundStyle(.secondary)
       }

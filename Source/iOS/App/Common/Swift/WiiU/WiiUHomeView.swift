@@ -64,6 +64,8 @@ struct WiiUHomeView: View {
         VStack(spacing: 0) {
           header
           caption
+          // On iPad the shelf and details sit in the middle of the screen instead of under the header.
+          if horizontalSizeClass == .regular { Spacer(minLength: 0) }
           shelf.frame(height: 300 * caseScale + 40)
           details.frame(maxWidth: 560)
           Spacer(minLength: 12)
@@ -191,10 +193,12 @@ struct WiiUHomeView: View {
     if model.games.isEmpty {
       emptyShelf
     } else {
+      GeometryReader { geo in
       ScrollView(.horizontal, showsIndicators: false) {
         LazyHStack(spacing: 18) {
           ForEach(ordered) { item in
             WiiUGameCase(item: item, isCentred: item.id == current?.id)
+              .frame(width: 214, height: 300)
               .scaleEffect(caseScale)
               .frame(width: 214 * caseScale, height: 300 * caseScale)
               .scrollTransition(.interactive, axis: .horizontal) { view, phase in
@@ -210,10 +214,13 @@ struct WiiUHomeView: View {
           }
         }
         .scrollTargetLayout()
-        .padding(.horizontal, 60)
+        // Room on both sides so the first and last game can sit in the middle.
+        .padding(.horizontal, max(16, (geo.size.width - 214 * caseScale) / 2))
+        .frame(maxHeight: .infinity)
       }
       .scrollTargetBehavior(.viewAligned)
       .scrollPosition(id: $centred, anchor: .center)
+      }
     }
   }
 

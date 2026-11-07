@@ -52,6 +52,9 @@ import Foundation
   /// and games lived in Documents/Software. Everything except the Games folder moves into the
   /// hidden user folder, and the old Software folder's contents move into Documents/Games.
   /// Must run before anything reads Dolphin's folders (AppDelegate, first thing).
+  /// gc-emu: Wii U games and keys.txt (Documents/Wii U), shown in Files next to Games.
+  static let wiiUFolderName = "Wii U"
+
   @objc static func migrateLegacyLayoutIfNeeded() {
     #if (NONJAILBROKEN || TROLLSTORE || APPSTORE) && os(iOS)
     let fm = FileManager.default
@@ -62,7 +65,8 @@ import Foundation
     let strayPGO = games.stringByAppendingPathComponent("pgo")
     if fm.fileExists(atPath: strayPGO) { merge(strayPGO, into: user.stringByAppendingPathComponent("pgo"), fm: fm) }
     guard let items = try? fm.contentsOfDirectory(atPath: docs) else { return }
-    for name in items where name != gamesFolderName && name != "Inbox" && !name.hasPrefix(".") {
+    // gc-emu: the Wii U folder (Documents/Wii U) is the Wii U tab's, like Games is GameCube's; leave it in place.
+    for name in items where name != gamesFolderName && name != wiiUFolderName && name != "Inbox" && !name.hasPrefix(".") {
       let src = docs.stringByAppendingPathComponent(name)
       if name == "Software" {
         moveChildren(of: src, into: games, fm: fm)

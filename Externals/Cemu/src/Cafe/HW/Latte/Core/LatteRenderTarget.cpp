@@ -1029,7 +1029,9 @@ void LatteRenderTarget_itHLECopyColorBufferToScanBuffer(MPTR colorBufferPtr, uin
 
 	bool showDRC = swkbd_hasKeyboardInputHook() == false && (isDRCPrimary ^ altScreenRequested);
 
-	if ((renderTarget & RENDER_TARGET_DRC) && g_renderer->IsPadWindowActive())
+	// Iridia: the second view shows the TV picture instead of the GamePad's when the app swaps the screens
+	const uint32 padViewTarget = LatteGPUState.iridiaPadShowsTV ? RENDER_TARGET_TV : RENDER_TARGET_DRC;
+	if ((renderTarget & padViewTarget) && g_renderer->IsPadWindowActive())
 		LatteRenderTarget_copyToBackbuffer(texView, true);
 	if (((renderTarget & RENDER_TARGET_TV) && !showDRC) || ((renderTarget & RENDER_TARGET_DRC) && showDRC))
 		LatteRenderTarget_copyToBackbuffer(texView, false);

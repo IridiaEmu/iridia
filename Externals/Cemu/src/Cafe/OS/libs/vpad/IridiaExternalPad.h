@@ -13,5 +13,11 @@ struct IridiaExternalPad
 	// GamePad touch screen: position 0..1 on the GamePad image (0,0 top left), down while touching
 	std::atomic<bool> touchDown{false};
 	std::atomic<float> touchX{0}, touchY{0};
+	// what the game read last: raw panel x | raw y << 16 | down << 31 (0 = nothing read yet), for the app's tests
+	std::atomic<uint32_t> lastReadTouch{0};
 };
 extern IridiaExternalPad g_iridiaExternalPad;
+
+// GamePad motion: gyro in radians per second and acceleration in g, in the GamePad's axes, dt in seconds.
+void IridiaPadMotionSample(float dt, float gx, float gy, float gz, float ax, float ay, float az);
+void IridiaPadMotionReset(bool off);

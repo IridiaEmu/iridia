@@ -46,6 +46,7 @@ struct LatteGPUState_t
 	// OpenGL control
 	uint32 glVendor; // GLVENDOR_*
 	bool isDRCPrimary = false;
+	bool iridiaPadShowsTV = false; // Iridia: the second view shows the TV picture (app: Swap screens)
 	// temporary (replace with proper solution later)
 	bool tvBufferUsesSRGB;
 	bool drcBufferUsesSRGB;

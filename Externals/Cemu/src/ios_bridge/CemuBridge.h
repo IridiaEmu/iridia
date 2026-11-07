@@ -70,6 +70,21 @@ NS_ASSUME_NONNULL_BEGIN
 /// GamePad touch screen: x, y are 0..1 on the GamePad image (0,0 top left).
 + (void)setTouchDown:(BOOL)down x:(float)x y:(float)y;
 
+/// The touch the game read last, in the GamePad screen's 854 x 480 pixels (for the touch-mapping test).
+/// Returns NO if the game hasn't read a touch since the app's pad became active.
++ (BOOL)lastGameTouchX:(float *)x y:(float *)y down:(BOOL *)down;
+
+/// Swap screens: the second layer shows the TV picture (and setGamePadOnMainScreen:YES puts the GamePad in the
+/// main layer). Takes effect on the next frame.
++ (void)setGamePadLayerShowsTV:(BOOL)on;
+
+/// GamePad motion: one sensor sample, gyro in radians per second and acceleration (gravity direction) in g,
+/// already in the GamePad's axes (x right, y into the screen, z up along the screen). dt in seconds.
++ (void)addMotionSampleDt:(float)dt gyroX:(float)gx gyroY:(float)gy gyroZ:(float)gz
+                     accX:(float)ax accY:(float)ay accZ:(float)az;
+/// Recenter (starts the motion tracking over from the current position), or turn motion off (`off`).
++ (void)resetMotionOff:(BOOL)off;
+
 + (CemuPerf *)perf;
 
 /// Runtime no-JIT check: scans the address space for executable memory outside the app's loaded images.

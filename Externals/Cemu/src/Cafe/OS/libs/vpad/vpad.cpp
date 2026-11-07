@@ -8,6 +8,7 @@
 #include "input/InputManager.h"
 #include "WindowSystem.h"
 #include "Cafe/HW/Latte/Renderer/Renderer.h"
+#include "input/motion/MotionHandler.h"
 
 // Iridia study: IRIDIA_AUTOPILOT=1 drives the GamePad on a fixed timeline (seconds since the first VPADRead)
 // so benchmarks repeat without a player: A taps through the title/Continue, then Link stands still while the
@@ -22,6 +23,41 @@ IridiaExternalPad g_iridiaExternalPad;
 
 namespace iridia_external
 {
+	// GamePad motion from the device's sensors, through Cemu's own sensor fusion (as for SDL / DSU controllers)
+	static std::mutex s_motionMutex;
+	static WiiUMotionHandler s_motionHandler;
+	static bool s_motionOn = false;
+
+	static void FillMotion(VPADStatus* status)
+	{
+		std::lock_guard lock(s_motionMutex);
+		if (!s_motionOn)
+			return;
+		auto sample = s_motionHandler.getMotionSample();
+		glm::vec3 acc;
+		sample.getVPADAccelerometer(&acc[0]);
+		status->acc.x = acc.x;
+		status->acc.y = acc.y;
+		status->acc.z = acc.z;
+		status->accMagnitude = sample.getVPADAccMagnitude();
+		status->accAcceleration = sample.getVPADAccAcceleration();
+		glm::vec3 gyroChange;
+		sample.getVPADGyroChange(&gyroChange[0]);
+		status->gyroChange.x = gyroChange.x;
+		status->gyroChange.y = gyroChange.y;
+		status->gyroChange.z = gyroChange.z;
+		glm::vec3 orientation;
+		sample.getVPADOrientation(&orientation[0]);
+		status->gyroOrientation.x = orientation.x;
+		status->gyroOrientation.y = orientation.y;
+		status->gyroOrientation.z = orientation.z;
+		float m[9];
+		sample.getVPADAttitudeMatrix(m);
+		status->dir.x.x = m[0]; status->dir.x.y = m[1]; status->dir.x.z = m[2];
+		status->dir.y.x = m[3]; status->dir.y.y = m[4]; status->dir.y.z = m[5];
+		status->dir.z.x = m[6]; status->dir.z.y = m[7]; status->dir.z.z = m[8];
+	}
+
 	static uint32 s_lastHold = 0;
 	static void Fill(VPADStatus* status)
 	{
@@ -67,6 +103,8 @@ namespace iridia_external
 		status->tpData.y = s_ty;
 		status->tpProcessed1 = status->tpData;
 		status->tpProcessed2 = status->tpData;
+		g_iridiaExternalPad.lastReadTouch.store((uint32)s_tx | ((uint32)(s_ty & 0x7FFF) << 16) | (down ? 0x80000000u : 0u), std::memory_order_relaxed);
+		FillMotion(status);
 		static bool s_lastDown = false;
 		if (down != s_lastDown)
 		{
@@ -74,6 +112,22 @@ namespace iridia_external
 			s_lastDown = down;
 		}
 	}
+}
+
+void IridiaPadMotionSample(float dt, float gx, float gy, float gz, float ax, float ay, float az)
+{
+	std::lock_guard lock(iridia_external::s_motionMutex);
+	iridia_external::s_motionHandler.processMotionSample(dt, gx, gy, gz, ax, ay, az);
+	iridia_external::s_motionOn = true;
+}
+
+// Off: the game reads no motion again. Recenter: the sensor fusion starts over from the current position.
+void IridiaPadMotionReset(bool off)
+{
+	std::lock_guard lock(iridia_external::s_motionMutex);
+	iridia_external::s_motionHandler = WiiUMotionHandler();
+	if (off)
+		iridia_external::s_motionOn = false;
 }
 
 namespace iridia_autopilot

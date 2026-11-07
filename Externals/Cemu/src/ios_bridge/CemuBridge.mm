@@ -257,6 +257,9 @@ static std::string FormatName(const TitleInfo& info)
 		return;
 	g_iridiaPaused = false;
 	g_iridiaExternalPad.active = false;
+	g_iridiaExternalPad.lastReadTouch = 0;
+	IridiaPadMotionReset(true);
+	LatteGPUState.iridiaPadShowsTV = false;
 	CafeSystem::ShutdownTitle();
 	auto& wi = WindowSystem::GetWindowInfo();
 	wi.pad_open = false;
@@ -352,6 +355,35 @@ static std::string FormatName(const TitleInfo& info)
 	g_iridiaExternalPad.touchX = x;
 	g_iridiaExternalPad.touchY = y;
 	g_iridiaExternalPad.touchDown = down;
+}
+
++ (BOOL)lastGameTouchX:(float *)x y:(float *)y down:(BOOL *)down
+{
+	const uint32 raw = g_iridiaExternalPad.lastReadTouch.load();
+	if (raw == 0)
+		return NO;
+	// the panel mapping in vpad.cpp, inverted: raw x = px * 3883 + 92, raw y = 4095 - py * 3694 - 254
+	const float rx = (float)(raw & 0xFFFF), ry = (float)((raw >> 16) & 0x7FFF);
+	*x = (rx - 92.0f) / 3883.0f * 854.0f;
+	*y = (4095.0f - 254.0f - ry) / 3694.0f * 480.0f;
+	*down = (raw & 0x80000000u) != 0;
+	return YES;
+}
+
++ (void)setGamePadLayerShowsTV:(BOOL)on
+{
+	LatteGPUState.iridiaPadShowsTV = on;
+}
+
++ (void)addMotionSampleDt:(float)dt gyroX:(float)gx gyroY:(float)gy gyroZ:(float)gz
+                     accX:(float)ax accY:(float)ay accZ:(float)az
+{
+	IridiaPadMotionSample(dt, gx, gy, gz, ax, ay, az);
+}
+
++ (void)resetMotionOff:(BOOL)off
+{
+	IridiaPadMotionReset(off);
 }
 
 + (BOOL)isRunning

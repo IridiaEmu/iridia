@@ -83,7 +83,13 @@ final class WiiUModel: ObservableObject {
     scanning = true
     let dir = gamesDir
     Task.detached(priority: .userInitiated) {
-      let titles = CemuBridge.scanGames() + Self.homebrew(in: dir)
+      var titles = CemuBridge.scanGames() + Self.homebrew(in: dir)
+      // Test hook (not in App Store builds): -wiiuShowOnly <name part> lists only matching games (store screenshots).
+      #if !APPSTORE
+      if let only = UserDefaults.standard.string(forKey: "wiiuShowOnly") {
+        titles = titles.filter { ($0.name as String).localizedCaseInsensitiveContains(only) }
+      }
+      #endif
       await MainActor.run {
         self.games = titles.map { WiiUGame(id: $0.path, title: $0) }
           .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

@@ -48,7 +48,7 @@ enum WiiUControlsStyle: String, CaseIterable {
   var label: String {
     switch self {
     case .normal: return L("Normal")
-    case .edges: return L("Small, at the edges")
+    case .edges: return L("At the edges")
     case .hidden: return L("Hidden")
     }
   }

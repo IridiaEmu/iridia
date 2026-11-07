@@ -74,7 +74,8 @@ struct WiiUHomeView: View {
     .onAppear {
       model.start()
       model.rescan()
-      // Test hooks: -wiiuOpen settings|help|unlock opens that screen; -wiiuAutoplay <part of a name> starts that game.
+      // Test hooks: -wiiuOpen settings|help|unlock opens that screen; -wiiuAutoplay <name part>[,<name part>...]
+      // starts those games one after another (the next one when the previous ends).
       if let screen = UserDefaults.standard.string(forKey: "wiiuOpen") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
           switch screen {
@@ -88,11 +89,10 @@ struct WiiUHomeView: View {
     }
     .onChange(of: model.games) { _, games in
       if centred == nil || !games.contains(where: { $0.id == centred }) { centred = ordered.first?.id }
-      if let want = UserDefaults.standard.string(forKey: "wiiuAutoplay"), !Self.autoplayed,
-         let game = games.first(where: { $0.name.localizedCaseInsensitiveContains(want) }) {
-        Self.autoplayed = true
-        model.play(game)
-      }
+      autoplayNext()
+    }
+    .onChange(of: model.playing) { _, playing in
+      if playing == nil { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { autoplayNext() } }
     }
     .claimsController()
     .sheet(item: $sheet) { which in
@@ -113,7 +113,19 @@ struct WiiUHomeView: View {
     }
   }
 
-  private static var autoplayed = false
+  private static var autoplayQueue: [String]? = nil
+
+  private func autoplayNext() {
+    if Self.autoplayQueue == nil {
+      Self.autoplayQueue = (UserDefaults.standard.string(forKey: "wiiuAutoplay") ?? "")
+        .split(separator: ",").map(String.init)
+    }
+    guard model.playing == nil, let want = Self.autoplayQueue?.first,
+          let game = model.games.first(where: { $0.name.localizedCaseInsensitiveContains(want) }) else { return }
+    Self.autoplayQueue?.removeFirst()
+    NSLog("[WiiU] test hook: starting %@", game.name)
+    model.play(game)
+  }
 
   // MARK: Header
 

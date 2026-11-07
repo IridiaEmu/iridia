@@ -37,7 +37,7 @@ final class WiiUModel: ObservableObject {
     let device = UIDevice.current.userInterfaceIdiom == .pad ? L("On My iPad") : L("On My iPhone")
     return "\(device) > \(FilesAppNames.appFolder) > \(folderName)"
   }
-  static let folderName = "Wii U"
+  static let folderName = UserFolderUtil.wiiUFolderName
 
   /// Wii U games need about 2.7 GB while they run; only devices with 8 GB of memory can play them.
   /// (8 GB devices report a little under 8 GB.)

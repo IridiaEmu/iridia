@@ -196,6 +196,7 @@ struct WiiUPlayView: View {
       fps = CemuBridge.perf().fps
       // The game ended by itself (its own exit): back to the library.
       if CemuBridge.hasGameEnded() { quit(); return }
+      testHooks()
       if let coreError = CemuBridge.lastCoreError(), error == nil { error = coreError }
     }
     .sheet(isPresented: $showPause) {
@@ -210,6 +211,31 @@ struct WiiUPlayView: View {
         .interactiveDismissDisabled(true)
         .claimsController()
     }
+  }
+
+  @State private var testSeconds = 0
+
+  /// Test hooks (not in App Store builds): -wiiuTestPressA <s> taps A every other second for the first s seconds
+  /// of play (to get past title screens), -wiiuLogPerf YES logs speed every 10 s, -wiiuTestQuitAfter <s> quits.
+  private func testHooks() {
+    #if !APPSTORE
+    let d = UserDefaults.standard
+    guard CemuBridge.isRunning(), !CemuBridge.isPaused() else { return }
+    testSeconds += 1
+    if testSeconds < d.integer(forKey: "wiiuTestPressA"), testSeconds % 2 == 0 {
+      input.press(.a, true)
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { input.press(.a, false) }
+    }
+    if d.bool(forKey: "wiiuLogPerf"), testSeconds % 10 == 0 {
+      let perf = CemuBridge.perf()
+      NSLog("[WiiU] play %d s, %.1f fps, %u draws per frame, free play %@", testSeconds, fps, perf.drawsPerFrame,
+            freePlay.isActive ? "on" : "off")
+    }
+    if d.integer(forKey: "wiiuTestQuitAfter") > 0, testSeconds == d.integer(forKey: "wiiuTestQuitAfter") {
+      NSLog("[WiiU] test hook: quitting %@", game.name)
+      quit()
+    }
+    #endif
   }
 
   private func quit() {
@@ -328,6 +354,7 @@ final class WiiUFreePlaySession: ObservableObject {
   func begin() {
     guard !IridiaUnlock.isUnlocked, ticker == nil else { return }
     timer = FreePlayTimer(limit: Self.limitOverride ?? Self.limit)
+    NSLog("[WiiU] free play: session started, %.0f s", timer.limit)
     last = Date()
     post(L("Free play: 20 minutes. Unlock the full version to play as long as you like."))
     ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -354,8 +381,10 @@ final class WiiUFreePlaySession: ObservableObject {
     let playing = CemuBridge.isRunning() && !CemuBridge.isPaused()
     switch timer.tick(elapsed: elapsed, isPlaying: playing) {
     case .warning:
+      NSLog("[WiiU] free play: 1 minute left")
       post(L("1 minute left in this free play session"))
     case .expired:
+      NSLog("[WiiU] free play: session over, purchase screen shown")
       end()
       CemuBridge.setPaused(true)
       showUnlock = true

@@ -74,8 +74,9 @@ struct WiiUHomeView: View {
     .onAppear {
       model.start()
       model.rescan()
-      // Test hooks: -wiiuOpen settings|help|unlock opens that screen; -wiiuAutoplay <name part>[,<name part>...]
-      // starts those games one after another (the next one when the previous ends).
+      // Test hooks (not in App Store builds): -wiiuOpen settings|help|unlock opens that screen; -wiiuAutoplay
+      // <name part>[,<name part>...] starts those games one after another (the next one when the previous ends).
+      #if !APPSTORE
       if let screen = UserDefaults.standard.string(forKey: "wiiuOpen") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
           switch screen {
@@ -86,6 +87,7 @@ struct WiiUHomeView: View {
           }
         }
       }
+      #endif
     }
     .onChange(of: model.games) { _, games in
       if centred == nil || !games.contains(where: { $0.id == centred }) { centred = ordered.first?.id }
@@ -116,6 +118,7 @@ struct WiiUHomeView: View {
   private static var autoplayQueue: [String]? = nil
 
   private func autoplayNext() {
+    #if !APPSTORE
     if Self.autoplayQueue == nil {
       Self.autoplayQueue = (UserDefaults.standard.string(forKey: "wiiuAutoplay") ?? "")
         .split(separator: ",").map(String.init)
@@ -125,6 +128,7 @@ struct WiiUHomeView: View {
     Self.autoplayQueue?.removeFirst()
     NSLog("[WiiU] test hook: starting %@", game.name)
     model.play(game)
+    #endif
   }
 
   // MARK: Header

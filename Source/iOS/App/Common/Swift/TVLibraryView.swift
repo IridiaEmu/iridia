@@ -612,11 +612,13 @@ struct TVLibraryView: View {
         WiiUHomeView(onGameCube: { showWiiU = false })
       }
       .onAppear {
-        // Test hook: -wiiuTab YES opens the Wii U tab at launch.
+        // Test hook (not in App Store builds): -wiiuTab YES opens the Wii U tab at launch.
+        #if !APPSTORE
         if UserDefaults.standard.bool(forKey: "wiiuTab") {
           NSLog("[WiiU] test hook: opening the Wii U tab")
           DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { showWiiU = true }
         }
+        #endif
       }
 #endif
   }

@@ -12,6 +12,15 @@ import SwiftUI
 enum WiiUSettings {
   static let variableTimingDefault = true
 
+  /// The layout for games with no layout saved yet: the earlier "GamePad screen" setting if it was changed.
+  static var defaultLayout: String {
+    switch UserDefaults.standard.string(forKey: "cafeGamePadScreen") {
+    case "main": return WiiULayoutMode.gamePad.rawValue
+    case "window": return WiiULayoutMode.pip.rawValue
+    default: return WiiULayoutMode.tvOnly.rawValue
+    }
+  }
+
   /// Called just before a game starts.
   static func applyToEngine() {
     let d = UserDefaults.standard
@@ -22,18 +31,6 @@ enum WiiUSettings {
       if vrr { setenv(name, value, 1) } else { unsetenv(name) }
     }
     if d.bool(forKey: "cafePerformanceMode") { setenv("IRIDIA_PERF_MODE", "1", 1) } else { unsetenv("IRIDIA_PERF_MODE") }
-  }
-}
-
-/// Setting "GamePad screen": off (TV picture only), instead of the TV picture, or a small window over it.
-enum GamePadScreen: String, CaseIterable {
-  case off, main, window
-  var label: String {
-    switch self {
-    case .off: return L("Off")
-    case .main: return L("Instead of TV")
-    case .window: return L("Small window")
-    }
   }
 }
 
@@ -48,7 +45,8 @@ struct WiiUSettingsView: View {
   @AppStorage("cafeLessMemory") private var lessMemory = false
   @AppStorage("cafeVariableTiming") private var variableTiming = WiiUSettings.variableTimingDefault
   @AppStorage("cafePerformanceMode") private var performanceMode = false
-  @AppStorage("cafeGamePadScreen") private var gamePadScreen = GamePadScreen.off.rawValue
+  @AppStorage("cafeDefaultLayout") private var defaultLayout = WiiUSettings.defaultLayout
+  @AppStorage("cafeShowLayoutButton") private var showLayoutButton = true
   @State private var noJit: String?
   @State private var restoreMessage: String?
 
@@ -88,11 +86,12 @@ struct WiiUSettingsView: View {
           .font(.footnote).foregroundStyle(WiiUTheme.dim)
       }
       Section {
-        Picker(L("GamePad screen"), selection: $gamePadScreen) {
-          ForEach(GamePadScreen.allCases, id: \.rawValue) { Text($0.label).tag($0.rawValue) }
+        Picker(L("Layout for new games"), selection: $defaultLayout) {
+          ForEach(WiiULayoutMode.allCases) { Text($0.label).tag($0.rawValue) }
         }
-      } header: { Text(L("GamePad")) } footer: {
-        Text(L("For games played on the GamePad screen. Touch the GamePad picture to use its touch screen."))
+        Toggle(L("Show the layout button"), isOn: $showLayoutButton)
+      } header: { Text(L("Screens")) } footer: {
+        Text(L("Each game remembers its own layout; change it in the game's settings, with the layout button, or in the pause menu. Touch the GamePad picture to use its touch screen.") + " " + WiiUShortcut.text)
       }
       Section {
         Toggle(L("Use less memory"), isOn: $lessMemory)
@@ -116,6 +115,35 @@ struct WiiUSettingsView: View {
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(L("Wii U Settings"))
     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .wiiUScreen()
+  }
+}
+
+/// One game's settings, from the Wii U library: its screen layout, the on-screen buttons and motion.
+struct WiiUGameSettingsView: View {
+  let game: WiiUGame
+  @Environment(\.dismiss) private var dismiss
+  @State private var prefs: WiiUScreenPrefs
+
+  init(game: WiiUGame) {
+    self.game = game
+    _prefs = State(initialValue: WiiUScreenPrefs.load(game.settingsKey, titleId: game.title.titleId))
+  }
+
+  var body: some View {
+    List {
+      Section {
+        WiiUScreenOptions(prefs: $prefs, portrait: WiiUScreenModel.portrait)
+          .padding(.vertical, 6)
+      } header: { Text(L("Screens")) } footer: {
+        Text(L("Saved for this game. You can also change the layout while playing, with the layout button or in the pause menu.") + " " + WiiUShortcut.text)
+      }
+    }
+    .foregroundStyle(WiiUTheme.ink)
+    .navigationTitle(game.name)
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .onChange(of: prefs) { _, p in p.save(game.settingsKey) }
     .wiiUScreen()
   }
 }

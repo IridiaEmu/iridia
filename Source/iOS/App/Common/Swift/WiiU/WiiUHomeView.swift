@@ -17,6 +17,7 @@ struct WiiUHomeView: View {
   @ObservedObject private var store = IridiaUnlock.store
   @State private var centred: String?
   @State private var sheet: Sheet?
+  @State private var gameSettings: WiiUGame?
   @State private var showUnlock = false
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -110,6 +111,10 @@ struct WiiUHomeView: View {
     }
     .fullScreenCover(isPresented: $showUnlock) {
       WiiUUnlockView(context: .browsing, onUnlocked: { showUnlock = false }, onDismiss: { showUnlock = false })
+        .claimsController()
+    }
+    .sheet(item: $gameSettings) { game in
+      NavigationStack { WiiUGameSettingsView(game: game) }
         .claimsController()
     }
     .fullScreenCover(item: $model.playing) { game in
@@ -211,6 +216,10 @@ struct WiiUHomeView: View {
                 if item.id == current?.id { model.play(item) }
                 else { withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = item.id } }
               }
+              .contextMenu {
+                Button { model.play(item) } label: { Label(L("Play"), systemImage: "play.fill") }
+                Button { gameSettings = item } label: { Label(L("Game settings"), systemImage: "slider.horizontal.3") }
+              }
           }
         }
         .scrollTargetLayout()
@@ -289,15 +298,26 @@ struct WiiUHomeView: View {
         Text(lastPlayedText(item))
           .font(.system(size: 14))
           .foregroundStyle(WiiUTheme.dim)
-        Button { model.play(item) } label: {
-          Label(L("Play"), systemImage: "play.fill")
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(WiiUTheme.onAccent)
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .wiiUSurface(radius: 27, prominent: true)
+        HStack(spacing: 12) {
+          Button { model.play(item) } label: {
+            Label(L("Play"), systemImage: "play.fill")
+              .font(.system(size: 18, weight: .semibold))
+              .foregroundStyle(WiiUTheme.onAccent)
+              .frame(maxWidth: .infinity)
+              .frame(height: 54)
+              .wiiUSurface(radius: 27, prominent: true)
+          }
+          .buttonStyle(WiiUPress())
+          Button { gameSettings = item } label: {
+            Image(systemName: "slider.horizontal.3")
+              .font(.system(size: 18, weight: .semibold))
+              .foregroundStyle(WiiUTheme.accent)
+              .frame(width: 54, height: 54)
+              .wiiUSurface(radius: 27)
+          }
+          .buttonStyle(WiiUPress())
+          .accessibilityLabel(String(format: L("Game settings for %@"), item.name))
         }
-        .buttonStyle(WiiUPress())
         .padding(.horizontal, 24)
       }
       .padding(.top, 6)

@@ -14,10 +14,13 @@ enum IridiaUnlock {
   static let store = UnlockStore()
 
   /// Developer override for builds without App Store Connect (free-team installs):
-  /// `-iridiaUnlocked YES` / `NO`. Never compiled into App Store builds.
+  /// `-iridiaUnlocked YES` / `NO`. Never compiled into App Store builds. A build made with the
+  /// IRIDIA_DEV_UNLOCKED compilation condition starts unlocked (the owner's own phone builds).
   private static var devOverride: Bool? {
     #if APPSTORE
     return nil
+    #elseif IRIDIA_DEV_UNLOCKED
+    return UserDefaults.standard.object(forKey: "iridiaUnlocked") as? Bool ?? true
     #else
     return UserDefaults.standard.object(forKey: "iridiaUnlocked") as? Bool
     #endif

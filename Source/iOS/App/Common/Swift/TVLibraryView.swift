@@ -595,7 +595,7 @@ struct TVLibraryView: View {
 #endif
 #if !os(tvOS)
       .safeAreaInset(edge: .bottom, spacing: 8) {
-        if !usesShelf || model.games.isEmpty { libraryBottomChrome }
+        if !usesShelf || (model.games.isEmpty && !emptyShowsShelf) { libraryBottomChrome }
       }
 #endif
 #if !os(tvOS)
@@ -811,7 +811,8 @@ struct TVLibraryView: View {
       ICubeRoom(style: LibraryBackgroundStyle(rawValue: backgroundStyle.rawValue) ?? .gradient)
 
       if model.games.isEmpty {
-        emptyLibraryView
+        // gc-emu: the Iridia shelf has its own empty state (an empty slot and the ways to add a game)
+        if emptyShowsShelf { libraryView } else { emptyLibraryView }
       } else if filteredGames(from: model.games).isEmpty {
         filteredEmptyLibraryView
       } else {
@@ -832,6 +833,15 @@ struct TVLibraryView: View {
       }
 #endif
     }
+  }
+
+  /// gc-emu: an empty library still shows the shelf (empty) rather than the old empty screen.
+  private var emptyShowsShelf: Bool {
+    #if os(iOS)
+    return libraryStyle == "shelf"
+    #else
+    return false
+    #endif
   }
 
   /// gc-emu: the Glass Shelf replaces the grid (and the nav bar / bottom search chrome) on iOS.

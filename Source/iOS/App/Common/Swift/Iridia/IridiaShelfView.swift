@@ -126,7 +126,7 @@ struct IridiaShelfView: View {
           HStack(spacing: 0) {
             VStack(spacing: 0) {
               Spacer(minLength: 0)
-              shelf.frame(height: 300 * caseScale + 30)
+              shelfOrEmpty.frame(height: 300 * caseScale + 30)
               Spacer(minLength: 0)
             }
             VStack(spacing: 0) {
@@ -142,7 +142,7 @@ struct IridiaShelfView: View {
         VStack(spacing: 0) {
           header
           shelfCaption
-          shelf
+          shelfOrEmpty
             .frame(height: 300 * caseScale + 40)
           details
             .frame(maxWidth: 560)
@@ -301,6 +301,35 @@ struct IridiaShelfView: View {
 
   // MARK: Shelf (3D carousel)
 
+  @ViewBuilder
+  private var shelfOrEmpty: some View {
+    if ordered.isEmpty { emptySlot } else { shelf }
+  }
+
+  /// No games yet: one empty glass case in the middle of the shelf. Tapping it adds a game.
+  private var emptySlot: some View {
+    Menu {
+      Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
+      Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
+    } label: {
+      VStack(spacing: 12) {
+        Image(systemName: "plus")
+          .font(.system(size: 34, weight: .semibold))
+        Text(L("Add a game"))
+          .font(.system(size: 15, weight: .semibold))
+      }
+      .foregroundStyle(IridiaGlass.soft)
+      .frame(width: 214 * caseScale, height: 300 * caseScale)
+      .background(
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+          .strokeBorder(.white.opacity(0.28), style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
+      )
+      .glassSurface(radius: 22)
+    }
+    .accessibilityLabel(L("Add a game"))
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
   private var shelf: some View {
     GeometryReader { geo in
     ScrollViewReader { proxy in
@@ -370,7 +399,37 @@ struct IridiaShelfView: View {
 
   private var details: some View {
     VStack(spacing: 6) {
-      if let item = current {
+      if games.isEmpty {
+        Text(L("Your shelf is empty"))
+          .font(.system(size: 26, weight: .bold))
+          .foregroundStyle(.white)
+        Text(L("Add a GameCube game to start playing."))
+          .font(.system(size: 14))
+          .foregroundStyle(IridiaGlass.soft)
+          .multilineTextAlignment(.center)
+        HStack(spacing: 12) {
+          Button(action: onImport) {
+            Label(L("Choose a Game File"), systemImage: "doc.badge.plus")
+              .font(.system(size: 16, weight: .bold))
+              .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+              .lineLimit(1)
+              .minimumScaleFactor(0.8)
+              .frame(maxWidth: .infinity, minHeight: 58)
+              .glassSurface(radius: 29, prominent: true)
+          }
+          .buttonStyle(SpringPressStyle())
+          Button(action: onFilesGuide) {
+            Text(L("Files App"))
+              .font(.system(size: 15, weight: .semibold))
+              .foregroundStyle(.white)
+              .frame(width: 134, height: 58)
+              .glassSurface(radius: 29)
+          }
+          .buttonStyle(SpringPressStyle())
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+      } else if let item = current {
         Text(item.title.isEmpty ? L("Unknown Game") : item.title)
           .font(.system(size: 26, weight: .bold))
           .foregroundStyle(.white)

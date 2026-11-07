@@ -22,6 +22,8 @@ final class WiiUScreenModel: ObservableObject {
   @Published private(set) var banner: String?
   /// Test runs try layouts without saving them.
   var persist = true
+  /// How long the label stays after a change (test runs hold it longer for screenshots).
+  var bannerSeconds = 1.0
 
   private var bannerHide: DispatchWorkItem?
   private var shrink: DispatchWorkItem?
@@ -69,7 +71,7 @@ final class WiiUScreenModel: ObservableObject {
     bannerHide?.cancel()
     let hide = DispatchWorkItem { [weak self] in withAnimation(.easeIn(duration: 0.25)) { self?.banner = nil } }
     bannerHide = hide
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: hide)
+    DispatchQueue.main.asyncAfter(deadline: .now() + bannerSeconds, execute: hide)
   }
 
   /// The small GamePad window shown large for precise touch; it shrinks back 4 s after the last touch.
@@ -322,6 +324,7 @@ struct WiiULayoutMenu: View {
   let anchor: CGRect
   let size: CGSize
   var onRecenter: () -> Void
+  @State private var contentHeight: CGFloat?
 
   var body: some View {
     ZStack(alignment: .topLeading) {
@@ -341,11 +344,13 @@ struct WiiULayoutMenu: View {
           Text(WiiUShortcut.text).font(.footnote).foregroundStyle(WiiUTheme.dim)
         }
         .padding(16)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { contentHeight = $0 }
       }
       .scrollBounceBehavior(.basedOnSize)
       .frame(width: w)
-      .frame(maxHeight: size.height - anchor.maxY - 24)
-      .fixedSize(horizontal: false, vertical: true)
+      // as tall as its contents, but no taller than the screen below the button (then it scrolls)
+      .frame(height: min(contentHeight ?? 400, size.height - anchor.maxY - 16))
+      .background(WiiUTheme.stage.clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)))   // solid: the game shows through a plain surface
       .wiiUSurface(radius: 20)
       .offset(x: min(max(16, anchor.minX), size.width - w - 16), y: anchor.maxY + 6)
     }
@@ -457,6 +462,7 @@ struct WiiULayoutTip: View {
     .tint(WiiUTheme.accent)
     .padding(16)
     .frame(width: w)
+    .background(WiiUTheme.stage.clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous)))
     .wiiUSurface(radius: 18)
     .overlay(alignment: .topLeading) {
       Image(systemName: "arrowtriangle.up.fill")

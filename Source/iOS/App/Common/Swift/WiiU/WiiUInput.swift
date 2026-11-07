@@ -32,13 +32,7 @@ final class PadInput: ObservableObject {
   /// Controller shortcut: hold Menu and press L (next layout) or R (swap screens). Set by the play screen.
   enum Shortcut { case nextLayout, swap }
   var onShortcut: ((Shortcut) -> Void)?
-  private var menuDownAt: Date?
-  private var shortcutUsed = false
-  private var lastShoulders: UInt32 = 0
-  private var held: UInt32 = 0          // L/R kept from the game until released after a shortcut
-  private var plusTapUntil: Date?
-  /// How long Menu is held back before it reaches the game, to see whether L or R follows.
-  private static let shortcutWait: TimeInterval = 0.3
+  private var shortcutFilter = WiiUShortcutFilter()
 
   func start() {
     guard timer == nil else { return }
@@ -121,47 +115,15 @@ final class PadInput: ObservableObject {
       rx = pick(rx, pad.rightThumbstick.xAxis.value)
       ry = pick(ry, pad.rightThumbstick.yAxis.value)
     }
-    buttons = shortcuts(buttons)
+    let (filtered, fired) = shortcutFilter.filter(buttons, now: Date())
+    buttons = filtered
+    for f in fired { onShortcut?(f == .nextLayout ? .nextLayout : .swap) }
     // A controller button, or a stick moved while no touch stick is held, means a controller is in use.
     let controllerButtons = buttons != 0
     buttons |= touchButtons
     let controllerStick = touchLeft == .zero && touchRight == .zero && abs(lx) + abs(ly) + abs(rx) + abs(ry) > 0.5
     if (controllerButtons || controllerStick) && !controllerConnected { controllerConnected = true }
     CemuBridge.setButtons(buttons, leftX: lx, leftY: ly, rightX: rx, rightY: ry)
-  }
-}
-
-extension PadInput {
-  /// Takes the controller's buttons (Menu is +) and handles the shortcut: while Menu is held, L and R go to the
-  /// app instead of the game. A quick Menu press on its own still reaches the game as a + press.
-  fileprivate func shortcuts(_ pad: UInt32) -> UInt32 {
-    let plus = PadButton.plus.rawValue, l = PadButton.l.rawValue, r = PadButton.r.rawValue
-    let now = Date()
-    var out = pad
-    let shoulders = pad & (l | r)
-    if pad & plus != 0 {
-      if menuDownAt == nil { menuDownAt = now; shortcutUsed = false }
-      let pressed = shoulders & ~lastShoulders
-      if pressed & l != 0 { shortcutUsed = true; onShortcut?(.nextLayout) }
-      if pressed & r != 0 { shortcutUsed = true; onShortcut?(.swap) }
-      if shortcutUsed {
-        out &= ~(plus | l | r)
-        held |= shoulders
-      } else if now.timeIntervalSince(menuDownAt!) < Self.shortcutWait {
-        out &= ~plus
-      }
-    } else if let down = menuDownAt {
-      // released quickly without a shortcut: send the + press now, as a short tap
-      if !shortcutUsed && now.timeIntervalSince(down) < Self.shortcutWait { plusTapUntil = now.addingTimeInterval(0.08) }
-      menuDownAt = nil
-    }
-    held &= shoulders
-    out &= ~held
-    if let until = plusTapUntil {
-      if now < until { out |= plus } else { plusTapUntil = nil }
-    }
-    lastShoulders = shoulders
-    return out
   }
 }
 

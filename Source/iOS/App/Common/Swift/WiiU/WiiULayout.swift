@@ -305,4 +305,49 @@ private extension CGRect {
 enum WiiUShortcut {
   static var text: String { L("Hold Menu and press L to change the layout, or R to swap screens.") }
 }
+
+/// The controller shortcut: hold Menu (the GamePad's +) and press L (next layout) or R (swap screens). While
+/// Menu is held, L and R go to the app instead of the game. Menu itself is held back for 0.3 s to see whether
+/// L or R follows; a quick press on its own still reaches the game as a short + press, a longer hold as a hold.
+struct WiiUShortcutFilter {
+  enum Fired: Equatable { case nextLayout, swap }
+  static let plus: UInt32 = 0x0008, l: UInt32 = 0x0020, r: UInt32 = 0x0010
+  static let wait: TimeInterval = 0.3
+
+  private var menuDownAt: Date?
+  private var used = false
+  private var lastShoulders: UInt32 = 0
+  private var held: UInt32 = 0          // L/R kept from the game until released after a shortcut
+  private var plusTapUntil: Date?
+
+  /// The controller's buttons (VPAD bits) -> what the game gets, and the shortcuts pressed just now.
+  mutating func filter(_ pad: UInt32, now: Date) -> (UInt32, [Fired]) {
+    let plus = Self.plus, l = Self.l, r = Self.r
+    var out = pad, fired: [Fired] = []
+    let shoulders = pad & (l | r)
+    if pad & plus != 0 {
+      if menuDownAt == nil { menuDownAt = now; used = false }
+      let pressed = shoulders & ~lastShoulders
+      if pressed & l != 0 { used = true; fired.append(.nextLayout) }
+      if pressed & r != 0 { used = true; fired.append(.swap) }
+      if used {
+        out &= ~(plus | l | r)
+        held |= shoulders
+      } else if now.timeIntervalSince(menuDownAt!) < Self.wait {
+        out &= ~plus
+      }
+    } else if let down = menuDownAt {
+      // released quickly without a shortcut: send the + press now, as a short tap
+      if !used && now.timeIntervalSince(down) < Self.wait { plusTapUntil = now.addingTimeInterval(0.08) }
+      menuDownAt = nil
+    }
+    held &= shoulders
+    out &= ~held
+    if let until = plusTapUntil {
+      if now < until { out |= plus } else { plusTapUntil = nil }
+    }
+    lastShoulders = shoulders
+    return (out, fired)
+  }
+}
 #endif

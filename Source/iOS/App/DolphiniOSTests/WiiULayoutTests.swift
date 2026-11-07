@@ -164,4 +164,38 @@ final class WiiULayoutTests: XCTestCase {
     XCTAssertEqual(WiiUScreenPrefs.load("B", titleId: 2, defaults: d).layout, .split)
     d.removePersistentDomain(forName: "WiiULayoutTests")
   }
+
+  // MARK: controller shortcut (hold Menu, press L or R)
+
+  func testShortcutNextLayoutAndSwap() {
+    var f = WiiUShortcutFilter()
+    let t0 = Date(), plus = WiiUShortcutFilter.plus, l = WiiUShortcutFilter.l, r = WiiUShortcutFilter.r
+    var (out, fired) = f.filter(plus, now: t0)
+    XCTAssertEqual(out, 0, "Menu is held back at first"); XCTAssertEqual(fired, [])
+    (out, fired) = f.filter(plus | l, now: t0 + 0.1)
+    XCTAssertEqual(out, 0, "neither + nor L reaches the game"); XCTAssertEqual(fired, [.nextLayout])
+    (out, fired) = f.filter(plus | l, now: t0 + 0.5)
+    XCTAssertEqual(out, 0); XCTAssertEqual(fired, [], "held L doesn't repeat")
+    (out, fired) = f.filter(plus | l | r, now: t0 + 0.6)
+    XCTAssertEqual(fired, [.swap])
+    (out, fired) = f.filter(l, now: t0 + 0.7)
+    XCTAssertEqual(out, 0, "L stays away from the game until it is released")
+    (out, fired) = f.filter(0, now: t0 + 0.8)
+    XCTAssertEqual(out, 0)
+    (out, fired) = f.filter(l, now: t0 + 0.9)
+    XCTAssertEqual(out, l, "a new L press reaches the game")
+  }
+
+  func testShortcutQuickMenuPressStillReachesGame() {
+    var f = WiiUShortcutFilter()
+    let t0 = Date(), plus = WiiUShortcutFilter.plus
+    XCTAssertEqual(f.filter(plus, now: t0).0, 0)
+    XCTAssertEqual(f.filter(0, now: t0 + 0.12).0, plus, "released quickly: sent as a short press")
+    XCTAssertEqual(f.filter(0, now: t0 + 0.15).0, plus)
+    XCTAssertEqual(f.filter(0, now: t0 + 0.25).0, 0)
+    // held longer than the wait: the game sees it held
+    XCTAssertEqual(f.filter(plus, now: t0 + 1).0, 0)
+    XCTAssertEqual(f.filter(plus, now: t0 + 1.35).0, plus)
+    XCTAssertEqual(f.filter(0, now: t0 + 2).0, 0)
+  }
 }

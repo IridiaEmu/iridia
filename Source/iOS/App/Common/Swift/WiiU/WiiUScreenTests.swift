@@ -232,16 +232,17 @@ enum WiiUScreenTests {
           var p = saved; p.layout = mode; p.swap = false; p.windowHidden = false; p.windowScale = 0.3
           p.tvWindowInGamePad = mode == .gamePad && oName == "landscape"
           screens.prefs = p
-          try? await Task.sleep(for: .seconds(1.5))
+          try? await Task.sleep(for: .seconds(3))
           await mark("\(oName)-\(mode.rawValue)")
           if mode == .pip || mode == .split {
             screens.prefs.swap = true
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: .seconds(3))
             await mark("\(oName)-\(mode.rawValue)-swap")
           }
         }
         var p = saved; p.layout = .pip; p.swap = false; p.windowHidden = false
         screens.prefs = p
+        try? await Task.sleep(for: .seconds(3))
         screens.showOptions = true
         try? await Task.sleep(for: .seconds(1))
         await mark("\(oName)-menu")
@@ -250,10 +251,12 @@ enum WiiUScreenTests {
         try? await Task.sleep(for: .seconds(1))
         await mark("\(oName)-tip")
         showTip(false)
+        screens.bannerSeconds = 4
         screens.set(.gamePad)
-        try? await Task.sleep(for: .milliseconds(150))
+        try? await Task.sleep(for: .seconds(2.5))
         await mark("\(oName)-label")
       }
+      screens.bannerSeconds = 1
       screens.prefs = saved
       screens.persist = true
       await mark("done")

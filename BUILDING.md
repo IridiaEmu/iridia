@@ -38,6 +38,19 @@ env PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
 - Output: `build/xcframework/PVlibDolphin.xcframework`.
 - A first build takes about 30–60 minutes. Later builds are incremental.
 
+### 2b. Build the Wii U core (Cemu, from source)
+
+The Wii U core is `Externals/Cemu` (Cemu, MPL-2.0), built as its own framework, `IridiaCafeCore.xcframework`,
+interpreter only (no JIT). It needs its libraries once, from a vcpkg checkout
+(https://github.com/microsoft/vcpkg, commit `9849e070ad4c3383890fb1c80ae0c54325e2484a`):
+```sh
+cd ~/Projects/gc-emu
+VCPKG_ROOT=<your vcpkg checkout> Externals/Cemu/ios/build_core.sh deps   # once, about 1 hour
+Externals/Cemu/ios/build_core.sh all                                     # device and Simulator
+```
+- Output: `build/xcframework/IridiaCafeCore.xcframework`. The script runs the no-JIT check on each slice.
+- The libraries use the triplets in `Externals/Cemu/ios/triplets` (iOS 26.0 minimum).
+
 ## 3. Generate the Xcode workspace
 
 ```sh

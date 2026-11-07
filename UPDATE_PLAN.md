@@ -42,7 +42,7 @@ What stays out:
 | Linking | Both cores bundle their own fmt, zlib, zstd, libpng etc. Static linking both into one binary would mix versions. | Cemu is its own dynamic framework (like `PVlibDolphin.framework`) and exports only the bridge classes (`CemuBridge`, `CemuTitle`, `CemuPerf`). Nothing else is visible to the app or to Dolphin. |
 | Shared UI | The shelf's tab bar (Games, Saves, Controllers) is GameCube only. | One new tab, "Wii U", in that bar. It opens the Wii U home, which has its own bar with a GameCube tab to go back. An empty GameCube library also shows a Wii U button. |
 | Settings | Different keys and screens. | Wii U settings live in the Wii U tab, with their own `cafe*` keys. GameCube Settings only gain Cemu in Acknowledgements. |
-| File picker / folders | GameCube games are in `Documents/Games`. | Wii U games go in `Documents/Wii U` (visible in Files), keys.txt next to them. The GameCube scan never looks there. |
+| File picker / folders | GameCube games are in `Documents/Games`. The GameCube layout migration moves unknown top-level items into the hidden Iridia folder. | Wii U games, updates and extra content go in `Documents/Wii U` (visible in Files), keys.txt next to them. The GameCube scan never looks there, and the migration skips that folder (`UserFolderUtil.wiiUFolderName`). |
 | Renderer | Both use Metal. | Separate layers and devices; only one core runs at a time (the UI never starts one while the other runs). |
 | Audio | Both use AudioToolbox output. | Same audio session category as the GameCube side. Cemu's output unit is created only while a Wii U game runs. |
 | Input | The shelf installs controller handlers for navigation. | The Wii U screen takes the controller over the same way the GameCube game screen does (controller scope), and gives it back on exit. |
@@ -108,7 +108,10 @@ Measured numbers go in UPDATE_DONE.md.
   links (Boost, fmt, pugixml, zlib, zstd, libzip, libpng, glslang, rapidjson, Dear ImGui, metal-cpp, ih264d,
   ZArchive and the rest from the vcpkg list).
 - To publish when the update ships (same repo, same written offer):
-  - All of `Externals/Cemu/` (patched Cemu source, build script, vcpkg manifest and triplets, licenses).
+  - All of `Externals/Cemu/` (patched Cemu source, build script, vcpkg manifest and triplets, licenses). Our
+    changes to Cemu files include the iOS bridge (`src/ios_bridge`), the Metal layer handle, and the fixes for
+    starting several games in one session (`CafeSystem.cpp`, `coreinit_MEM.cpp`, `LatteThread.cpp`,
+    `LatteCommandProcessor.cpp`).
   - `Source/iOS/App/Common/Swift/WiiU/` and every other app file changed on this branch.
   - The build steps for `IridiaCafeCore.framework` (in BUILDING.md).
   - Not published: game files, keys, firmware (none are in the repo), App Store Connect scripts (already untracked).

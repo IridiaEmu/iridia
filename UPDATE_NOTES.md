@@ -14,8 +14,8 @@ runs as an interpreter: the app does not generate or execute code at runtime (no
 JIT). Online features are turned off.
 
 How to see the Wii U section and the purchase without a game:
-1. Open the app. On the library screen, tap "Wii U" in the bottom tab bar. If the
-   library is empty, tap the "Wii U (Experimental)" button under "Library Empty".
+1. Open the app. On the library screen (the shelf, also when it is empty), tap
+   "Wii U" in the bottom tab bar.
 2. The Wii U (Experimental) screen opens. Tap "Unlock" at the top right to open the
    purchase screen (Unlock Full Version, Restore Purchases).
 3. The same purchase screen is also in Settings (bottom tab bar) > Full Version.
@@ -42,6 +42,8 @@ Experimental Wii U support
 - Add your own Wii U games and keys with the Files app: On My iPhone > Iridia > Wii U.
 - Touch controls laid out like the GamePad, game controller support, and an
   optional second screen for GamePad games.
+- Choose how the TV and GamePad screens are shown, swap them any time, and draw
+  on the GamePad screen with your finger or Apple Pencil.
 - Your Unlock Full Version purchase now covers Wii U too. Without it, Wii U games
   play in free sessions of 20 minutes.
 

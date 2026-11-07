@@ -215,7 +215,7 @@ enum WiiUScreenTests {
 
   /// Goes through every layout (and the menu and the tip) for screenshots. Each state is written to
   /// Documents/screens-tour.txt when it's on screen, so a script can take the screenshot.
-  static func tour(screens: WiiUScreenModel, showTip: @escaping (Bool) -> Void) {
+  static func tour(screens: WiiUScreenModel, showTip: @escaping (Bool) -> Void, showPause: @escaping (Bool) -> Void) {
     Task { @MainActor in
       let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("screens-tour.txt")
       func mark(_ s: String) async {
@@ -255,6 +255,11 @@ enum WiiUScreenTests {
         screens.set(.gamePad)
         try? await Task.sleep(for: .seconds(2.5))
         await mark("\(oName)-label")
+        showPause(true)
+        try? await Task.sleep(for: .seconds(1.5))
+        await mark("\(oName)-pause")
+        showPause(false)
+        try? await Task.sleep(for: .seconds(1))
       }
       screens.bannerSeconds = 1
       screens.prefs = saved

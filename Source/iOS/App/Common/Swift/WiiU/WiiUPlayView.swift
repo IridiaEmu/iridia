@@ -431,7 +431,7 @@ struct WiiUPlayView: View {
     }
     if d.integer(forKey: "wiiuLayoutTour") > 0, testSeconds == d.integer(forKey: "wiiuLayoutTour") {
       showTip = false
-      WiiUScreenTests.tour(screens: screens, showTip: { v in withAnimation { showTip = v } })
+      WiiUScreenTests.tour(screens: screens, showTip: { v in withAnimation { showTip = v } }, showPause: { v in showPause = v })
     }
     if d.integer(forKey: "wiiuTestQuitAfter") > 0, testSeconds == d.integer(forKey: "wiiuTestQuitAfter") {
       NSLog("[WiiU] test hook: quitting %@", game.name)

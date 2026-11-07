@@ -861,6 +861,12 @@ LatteCMDPtr LatteCP_itDrawIndexAuto(LatteCMDPtr cmd, uint32 nWords, DrawPassCont
 
 MPTR _tempIndexArrayMPTR = MPTR_NULL;
 
+// Iridia: the title's sys area is freed at shutdown; allocate the array again in the next title.
+void LatteCP_ResetSysAreaState()
+{
+	_tempIndexArrayMPTR = MPTR_NULL;
+}
+
 LatteCMDPtr LatteCP_itDrawImmediate(LatteCMDPtr cmd, uint32 nWords, DrawPassContext& drawPassCtx)
 {
 	uint32 count = LatteReadCMD();

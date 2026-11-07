@@ -450,6 +450,12 @@ void cemu_initForGame()
 	snd_core::AXOut_init();
 }
 
+// Iridia: sys area reset between titles (coreinit_MEM.cpp, LatteCommandProcessor.cpp, coreinit.cpp)
+void coreinit_sysAreaMarkTitleBase();
+void coreinit_sysAreaResetToTitleBase();
+void LatteCP_ResetSysAreaState();
+extern MPTR placeholderFont;
+
 namespace CafeSystem
 {
 	void InitVirtualMlcStorage();
@@ -645,6 +651,7 @@ namespace CafeSystem
 		// allocate memory for all SysAllocators
 		// must happen before COS module init, but also before iosu::kernel::Initialize()
 		SysAllocatorContainer::GetInstance().Initialize();
+		coreinit_sysAreaMarkTitleBase();
 		// init IOSU modules
 		for(auto& module : s_iosuModules)
 			module->SystemLaunch();
@@ -1307,6 +1314,10 @@ namespace CafeSystem
 		UnmountBaseDirectories();
 		DestroyMemorySpace();
 		LaunchSettings::ClearCosArgstr();
+		// Iridia: free the title's sys area allocations, and forget the pointers that lived there
+		coreinit_sysAreaResetToTitleBase();
+		LatteCP_ResetSysAreaState();
+		placeholderFont = MPTR_NULL;
 		sSystemRunning = false;
 	}
 

@@ -261,6 +261,13 @@ void LatteThread_Exit()
 {
 	if (g_renderer)
 		g_renderer->Shutdown();
+	// Iridia: free cached index buffers while their renderer still exists. Otherwise the next game start frees
+	// them through the new renderer (crash when a game is started again after Quit).
+	if (g_renderer)
+	{
+		void LatteIndices_invalidateAll();
+		LatteIndices_invalidateAll();
+	}
     // clean up vertex/uniform cache
     LatteBufferCache_UnloadAll();
 	// clean up texture cache

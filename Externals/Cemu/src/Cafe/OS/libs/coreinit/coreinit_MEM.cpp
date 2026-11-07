@@ -10,12 +10,27 @@
 // the system area is a block of memory that exists only in the emulator. It is used to simplify dynamic memory allocation for system data
 // this partially overlaps with the system heap from coreinit_SysHeap.cpp -> Use SysHeap for everything
 MPTR sysAreaAllocatorOffset = 0;
+// Iridia: where the per-title allocations start (after the SysAllocators made once at startup). Each title shutdown
+// goes back here, so starting games again doesn't run out of sys area (it used to after about three games).
+static MPTR s_sysAreaTitleBase = 0;
+static std::mutex s_allocator_mutex;
+
+void coreinit_sysAreaMarkTitleBase()
+{
+	std::lock_guard _l(s_allocator_mutex);
+	s_sysAreaTitleBase = sysAreaAllocatorOffset;
+}
+
+void coreinit_sysAreaResetToTitleBase()
+{
+	std::lock_guard _l(s_allocator_mutex);
+	sysAreaAllocatorOffset = s_sysAreaTitleBase;
+}
 
 MPTR coreinit_allocFromSysArea(uint32 size, uint32 alignment)
 {
 	cemu_assert_debug(mmuRange_CEMU_AREA.isMapped());
 	// deprecated, use OSAllocFromSystem instead (for everything but SysAllocator which probably should use its own allocator?)
-	static std::mutex s_allocator_mutex;
 	s_allocator_mutex.lock();
 	sysAreaAllocatorOffset = (sysAreaAllocatorOffset+alignment-1);
 	sysAreaAllocatorOffset -= (sysAreaAllocatorOffset%alignment);

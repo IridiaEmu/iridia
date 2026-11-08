@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://iridiaemu.github.io/iridia/sitemap.xml

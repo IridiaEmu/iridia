@@ -1,0 +1,12 @@
+# Iridia
+
+> Iridia is a GameCube emulator on the App Store for iPhone and iPad, with experimental Wii U support. It runs without JIT, so it needs no sideloading. It includes no games, keys or firmware: players use game files they own.
+
+- App Store: https://apps.apple.com/app/id6825803351
+- GameCube: ISO, RVZ, GCM, CISO (ZIP and 7Z unpacked automatically). iPhone 12 or newer. Up to 8x internal resolution, Metal graphics, save states, touch controls, MFi/Xbox/PlayStation/Switch controllers.
+- Wii U (experimental): disc images (WUD, WUX), installed title folders and homebrew (RPX), with your own keys.txt, copied to On My iPhone > Iridia > Wii U. Needs 8 GB of memory (iPhone 15 Pro, any iPhone 16 or newer, iPad with M1 or later, iPad mini A17 Pro). TV and GamePad screen layouts (TV only, picture in picture, GamePad full screen, split), GamePad touch with finger or Apple Pencil, motion controls.
+- Price: free download. Free play sessions of 10 minutes (GameCube) and 20 minutes (Wii U) per launch, repeatable. One one-time purchase unlocks unlimited play for both. No subscription, ads or tracking.
+- Support: https://iridiaemu.github.io/iridia/support/
+- Privacy: https://iridiaemu.github.io/iridia/privacy/
+
+GameCube and Wii U are trademarks of Nintendo. Iridia is not affiliated with or endorsed by Nintendo.

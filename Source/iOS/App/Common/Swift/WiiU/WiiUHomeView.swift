@@ -80,6 +80,10 @@ struct WiiUHomeView: View {
       // Test hooks (not in App Store builds): -wiiuOpen settings|help|unlock opens that screen; -wiiuAutoplay
       // <name part>[,<name part>...] starts those games one after another (the next one when the previous ends).
       #if !APPSTORE
+      // -wiiuNoJitCheck YES logs the result of the "Check for JIT" self-check at launch.
+      if UserDefaults.standard.bool(forKey: "wiiuNoJitCheck") {
+        NSLog("[WiiU] test hook: no-JIT self-check: %@", CemuBridge.noJitSelfCheck())
+      }
       if let screen = UserDefaults.standard.string(forKey: "wiiuOpen") {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
           switch screen {

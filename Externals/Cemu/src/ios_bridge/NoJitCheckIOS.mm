@@ -11,8 +11,6 @@
 #include <cstdlib>
 #include <vector>
 
-extern "C" const void* _dyld_get_shared_cache_range(size_t* length);
-
 namespace
 {
 	struct Range { uint64_t start, end; };
@@ -20,9 +18,6 @@ namespace
 	std::vector<Range> ImageRanges()
 	{
 		std::vector<Range> out;
-		size_t cacheLen = 0;
-		if (const void* cache = _dyld_get_shared_cache_range(&cacheLen))
-			out.push_back({(uint64_t)cache, (uint64_t)cache + cacheLen});
 		// the loader itself (dyld) isn't in the image list; the kernel reports where it is
 		std::vector<std::pair<const mach_header_64*, intptr_t>> headers;
 		task_dyld_info_data_t dyldInfo;
@@ -30,6 +25,20 @@ namespace
 		if (task_info(mach_task_self(), TASK_DYLD_INFO, (task_info_t)&dyldInfo, &dyldCount) == KERN_SUCCESS)
 		{
 			const auto* infos = (const dyld_all_image_infos*)dyldInfo.all_image_info_addr;
+			// the dyld shared cache (system libraries): public base address, and the size of the shared
+			// region it's mapped in (one submap at the top level). Only public calls: App Store builds can't use
+			// _dyld_get_shared_cache_range.
+			if (infos && infos->version >= 15 && infos->sharedCacheBaseAddress)
+			{
+				vm_address_t a = (vm_address_t)infos->sharedCacheBaseAddress;
+				vm_size_t size = 0;
+				uint32_t depth = 0;
+				vm_region_submap_info_data_64_t info;
+				mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
+				if (vm_region_recurse_64(mach_task_self(), &a, &size, &depth, (vm_region_recurse_info_t)&info, &count) == KERN_SUCCESS &&
+					(uint64_t)a <= infos->sharedCacheBaseAddress && infos->sharedCacheBaseAddress < (uint64_t)a + size)
+					out.push_back({(uint64_t)a, (uint64_t)a + size});
+			}
 			if (infos && infos->dyldImageLoadAddress)
 			{
 				const auto* dh = (const mach_header_64*)infos->dyldImageLoadAddress;

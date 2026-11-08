@@ -58,7 +58,15 @@ enum SettingsRootModelBuilder {
       consoles.append(SettingsLeafEntry(id: "achievements", title: L("Achievements"), icon: "trophy", description: L("RetroAchievements sign-in and hardcore mode.")) { ConfigAchievementsView() })
     }
     #endif
+    // gc-emu: Full Version is always in Settings, with or without games (iOS only: the purchase is iOS only).
+    var fullVersion: [SettingsLeafEntry] = []
+    #if os(iOS)
+    fullVersion.append(SettingsLeafEntry(id: "full-version", title: L("Full Version"), icon: "lock.open",
+                                         description: L("Unlock unlimited play, or restore a purchase."),
+                                         keywords: [L("unlock"), L("purchase"), L("restore"), L("buy")]) { FullVersionView() })
+    #endif
     return [
+      SettingsRootSection(id: "full-version", header: L("Full Version"), entries: fullVersion),
       // gc-emu: first, so bug reports are easy to find. On iPhone the row opens the email directly (see model(sections:)).
       SettingsRootSection(id: "support", header: L("Support"), entries: [
         SettingsLeafEntry(id: BugReportEntry.id, title: L("Report a Bug"), icon: "envelope",

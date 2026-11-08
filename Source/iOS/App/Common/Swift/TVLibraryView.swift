@@ -287,6 +287,11 @@ struct TVLibraryView: View {
   @State private var isSelectionMode = false
   /// gc-emu: the Wii U tab, shown over the GameCube library.
   @State private var showWiiU = false
+  #if os(iOS)
+  /// gc-emu: Unlock Full Version from the grid view's toolbar (the shelf has its own Unlock button).
+  @State private var showGridUnlock = false
+  @ObservedObject private var unlockStore = IridiaUnlock.store
+  #endif
   @State private var selectedFilePaths: Set<String> = []
   @State private var platformOverridesVersion: Int = 0
   @State private var showBatchDeleteConfirm = false
@@ -567,6 +572,9 @@ struct TVLibraryView: View {
       .navigationTitle(storeForBanner.isScanning ? "" : L("Iridia Library"))
       .toolbar { libraryToolbar }
       .navigationBarTitleDisplayMode(.large)
+      .fullScreenCover(isPresented: $showGridUnlock) {
+        UnlockView(context: .browsing, onUnlocked: { showGridUnlock = false }, onDismiss: { showGridUnlock = false })
+      }
 #endif
 #if os(iOS) || targetEnvironment(macCatalyst)
       .navigationDestinationItemCompat(item: settingsBinding) { _ in
@@ -1428,6 +1436,13 @@ struct TVLibraryView: View {
         // Show static dolphin logo when not scanning — tappable to open About.
         // Single glass circle on iOS 26; plain framed button on older OSes.
         aboutDolphinToolbarButton
+      }
+    }
+    if !IridiaUnlock.isUnlocked {
+      ToolbarItem(placement: .navigationBarTrailing) {
+        Button(L("Unlock")) { showGridUnlock = true }
+          .fontWeight(.semibold)
+          .accessibilityLabel(L("Unlock Full Version"))
       }
     }
     ToolbarItem(placement: .navigationBarTrailing) {

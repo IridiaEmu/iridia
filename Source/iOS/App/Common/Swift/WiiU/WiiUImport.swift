@@ -3,7 +3,8 @@
 // gc-emu: "Choose a Game File" for the Wii U tab, the same flow as the GameCube shelf's: Apple's picker,
 // then Copy or Move into Documents/Wii U. Takes Wii U disc images (.wux, .wud, .iso), .wua and .wuhb files,
 // game, update and extra content folders, homebrew (.rpx) and keys.txt. A picked folder that isn't a game
-// itself is searched (two levels) for those. GameCube files get a plain message pointing to their tab.
+// itself is searched (two levels) for those. Archives (.zip, .7z, ...) are unpacked and searched the same way,
+// also when the Files app put them in the Wii U folder. GameCube files get a plain message pointing to their tab.
 
 #if os(iOS) && canImport(IridiaCafeCore)
 import Foundation
@@ -11,15 +12,16 @@ import UIKit
 import UniformTypeIdentifiers
 
 enum WiiUImport {
-  enum Kind: Equatable { case wiiU, keys, gameCube, wii, other }
+  enum Kind: Equatable { case wiiU, keys, archive, gameCube, wii, other }
 
   static let fileExtensions: Set<String> = ["wux", "wud", "wua", "wuhb", "rpx", "iso"]
   /// GameCube (and Wii) formats the GameCube shelf knows; picking one here gets a pointer to that tab.
-  private static let gameCubeExtensions: Set<String> = ["gcm", "tgc", "rvz", "wia", "gcz", "ciso", "nkit", "dol", "elf", "zip", "7z"]
+  /// (Archives can hold any system's game, so they're unpacked and looked inside instead.)
+  private static let gameCubeExtensions: Set<String> = ["gcm", "tgc", "rvz", "wia", "gcz", "ciso", "nkit", "dol", "elf"]
   private static let wiiExtensions: Set<String> = ["wbfs", "wad"]
 
   /// What `url` is. Disc images named .iso are told apart by the GameCube and Wii disc magic words.
-  static func classify(_ url: URL) -> Kind {
+  nonisolated static func classify(_ url: URL) -> Kind {
     if url.lastPathComponent.lowercased() == "keys.txt" { return .keys }
     if isDirectory(url) { return isTitleFolder(url) ? .wiiU : .other }
     let ext = url.pathExtension.lowercased()
@@ -31,24 +33,25 @@ enum WiiUImport {
       }
     }
     if fileExtensions.contains(ext) { return .wiiU }
+    if ZipImportHelper.isArchivePath(url.path) { return .archive }
     if gameCubeExtensions.contains(ext) { return .gameCube }
     if wiiExtensions.contains(ext) { return .wii }
     return .other
   }
 
   /// An installed game, update or extra content folder (title.tmd), or an unpacked one (code, content, meta).
-  static func isTitleFolder(_ url: URL) -> Bool {
+  nonisolated static func isTitleFolder(_ url: URL) -> Bool {
     let fm = FileManager.default
     if fm.fileExists(atPath: url.appendingPathComponent("title.tmd").path) { return true }
     return ["code", "meta"].allSatisfy { isDirectory(url.appendingPathComponent($0)) }
   }
 
-  private static func isDirectory(_ url: URL) -> Bool {
+  nonisolated private static func isDirectory(_ url: URL) -> Bool {
     var isDir: ObjCBool = false
     return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
   }
 
-  private static func discMagic(_ url: URL) -> Kind? {
+  nonisolated private static func discMagic(_ url: URL) -> Kind? {
     guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
     defer { try? handle.close() }
     guard let head = try? handle.read(upToCount: 0x20), head.count == 0x20 else { return nil }
@@ -62,21 +65,24 @@ enum WiiUImport {
   struct Sorted {
     var items: [URL] = []
     var keys: [URL] = []
+    var archives: [URL] = []
     var gameCube: [String] = []
     var wii: [String] = []
     var other: [String] = []
   }
 
-  static func sort(_ urls: [URL]) -> Sorted {
+  /// `maxDepth`: how far into picked folders to look (an unpacked archive gets one level more).
+  nonisolated static func sort(_ urls: [URL], maxDepth: Int = 2) -> Sorted {
     var sorted = Sorted()
     func visit(_ url: URL, depth: Int, picked: Bool) {
       switch classify(url) {
       case .wiiU: sorted.items.append(url)
       case .keys: sorted.keys.append(url)
-      case .gameCube: if picked { sorted.gameCube.append(url.lastPathComponent) }
-      case .wii: if picked { sorted.wii.append(url.lastPathComponent) }
+      case .archive: if picked { sorted.archives.append(url) }
+      case .gameCube: sorted.gameCube.append(url.lastPathComponent)
+      case .wii: sorted.wii.append(url.lastPathComponent)
       case .other:
-        if isDirectory(url), depth < 2 {
+        if isDirectory(url), depth < maxDepth {
           let before = sorted.items.count + sorted.keys.count
           let children = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil,
                                                                        options: [.skipsHiddenFiles])) ?? []
@@ -170,12 +176,24 @@ enum WiiUImport {
     var skipped: [String] = []
     var errors: [String] = []
     var keysAdded = 0
+    /// Archives with no Wii U game inside (name, and whether a GameCube or Wii game was found instead).
+    var archivesWithoutWiiU: [(name: String, otherSystem: Bool)] = []
   }
+
+  /// Hidden folders archives are unpacked into, inside the Wii U folder (same disk, so moving out is instant).
+  static let unpackPrefix = ".unpacking-"
 
   /// The file work of an import, off the main thread. A name already in the folder is skipped, never replaced.
   nonisolated static func copy(_ sorted: Sorted, into folder: URL, move: Bool) -> Outcome {
+    let fm = FileManager.default
     _ = ImportStaging.removeStaleStagedImports(inFolder: folder.path)
+    for leftover in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] where leftover.hasPrefix(unpackPrefix) {
+      try? fm.removeItem(at: folder.appendingPathComponent(leftover))   // an unpack cut short last time
+    }
     var outcome = Outcome()
+    for archive in sorted.archives {
+      unpack(archive, into: folder, deleteArchive: move, outcome: &outcome)
+    }
     for url in sorted.items {
       if FileManager.default.fileExists(atPath: folder.appendingPathComponent(url.lastPathComponent).path) {
         outcome.skipped.append(url.lastPathComponent); continue
@@ -188,6 +206,38 @@ enum WiiUImport {
       catch { outcome.errors.append("keys.txt: \(error.localizedDescription)") }
     }
     return outcome
+  }
+
+  /// Unpacks `archive` into a hidden folder, adds the Wii U games and keys inside, then removes that folder.
+  /// The archive itself is deleted only when `deleteArchive` and a game came out of it.
+  nonisolated private static func unpack(_ archive: URL, into folder: URL, deleteArchive: Bool, outcome: inout Outcome) {
+    let fm = FileManager.default
+    let name = archive.lastPathComponent
+    let temp = folder.appendingPathComponent(unpackPrefix + UUID().uuidString, isDirectory: true)
+    defer { try? fm.removeItem(at: temp) }
+    do { try ZipImportHelper.extractArchive(at: archive, to: temp) } catch {
+      outcome.errors.append(String(format: L("%@ couldn't be unpacked: %@"), name, error.localizedDescription))
+      return
+    }
+    let children = (try? fm.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+    let inner = sort(children, maxDepth: 3)
+    if inner.items.isEmpty && inner.keys.isEmpty {
+      outcome.archivesWithoutWiiU.append((name, !inner.gameCube.isEmpty || !inner.wii.isEmpty))
+      return
+    }
+    let before = outcome.added.count
+    for url in inner.items {
+      if fm.fileExists(atPath: folder.appendingPathComponent(url.lastPathComponent).path) {
+        outcome.skipped.append(url.lastPathComponent); continue
+      }
+      do { try place(url, in: folder, move: true); outcome.added.append(url.lastPathComponent) }
+      catch { outcome.errors.append("\(url.lastPathComponent): \(error.localizedDescription)") }
+    }
+    for url in inner.keys {
+      do { outcome.keysAdded += try mergeKeys(from: url, into: folder) }
+      catch { outcome.errors.append("keys.txt: \(error.localizedDescription)") }
+    }
+    if deleteArchive, outcome.added.count > before { try? fm.removeItem(at: archive) }
   }
 }
 
@@ -213,7 +263,7 @@ extension WiiUModel {
     if !sorted.other.isEmpty {
       notes.append(String(format: L("%@ isn't a Wii U game. Use WUA, WUX, WUD or RPX files, or a game folder."), sorted.other.joined(separator: ", ")))
     }
-    guard !sorted.items.isEmpty || !sorted.keys.isEmpty else {
+    guard !sorted.items.isEmpty || !sorted.keys.isEmpty || !sorted.archives.isEmpty else {
       accessed.forEach { $0.stopAccessingSecurityScopedResource() }
       alert(title: L("Nothing to Add"), message: notes.joined(separator: "\n\n"))
       return
@@ -226,12 +276,33 @@ extension WiiUModel {
       self.copyIn(sorted, move: move, notes: notes) { accessed.forEach { $0.stopAccessingSecurityScopedResource() } }
     }
     // keys.txt alone is always copied; games get the same Copy / Move question as the GameCube shelf.
-    if sorted.items.isEmpty { finish(false); return }
+    if sorted.items.isEmpty && sorted.archives.isEmpty { finish(false); return }
     let question = UIAlertController(title: L("Import"), message: nil, preferredStyle: .alert)
     question.addAction(UIAlertAction(title: L("Copy"), style: .default) { _ in finish(false) })
     question.addAction(UIAlertAction(title: L("Move"), style: .default) { _ in finish(true) })
     question.addAction(UIAlertAction(title: L("Cancel"), style: .cancel) { _ in finish(nil) })
     GameFilePicker.topViewController()?.present(question, animated: true)
+  }
+
+  /// Archives the Files app put straight into the Wii U folder: unpacked once, and removed when a game came out.
+  /// One that has no Wii U game is left where it is and not tried again. Returns true when an unpack started
+  /// (it scans the shelf again when it's done).
+  func unpackArchivesInFolder() -> Bool {
+    guard !importing else { return false }
+    let files = (try? FileManager.default.contentsOfDirectory(at: gamesDir, includingPropertiesForKeys: [.fileSizeKey],
+                                                              options: [.skipsHiddenFiles])) ?? []
+    var tried = Set(UserDefaults.standard.stringArray(forKey: "wiiuArchivesTried") ?? [])
+    func key(_ url: URL) -> String {
+      "\(url.lastPathComponent)|\((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)"
+    }
+    let archives = files.filter { WiiUImport.classify($0) == .archive && !tried.contains(key($0)) }
+    guard !archives.isEmpty else { return false }
+    archives.forEach { tried.insert(key($0)) }
+    UserDefaults.standard.set(Array(tried), forKey: "wiiuArchivesTried")
+    var sorted = WiiUImport.Sorted()
+    sorted.archives = archives
+    copyIn(sorted, move: true, notes: []) {}
+    return true
   }
 
   private func copyIn(_ sorted: WiiUImport.Sorted, move: Bool, notes: [String], done: @escaping () -> Void) {
@@ -254,6 +325,11 @@ extension WiiUModel {
                                               : String(format: L("Added %ld keys to keys.txt."), outcome.keysAdded))
         } else if !sorted.keys.isEmpty, outcome.errors.isEmpty {
           lines.append(L("keys.txt already has these keys."))
+        }
+        for archive in outcome.archivesWithoutWiiU {
+          lines.append(archive.otherSystem
+            ? String(format: L("%@ has a GameCube or Wii game inside, not a Wii U game. GameCube games go on the GameCube tab."), archive.name)
+            : String(format: L("%@ doesn't have a Wii U game inside."), archive.name))
         }
         if !outcome.skipped.isEmpty {
           lines.append(String(format: L("Already in the Wii U folder: %@."), outcome.skipped.joined(separator: ", ")))

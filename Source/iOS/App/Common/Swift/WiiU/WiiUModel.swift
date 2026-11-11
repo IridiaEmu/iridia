@@ -33,7 +33,7 @@ final class WiiUModel: ObservableObject {
   /// A disc image the player tried to play without its key; shows the key screen.
   @Published var keyNeeded: WiiUGame?
   /// The shelf label of a disc image that needs its key.
-  static let needsKeyFormat = L("Needs a key")
+  nonisolated static let needsKeyFormat = L("Needs a key")
 
   /// Documents/Wii U: the folder players see in Files ("On My iPhone > Iridia > Wii U").
   let gamesDir: URL
@@ -87,6 +87,7 @@ final class WiiUModel: ObservableObject {
 
   func rescan(then done: (() -> Void)? = nil) {
     guard phase == .ready, !scanning, playing == nil else { done?(); return }
+    if unpackArchivesInFolder() { done?(); return }   // scans again when the unpack is done
     copyKeysIfPresent()
     CemuBridge.reloadKeys()
     scanning = true
@@ -100,8 +101,9 @@ final class WiiUModel: ObservableObject {
         titles = titles.filter { ($0.name as String).localizedCaseInsensitiveContains(only) }
       }
       #endif
+      let shown = titles
       await MainActor.run {
-        self.games = titles.map { WiiUGame(id: $0.path, title: $0) }
+        self.games = shown.map { WiiUGame(id: $0.path, title: $0) }
           .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         self.scanning = false
         done?()

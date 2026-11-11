@@ -13,6 +13,8 @@ import IridiaStore
 import SwiftUI
 
 struct WiiUHomeView: View {
+  /// Set while a Downloads folder is chosen (DownloadsFolder); here so the + menu updates.
+  @AppStorage("downloadsFolderName") private var downloadsName: String?
   /// Back to the GameCube library.
   let onGameCube: () -> Void
 
@@ -172,10 +174,9 @@ struct WiiUHomeView: View {
     #endif
   }
 
-  /// Deletes the game's file or folder from the Wii U folder. Only ever something inside that folder.
   /// "Check Downloads for Games" until a folder is chosen, then "Check Downloads Now".
   @ViewBuilder private var downloadsMenuItem: some View {
-    if WiiUDownloads.isOn {
+    if downloadsName != nil {
       Button { WiiUDownloads.check(model: model, manual: true) } label: {
         Label(String(format: L("Check %@ Now"), WiiUDownloads.folderName), systemImage: "arrow.down.circle")
       }
@@ -186,6 +187,7 @@ struct WiiUHomeView: View {
     }
   }
 
+  /// Deletes the game's file or folder from the Wii U folder. Only ever something inside that folder.
   /// Its update and extra content go too: without the game they're no use.
   private func delete(_ game: WiiUGame) {
     let folder = model.gamesDir.standardizedFileURL.path

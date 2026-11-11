@@ -615,6 +615,20 @@ struct TVLibraryView: View {
       .onChangeCompat(of: model.games.count) { _, _ in
         if !showPlatformFilterBar { platformFilter = .all }
       }
+#if os(iOS)
+      // Check Downloads for Games (if the player turned it on): when the app opens or comes back, and when the
+      // GameCube tab is shown again. Never while a game is running (checked inside).
+      .task {
+        try? await Task.sleep(for: .seconds(1.5))
+        if !showWiiU { GameCubeDownloads.check() }
+      }
+      .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+        if !showWiiU { GameCubeDownloads.check() }
+      }
+      .onChange(of: showWiiU) { _, onWiiU in
+        if !onWiiU { GameCubeDownloads.check() }
+      }
+#endif
 #if os(iOS) && canImport(IridiaCafeCore)
       // The Wii U tab sits in place over the GameCube shelf and cross-fades in and out, like switching tabs in
       // one app: both screens keep the header, shelf and tab bar in the same places. The shelf underneath is

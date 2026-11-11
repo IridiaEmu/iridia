@@ -88,7 +88,7 @@ struct WiiUSettingsView: View {
           }
         }
       } header: { Text(L("Downloads")) } footer: {
-        Text(L("Each time you open the Wii U tab, Iridia looks in the folder you chose for Wii U games and asks before moving any to the Wii U folder."))
+        Text(L("Each time you open Iridia, it looks in the folder you chose for games and asks before moving any. GameCube games go on the GameCube shelf and Wii U games on the Wii U shelf."))
       }
       Section(L("Controls")) {
         Toggle(L("Button vibration"), isOn: $haptics)

@@ -78,6 +78,8 @@ struct IridiaShelfView: View {
   var onWiiU: (() -> Void)? = nil
 
   @State private var centred: String?
+  /// Set while a Downloads folder is chosen (DownloadsFolder); here so the + menu updates.
+  @AppStorage("downloadsFolderName") private var downloadsName: String?
   /// Choosing a cover from Photos: the game it's for, the picked photo, and a redraw counter.
   @State private var coverTarget: TVGameItem?
   @State private var coverPick: PhotosPickerItem?
@@ -271,6 +273,7 @@ struct IridiaShelfView: View {
       Menu {
         Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
         Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
+        downloadsMenuItems
       } label: {
         Image(systemName: "plus")
           .font(.system(size: 17, weight: .semibold))
@@ -297,6 +300,22 @@ struct IridiaShelfView: View {
     .accessibilityLabel(label)
   }
 
+  /// "Check Downloads for Games" until a folder is chosen, then "Check Downloads Now" and "Stop Checking".
+  @ViewBuilder private var downloadsMenuItems: some View {
+    if let name = downloadsName {
+      Button { GameCubeDownloads.check(manual: true) } label: {
+        Label(String(format: L("Check %@ Now"), name), systemImage: "arrow.down.circle")
+      }
+      Button { DownloadsFolder.stop() } label: {
+        Label(String(format: L("Stop Checking %@"), name), systemImage: "xmark.circle")
+      }
+    } else {
+      Button { GameCubeDownloads.chooseFolder() } label: {
+        Label(L("Check Downloads for Games"), systemImage: "arrow.down.circle")
+      }
+    }
+  }
+
   // MARK: Shelf (3D carousel)
 
   @ViewBuilder
@@ -309,6 +328,7 @@ struct IridiaShelfView: View {
     Menu {
       Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
       Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
+      downloadsMenuItems
     } label: {
       VStack(spacing: 12) {
         Image(systemName: "plus")

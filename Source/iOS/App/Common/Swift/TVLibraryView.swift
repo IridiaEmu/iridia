@@ -635,6 +635,14 @@ struct TVLibraryView: View {
         }
         #endif
       }
+      // A Wii U game opened from another app, or moved out of the GameCube folder, shows on the Wii U tab.
+      .onReceive(NotificationCenter.default.publisher(for: WiiUImport.showTabNotification)) { _ in
+        withAnimation(Self.tabSwitch) { showWiiU = true }
+      }
+      .task { WiiUImport.offerToMoveStrayGames() }
+      .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+        WiiUImport.offerToMoveStrayGames()
+      }
 #endif
   }
   /// Game to present in the SwiftUI properties sheet
@@ -2086,9 +2094,13 @@ struct TVLibraryView: View {
         guard show else { return }
         showImportSoftwarePicker = false
         GameFilePicker.present { urls in
-          // A Wii U file is a game, just for the other tab: say so instead of "isn't a game file".
-          let wiiUExtensions: Set<String> = ["wux", "wud", "wua", "wuhb", "rpx"]
-          let isWiiU = { (url: URL) in wiiUExtensions.contains(url.pathExtension.lowercased()) }
+          // A Wii U file is a game, just for the other tab: say so instead of "isn't a game file", and don't
+          // import a Wii U disc named .iso as a GameCube game.
+          let isWiiU = { (url: URL) -> Bool in
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            return WiiUFileTypes.isWiiUFile(url)
+          }
           let supported = urls.filter { ImportableFileTypes.isImportableFile($0) }
           let rejected = urls.filter { !ImportableFileTypes.isImportableFile($0) && !isWiiU($0) }
           let wiiU = urls.filter(isWiiU)

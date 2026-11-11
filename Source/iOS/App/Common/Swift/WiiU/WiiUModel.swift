@@ -16,6 +16,8 @@ struct WiiUGame: Identifiable, Hashable {
   var name: String { title.name }
   /// A disc image (.wux, .wud) that no key in keys.txt opens yet. Play asks for the key (WiiUDiscKeyView).
   var needsKey: Bool { title.format == WiiUModel.needsKeyFormat }
+  /// An installed game folder without its title.tik. Play explains what's missing.
+  var missingTicket: Bool { title.format == WiiUModel.missingTicketFormat }
 }
 
 @MainActor
@@ -32,8 +34,12 @@ final class WiiUModel: ObservableObject {
   @Published var importing = false
   /// A disc image the player tried to play without its key; shows the key screen.
   @Published var keyNeeded: WiiUGame?
+  /// A game folder the player tried to play without its title.tik; shows what's missing.
+  @Published var ticketMissing: WiiUGame?
   /// The shelf label of a disc image that needs its key.
   nonisolated static let needsKeyFormat = L("Needs a key")
+  /// The shelf label of a game folder without its title.tik.
+  nonisolated static let missingTicketFormat = L("Missing title.tik")
 
   /// Documents/Wii U: the folder players see in Files ("On My iPhone > Iridia > Wii U").
   let gamesDir: URL
@@ -94,7 +100,7 @@ final class WiiUModel: ObservableObject {
     let dir = gamesDir
     Task.detached(priority: .userInitiated) {
       let found = CemuBridge.scanGames()
-      var titles = found + Self.homebrew(in: dir) + Self.discsNeedingKeys(in: dir, found: found)
+      var titles = found + Self.homebrew(in: dir) + Self.gamesThatCantOpen(in: dir, found: found)
       // Test hook (not in App Store builds): -wiiuShowOnly <name part> lists only matching games (store screenshots).
       #if !APPSTORE
       if let only = UserDefaults.standard.string(forKey: "wiiuShowOnly") {
@@ -114,6 +120,7 @@ final class WiiUModel: ObservableObject {
   func play(_ game: WiiUGame) {
     guard phase == .ready, playing == nil else { return }
     if game.needsKey { keyNeeded = game; return }
+    if game.missingTicket { ticketMissing = game; return }
     WiiULastPlayed.mark(game.id)
     playing = game
   }
@@ -125,10 +132,10 @@ final class WiiUModel: ObservableObject {
     playing = nil
   }
 
-  /// Homebrew programs (.rpx) in the top of the Wii U folder. Installed titles come from the core's scan.
+  /// Homebrew programs (.rpx) in the Wii U folder and the folders in it (not inside games). Installed titles
+  /// come from the core's scan.
   nonisolated private static func homebrew(in dir: URL) -> [CemuTitle] {
-    let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
-    return files.filter { $0.pathExtension.lowercased() == "rpx" }.map { url in
+    WiiUFileTypes.walk(dir, maxDepth: 3).filter { $0.pathExtension.lowercased() == "rpx" }.map { url in
       let t = CemuTitle()
       t.name = url.deletingPathExtension().lastPathComponent
       t.path = url.path
@@ -137,20 +144,36 @@ final class WiiUModel: ObservableObject {
     }
   }
 
-  /// Disc images in the top of the Wii U folder that the core couldn't open (no key for them in keys.txt).
-  /// They still go on the shelf, so the player can add the key from there.
-  nonisolated private static func discsNeedingKeys(in dir: URL, found: [CemuTitle]) -> [CemuTitle] {
+  /// Games in the Wii U folder (or a folder in it) that the core couldn't open, so they still go on the shelf
+  /// and Play can say why: disc images with no key for them in keys.txt, and game folders without title.tik.
+  nonisolated private static func gamesThatCantOpen(in dir: URL, found: [CemuTitle]) -> [CemuTitle] {
     let opened = Set(found.map { URL(fileURLWithPath: $0.path).resolvingSymlinksInPath().path })
-    let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
-    return files.filter { url in
-      guard ["wux", "wud", "iso"].contains(url.pathExtension.lowercased()), WiiUImport.classify(url) == .wiiU else { return false }
-      return !opened.contains(url.resolvingSymlinksInPath().path)
-    }.map { url in
+    return WiiUFileTypes.walk(dir, maxDepth: 3).compactMap { url in
+      guard !opened.contains(url.resolvingSymlinksInPath().path) else { return nil }
+      let format: String
+      if WiiUFileTypes.isDirectory(url) {
+        guard WiiUFileTypes.isMissingTicket(url),
+              WiiUFileTypes.titleID(ofFolder: url).map({ WiiUFileTypes.kind(ofTitleID: $0) == .game }) ?? true else { return nil }
+        format = missingTicketFormat
+      } else {
+        guard ["wux", "wud", "iso"].contains(url.pathExtension.lowercased()), WiiUImport.classify(url) == .wiiU else { return nil }
+        format = needsKeyFormat
+      }
       let t = CemuTitle()
       t.name = url.deletingPathExtension().lastPathComponent
       t.path = url.path
-      t.format = needsKeyFormat
+      t.format = format
       return t
+    }
+  }
+
+  /// The update and extra content folders in the Wii U folder that belong to `game` (same title ID, other type).
+  func addOns(of game: WiiUGame) -> [URL] {
+    let low = game.title.titleId & 0xFFFF_FFFF
+    guard game.title.titleId != 0 else { return [] }
+    return WiiUFileTypes.walk(gamesDir, maxDepth: 3).filter { url in
+      guard WiiUFileTypes.isTitleFolder(url), let id = WiiUFileTypes.titleID(ofFolder: url) else { return false }
+      return id & 0xFFFF_FFFF == low && [.update, .extraContent].contains(WiiUFileTypes.kind(ofTitleID: id))
     }
   }
 

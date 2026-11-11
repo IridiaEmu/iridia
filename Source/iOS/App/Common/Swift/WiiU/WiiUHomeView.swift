@@ -129,6 +129,12 @@ struct WiiUHomeView: View {
       WiiUUnlockView(context: .browsing, onUnlocked: { showUnlock = false }, onDismiss: { showUnlock = false })
         .claimsController()
     }
+    .alert(L("Can't Open This Game"), isPresented: Binding(get: { model.ticketMissing != nil },
+                                                          set: { if !$0 { model.ticketMissing = nil } })) {
+      Button(L("OK"), role: .cancel) { model.ticketMissing = nil }
+    } message: {
+      if let game = model.ticketMissing { Text(WiiUModel.noTicketNote([game.name])) }
+    }
     .sheet(item: $model.keyNeeded) { game in
       NavigationStack { WiiUDiscKeyView(game: game) }
         .claimsController()
@@ -144,7 +150,11 @@ struct WiiUHomeView: View {
       }
       Button(L("Cancel"), role: .cancel) { pendingDelete = nil }
     } message: {
-      if let game = pendingDelete { Text(String(format: L("Delete %@? You can't undo this."), game.name)) }
+      if let game = pendingDelete {
+        Text(model.addOns(of: game).isEmpty
+             ? String(format: L("Delete %@? You can't undo this."), game.name)
+             : String(format: L("Delete %@ and its update and extra content? You can't undo this."), game.name))
+      }
     }
     .fullScreenCover(item: $model.playing) { game in
       WiiUPlayView(game: game)
@@ -168,11 +178,15 @@ struct WiiUHomeView: View {
   }
 
   /// Deletes the game's file or folder from the Wii U folder. Only ever something inside that folder.
+  /// Its update and extra content go too: without the game they're no use.
   private func delete(_ game: WiiUGame) {
     let folder = model.gamesDir.standardizedFileURL.path
-    let path = URL(fileURLWithPath: game.id).standardizedFileURL.path
-    guard path.hasPrefix(folder + "/") else { return }
-    try? FileManager.default.removeItem(atPath: path)
+    let addOns = model.addOns(of: game)
+    for url in [URL(fileURLWithPath: game.id)] + addOns {
+      let path = url.standardizedFileURL.path
+      guard path.hasPrefix(folder + "/") else { continue }
+      try? FileManager.default.removeItem(atPath: path)
+    }
     model.rescan()
   }
 
@@ -431,6 +445,7 @@ struct WiiUHomeView: View {
 
   private func lastPlayedText(_ item: WiiUGame) -> String {
     if item.needsKey { return L("Needs the key for your disc") }
+    if item.missingTicket { return L("Missing its title.tik file") }
     guard let date = WiiULastPlayed.all()[item.id] else { return L("Not played yet") }
     let f = RelativeDateTimeFormatter()
     f.unitsStyle = .full

@@ -155,7 +155,7 @@ struct WiiUHelpView: View {
     List {
       Section(L("Adding a game")) {
         Text(L("1. Tap + at the top, then Choose a Game File, and pick your own game. Or copy it with the Files app into the Wii U folder."))
-        Text(L("2. Disc images (.wux, .wud), .wua files and installed game folders all work. Add updates and extra content the same way. Homebrew programs (.rpx) work too."))
+        Text(L("2. Disc images (.wux, .wud), .wua files and installed game folders all work. Add updates and extra content the same way. Homebrew programs (.rpx) work too, and ZIP or 7Z files are unpacked for you. Installed game folders need their title.tik file."))
         Text(L("3. Disc images also need the key for your own disc. Tap Play and Iridia asks for it, or add keys.txt the same way."))
         Text(String(format: L("4. If you used the Files app (%@), come back here and tap the refresh button."), WiiUModel.filesPath))
       }
@@ -203,7 +203,7 @@ struct WiiUFilesGuideView: View {
       }
       Section(L("Where games go")) {
         Text(WiiUModel.filesPath)
-        Text(L("WUA files, game folders, updates and homebrew (.rpx) work as they are. Disc images (.wux, .wud) also need your own disc's key: tap Play and Iridia asks for it."))
+        Text(L("WUA files, game folders, updates and homebrew (.rpx) work as they are, and ZIP or 7Z files are unpacked the next time you open the Wii U tab. Disc images (.wux, .wud) also need your own disc's key: tap Play and Iridia asks for it."))
           .font(.footnote)
           .foregroundStyle(WiiUTheme.dim)
       }

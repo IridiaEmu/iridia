@@ -76,6 +76,11 @@ class MainDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
       importSkin(from: url)
       return
     }
+    // gc-emu: a game file from another app goes to the GameCube or Wii U import.
+    if url.isFileURL {
+      IncomingFiles.open(url)
+      return
+    }
     #endif
     _ = ServiceManager.shared.open(url: url, options: [:])
   }

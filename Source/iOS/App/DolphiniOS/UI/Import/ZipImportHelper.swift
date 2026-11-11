@@ -631,9 +631,15 @@ final class ZipImportHelper: NSObject {
     }
 
     guard !supportedFiles.isEmpty else {
+      // gc-emu: a Wii U game belongs on the Wii U tab, which unpacks archives too.
+      let hasWiiU = WiiUFileTypes.walk(tempDir, maxDepth: 4).contains {
+        WiiUFileTypes.isWiiUFile($0) || WiiUFileTypes.isTitleFolder($0)
+      }
       return ZipImportResult(importedCount: 0,
                              skippedExistingCount: 0,
-                             errorMessage: "This archive does not contain any supported disc images.")
+                             errorMessage: hasWiiU
+                               ? L("This archive has a Wii U game inside. Add it on the Wii U tab.")
+                               : "This archive does not contain any supported disc images.")
     }
 
     let destinationURL = URL(fileURLWithPath: destinationFolder, isDirectory: true)

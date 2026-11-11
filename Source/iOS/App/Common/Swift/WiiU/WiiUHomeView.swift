@@ -40,7 +40,7 @@ struct WiiUHomeView: View {
   private var ordered: [WiiUGame] {
     let played = WiiULastPlayed.all()
     return model.games.sorted {
-      let a = played[$0.id] ?? .distantPast, b = played[$1.id] ?? .distantPast
+      let a = WiiULastPlayed.date($0.id, in: played) ?? .distantPast, b = WiiULastPlayed.date($1.id, in: played) ?? .distantPast
       return a != b ? a > b : $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
     }
   }
@@ -458,7 +458,7 @@ struct WiiUHomeView: View {
   private func lastPlayedText(_ item: WiiUGame) -> String {
     if item.needsKey { return L("Needs the key for your disc") }
     if item.missingTicket { return L("Missing its title.tik file") }
-    guard let date = WiiULastPlayed.all()[item.id] else { return L("Not played yet") }
+    guard let date = WiiULastPlayed.date(item.id, in: WiiULastPlayed.all()) else { return L("Not played yet") }
     let f = RelativeDateTimeFormatter()
     f.unitsStyle = .full
     return String(format: L("Last played %@"), f.localizedString(for: date, relativeTo: Date()))

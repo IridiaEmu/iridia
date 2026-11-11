@@ -117,7 +117,8 @@ struct WiiUScreenPrefs: Codable, Equatable {
 extension WiiUGame {
   /// Key for per-game settings: the title ID (the same for the disc, the installed copy and its update), or the
   /// file path for homebrew.
-  var settingsKey: String { title.titleId != 0 ? String(format: "%016llX", title.titleId) : id }
+  /// The title ID, or for homebrew (no title ID) its path in a form that survives app updates.
+  var settingsKey: String { title.titleId != 0 ? String(format: "%016llX", title.titleId) : StablePath.key(id) }
 }
 #endif
 

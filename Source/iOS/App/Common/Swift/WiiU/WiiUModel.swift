@@ -193,15 +193,21 @@ final class WiiUModel: ObservableObject {
   }
 }
 
+/// When each game was last played, by StablePath key (older entries by full path are read the same way).
 enum WiiULastPlayed {
   private static let key = "cafeLastPlayed"
   static func all() -> [String: Date] {
-    (UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]).mapValues { Date(timeIntervalSince1970: $0) }
+    let stored = UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]
+    var dates: [String: Date] = [:]
+    for (path, time) in stored { dates[StablePath.key(path)] = max(dates[StablePath.key(path)] ?? .distantPast, Date(timeIntervalSince1970: time)) }
+    return dates
   }
+  static func date(_ id: String, in all: [String: Date]) -> Date? { all[StablePath.key(id)] }
   static func mark(_ id: String) {
-    var all = UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]
-    all[id] = Date().timeIntervalSince1970
-    UserDefaults.standard.set(all, forKey: key)
+    var stored = UserDefaults.standard.dictionary(forKey: key) as? [String: Double] ?? [:]
+    stored.removeValue(forKey: id)
+    stored[StablePath.key(id)] = Date().timeIntervalSince1970
+    UserDefaults.standard.set(stored, forKey: key)
   }
 }
 #endif

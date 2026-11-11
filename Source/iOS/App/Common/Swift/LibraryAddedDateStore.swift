@@ -75,15 +75,20 @@ enum LibraryAddedDateStore {
     }
   }
 
+  /// gc-emu: by StablePath key, so the dates survive an app update that moves the app's folder.
   private static func normalize(_ path: String) -> String {
     if path.hasPrefix("file://"), let url = URL(string: path), url.isFileURL {
-      return url.path
+      return StablePath.key(url.path)
     }
-    return (path as NSString).standardizingPath
+    return StablePath.key((path as NSString).standardizingPath)
   }
 
+  /// Older entries were stored by full path: read them by StablePath key too.
   private static func load() -> [String: TimeInterval] {
-    SharedDefaults.suite.dictionary(forKey: defaultsKey) as? [String: TimeInterval] ?? [:]
+    let stored = SharedDefaults.suite.dictionary(forKey: defaultsKey) as? [String: TimeInterval] ?? [:]
+    var map: [String: TimeInterval] = [:]
+    for (path, time) in stored { map[StablePath.key(path)] = max(map[StablePath.key(path)] ?? 0, time) }
+    return map
   }
 
   private static func save(_ map: [String: TimeInterval]) {

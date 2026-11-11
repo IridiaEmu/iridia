@@ -31,11 +31,12 @@ struct WiiUHomeView: View {
   enum Sheet: String, Identifiable { case settings, help, filesGuide; var id: String { rawValue } }
 
   private var isLandscapePhone: Bool { verticalSizeClass == .compact }
-  /// Cases grow on iPad, shrink in iPhone landscape (as on the GameCube shelf).
-  private var caseScale: CGFloat {
-    if isLandscapePhone { return 0.78 }
-    return horizontalSizeClass == .regular ? 1.35 : 1
-  }
+  /// The screen's size, for `u`.
+  @State private var screen = CGSize.zero
+  /// iPad: the iPhone layout drawn larger to fill the screen (ShelfScale). 1 on iPhone.
+  private var u: CGFloat { isLandscapePhone ? 1 : ShelfScale.value(screen, regular: horizontalSizeClass == .regular) }
+  /// Cases grow with the rest on iPad, shrink in iPhone landscape.
+  private var caseScale: CGFloat { isLandscapePhone ? 0.78 : u }
 
   private var ordered: [WiiUGame] {
     let played = WiiULastPlayed.all()
@@ -76,14 +77,15 @@ struct WiiUHomeView: View {
           shelfOrEmpty
             .frame(height: 300 * caseScale + 40)
           details
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 480 * u)
           Spacer(minLength: 12)
           tabBar
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 480 * u)
         }
       }
       if model.importing { importingOverlay }
     }
+    .onGeometryChange(for: CGSize.self) { $0.size } action: { screen = $0 }
     .onAppear {
       model.start()
       model.rescan()
@@ -203,11 +205,11 @@ struct WiiUHomeView: View {
   // MARK: Header
 
   private var header: some View {
-    HStack(spacing: 8) {
-      WiiUMark(size: 38)
+    HStack(spacing: 8 * u) {
+      WiiUMark(size: 38 * u)
         .accessibilityHidden(true)
       Text(L("Wii U (Experimental)"))
-        .font(.system(size: 22, weight: .semibold))
+        .font(.system(size: 22 * u, weight: .semibold))
         .foregroundStyle(WiiUTheme.ink)
         .lineLimit(1)
         .minimumScaleFactor(0.6)
@@ -216,13 +218,13 @@ struct WiiUHomeView: View {
       if !IridiaUnlock.isUnlocked {
         Button { showUnlock = true } label: {
           Text(L("Unlock"))
-            .font(.system(size: 14, weight: .bold))
+            .font(.system(size: 14 * u, weight: .bold))
             .foregroundStyle(WiiUTheme.onAccent)
             .lineLimit(1)
             .fixedSize()
-            .padding(.horizontal, 14)
-            .frame(height: 36)
-            .wiiUSurface(radius: 18, prominent: true)
+            .padding(.horizontal, 14 * u)
+            .frame(height: 36 * u)
+            .wiiUSurface(radius: 18 * u, prominent: true)
         }
         .buttonStyle(SpringPressStyle())
         .accessibilityLabel(L("Unlock Full Version"))
@@ -235,16 +237,16 @@ struct WiiUHomeView: View {
           downloadsMenuItem
         } label: {
           Image(systemName: "plus")
-            .font(.system(size: 17, weight: .semibold))
+            .font(.system(size: 17 * u, weight: .semibold))
             .foregroundStyle(WiiUTheme.accent)
-            .frame(width: 44, height: 44)
-            .wiiUSurface(radius: 22)
+            .frame(width: 44 * u, height: 44 * u)
+            .wiiUSurface(radius: 22 * u)
         }
         .accessibilityLabel(L("Add a game"))
       }
     }
-    .padding(.horizontal, 20)
-    .padding(.top, 8)
+    .padding(.horizontal, 20 * u)
+    .padding(.top, 8 * u)
   }
 
   /// The same height and place as the GameCube shelf's caption, so the two tabs line up when they cross-fade;
@@ -252,25 +254,25 @@ struct WiiUHomeView: View {
   private var shelfCaption: some View {
     Text(String(format: model.games.count == 1 ? L("Your Wii U shelf · %d game") : L("Your Wii U shelf · %d games"),
                 model.games.count).uppercased())
-      .font(.system(size: 13, weight: .medium))
-      .tracking(1.5)
+      .font(.system(size: 13 * u, weight: .medium))
+      .tracking(1.5 * u)
       .foregroundStyle(WiiUTheme.dim)
       .frame(maxWidth: .infinity, alignment: .leading)
       .overlay(alignment: .trailing) {
         if WiiUModel.canRunGames {
           Button { model.rescan() } label: {
             Image(systemName: "arrow.clockwise")
-              .font(.system(size: 13, weight: .semibold))
+              .font(.system(size: 13 * u, weight: .semibold))
               .foregroundStyle(WiiUTheme.accent)
-              .frame(width: 30, height: 30)
-              .wiiUSurface(radius: 15)
+              .frame(width: 30 * u, height: 30 * u)
+              .wiiUSurface(radius: 15 * u)
           }
           .buttonStyle(SpringPressStyle())
           .accessibilityLabel(L("Look for games again"))
         }
       }
-      .padding(.horizontal, 20)
-      .padding(.top, 14)
+      .padding(.horizontal, 20 * u)
+      .padding(.top, 14 * u)
   }
 
   // MARK: Shelf (3D carousel)
@@ -298,26 +300,26 @@ struct WiiUHomeView: View {
   }
 
   private func emptyCase(symbol: String, text: String) -> some View {
-    VStack(spacing: 12) {
+    VStack(spacing: 12 * u) {
       Image(systemName: symbol)
-        .font(.system(size: 34, weight: .semibold))
+        .font(.system(size: 34 * u, weight: .semibold))
       Text(text)
-        .font(.system(size: 15, weight: .semibold))
+        .font(.system(size: 15 * u, weight: .semibold))
     }
     .foregroundStyle(WiiUTheme.accent)
     .frame(width: 214 * caseScale, height: 300 * caseScale)
     .background(
-      RoundedRectangle(cornerRadius: 22, style: .continuous)
+      RoundedRectangle(cornerRadius: 22 * u, style: .continuous)
         .strokeBorder(WiiUTheme.accent.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
     )
-    .wiiUSurface(radius: 22)
+    .wiiUSurface(radius: 22 * u)
   }
 
   private var shelf: some View {
     GeometryReader { geo in
     ScrollViewReader { proxy in
     ScrollView(.horizontal, showsIndicators: false) {
-      LazyHStack(spacing: 18) {
+      LazyHStack(spacing: 18 * u) {
         ForEach(ordered) { item in
           WiiUGameCase(item: item, isCentred: item.id == current?.id)
             .frame(width: 214, height: 300)
@@ -341,7 +343,7 @@ struct WiiUHomeView: View {
         }
       }
       .scrollTargetLayout()
-      .padding(.vertical, 12)
+      .padding(.vertical, 12 * u)
     }
     .scrollTargetBehavior(.viewAligned)
     .scrollPosition(id: $centred, anchor: .center)
@@ -361,82 +363,82 @@ struct WiiUHomeView: View {
   // MARK: Details + actions
 
   private var details: some View {
-    VStack(spacing: 6) {
+    VStack(spacing: 6 * u) {
       if let item = current {
         Text(item.name)
-          .font(.system(size: 26, weight: .bold))
+          .font(.system(size: 26 * u, weight: .bold))
           .foregroundStyle(WiiUTheme.ink)
           .lineLimit(2)
           .multilineTextAlignment(.center)
           .minimumScaleFactor(0.7)
         Text(lastPlayedText(item))
-          .font(.system(size: 14))
+          .font(.system(size: 14 * u))
           .foregroundStyle(WiiUTheme.soft)
-        HStack(spacing: 12) {
+        HStack(spacing: 12 * u) {
           Button { model.play(item) } label: {
             Label(L("Play"), systemImage: "play.fill")
-              .font(.system(size: 18, weight: .bold))
+              .font(.system(size: 18 * u, weight: .bold))
               .foregroundStyle(WiiUTheme.onAccent)
-              .frame(maxWidth: .infinity, minHeight: 58)
-              .wiiUSurface(radius: 29, prominent: true)
+              .frame(maxWidth: .infinity, minHeight: 58 * u)
+              .wiiUSurface(radius: 29 * u, prominent: true)
           }
           .buttonStyle(SpringPressStyle())
           Button { gameSettings = item } label: {
             Image(systemName: "slider.horizontal.3")
-              .font(.system(size: 18, weight: .semibold))
+              .font(.system(size: 18 * u, weight: .semibold))
               .foregroundStyle(WiiUTheme.accent)
-              .frame(width: 58, height: 58)
-              .wiiUSurface(radius: 29)
+              .frame(width: 58 * u, height: 58 * u)
+              .wiiUSurface(radius: 29 * u)
           }
           .buttonStyle(SpringPressStyle())
           .accessibilityLabel(String(format: L("Game settings for %@"), item.name))
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
+        .padding(.horizontal, 20 * u)
+        .padding(.top, 14 * u)
       } else {
         Text(emptyTitle)
-          .font(.system(size: 26, weight: .bold))
+          .font(.system(size: 26 * u, weight: .bold))
           .foregroundStyle(WiiUTheme.ink)
           .multilineTextAlignment(.center)
         Text(emptyMessage)
-          .font(.system(size: 14))
+          .font(.system(size: 14 * u))
           .foregroundStyle(WiiUTheme.soft)
           .multilineTextAlignment(.center)
-          .padding(.horizontal, 24)
+          .padding(.horizontal, 24 * u)
         if case .failed(let message) = model.phase {
           Text(message)
-            .font(.system(size: 14, weight: .medium))
+            .font(.system(size: 14 * u, weight: .medium))
             .foregroundStyle(WiiUTheme.warning)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 24 * u)
         }
         if WiiUModel.canRunGames {
-          HStack(spacing: 12) {
+          HStack(spacing: 12 * u) {
             Button { model.chooseGameFiles() } label: {
               Label(L("Choose a Game File"), systemImage: "doc.badge.plus")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 16 * u, weight: .bold))
                 .foregroundStyle(WiiUTheme.onAccent)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity, minHeight: 58)
-                .wiiUSurface(radius: 29, prominent: true)
+                .frame(maxWidth: .infinity, minHeight: 58 * u)
+                .wiiUSurface(radius: 29 * u, prominent: true)
             }
             .buttonStyle(SpringPressStyle())
             Button { sheet = .filesGuide } label: {
               Text(L("Files App"))
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15 * u, weight: .semibold))
                 .foregroundStyle(WiiUTheme.accent)
-                .frame(width: 134, height: 58)
-                .wiiUSurface(radius: 29)
+                .frame(width: 134 * u, height: 58 * u)
+                .wiiUSurface(radius: 29 * u)
             }
             .buttonStyle(SpringPressStyle())
           }
-          .padding(.horizontal, 20)
-          .padding(.top, 14)
+          .padding(.horizontal, 20 * u)
+          .padding(.top, 14 * u)
         }
       }
     }
-    .padding(.top, 8)
+    .padding(.top, 8 * u)
     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: current?.id)
   }
 
@@ -468,45 +470,45 @@ struct WiiUHomeView: View {
   private var importingOverlay: some View {
     ZStack {
       Color.black.opacity(0.25).ignoresSafeArea()
-      VStack(spacing: 14) {
+      VStack(spacing: 14 * u) {
         ProgressView().controlSize(.large).tint(WiiUTheme.accent)
         Text(L("Adding games…"))
-          .font(.system(size: 16, weight: .semibold))
+          .font(.system(size: 16 * u, weight: .semibold))
           .foregroundStyle(WiiUTheme.ink)
         Text(L("Big games can take a few minutes. Keep Iridia open."))
-          .font(.system(size: 13))
+          .font(.system(size: 13 * u))
           .foregroundStyle(WiiUTheme.soft)
           .multilineTextAlignment(.center)
       }
-      .padding(24)
-      .wiiUSurface(radius: 24)
-      .padding(40)
+      .padding(24 * u)
+      .wiiUSurface(radius: 24 * u)
+      .padding(40 * u)
     }
   }
 
   // MARK: Tab bar
 
   private var tabBar: some View {
-    HStack(spacing: 6) {
+    HStack(spacing: 6 * u) {
       tab(L("GameCube"), symbol: "cube", selected: false, action: onGameCube)
       tab(L("Wii U"), symbol: "square.stack", selected: true) {}
       tab(L("Settings"), symbol: "gearshape", selected: false) { sheet = .settings }
       tab(L("Help"), symbol: "questionmark.circle", selected: false) { sheet = .help }
     }
-    .padding(8)
-    .wiiUSurface(radius: 35)
-    .padding(.horizontal, 20)
-    .padding(.bottom, 8)
+    .padding(8 * u)
+    .wiiUSurface(radius: 35 * u)
+    .padding(.horizontal, 20 * u)
+    .padding(.bottom, 8 * u)
   }
 
   private func tab(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
     Button(action: action) {
-      VStack(spacing: 3) {
-        Image(systemName: symbol).font(.system(size: 19, weight: .semibold))
-        Text(title).font(.system(size: 11, weight: .semibold))
+      VStack(spacing: 3 * u) {
+        Image(systemName: symbol).font(.system(size: 19 * u, weight: .semibold))
+        Text(title).font(.system(size: 11 * u, weight: .semibold))
       }
       .foregroundStyle(selected ? WiiUTheme.onAccent : WiiUTheme.soft)
-      .frame(maxWidth: .infinity, minHeight: 54)
+      .frame(maxWidth: .infinity, minHeight: 54 * u)
       .background {
         if selected { Capsule().fill(WiiUTheme.accent) }
       }

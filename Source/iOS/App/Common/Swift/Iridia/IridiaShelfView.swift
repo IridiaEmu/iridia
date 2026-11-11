@@ -62,6 +62,15 @@ extension View {
   }
 }
 
+/// How much larger the shelf screens are drawn on iPad: the iPhone layout scaled up until it fills the screen
+/// (up to 1.6x), instead of iPhone-sized buttons in the middle of a big empty screen.
+enum ShelfScale {
+  static func value(_ size: CGSize, regular: Bool) -> CGFloat {
+    guard regular, size.width > 0 else { return 1 }
+    return min(1.6, max(1, min(size.width / 430, size.height / 780)))
+  }
+}
+
 struct IridiaShelfView: View {
   let games: [TVGameItem]
   /// Launch. `fresh` = start at the title screen (skip the resume point).
@@ -92,11 +101,12 @@ struct IridiaShelfView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   private var isLandscapePhone: Bool { verticalSizeClass == .compact }
-  /// Cases grow on iPad, shrink in iPhone landscape.
-  private var caseScale: CGFloat {
-    if isLandscapePhone { return 0.78 }
-    return horizontalSizeClass == .regular ? 1.35 : 1
-  }
+  /// The screen's size, for `u`.
+  @State private var screen = CGSize.zero
+  /// iPad: the iPhone layout drawn larger to fill the screen (ShelfScale). 1 on iPhone.
+  private var u: CGFloat { isLandscapePhone ? 1 : ShelfScale.value(screen, regular: horizontalSizeClass == .regular) }
+  /// Cases grow with the rest on iPad, shrink in iPhone landscape.
+  private var caseScale: CGFloat { isLandscapePhone ? 0.78 : u }
 
   /// Every launch from the shelf goes through here.
   private func play(_ item: TVGameItem, fresh: Bool) {
@@ -146,14 +156,15 @@ struct IridiaShelfView: View {
           shelfOrEmpty
             .frame(height: 300 * caseScale + 40)
           details
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 480 * u)
           Spacer(minLength: 12)
           tabBar
-            .frame(maxWidth: 560)
+            .frame(maxWidth: 480 * u)
         }
       }
     }
     .toolbar(.hidden, for: .navigationBar)
+    .onGeometryChange(for: CGSize.self) { $0.size } action: { screen = $0 }
     .onAppear {
       if centred == nil { centred = ordered.first?.filePath }
       installControllerNavigation()
@@ -189,12 +200,12 @@ struct IridiaShelfView: View {
 
   private var shelfCaption: some View {
     Text(String(format: games.count == 1 ? L("Your shelf · %d game") : L("Your shelf · %d games"), games.count).uppercased())
-      .font(.system(size: 13, weight: .medium))
-      .tracking(1.5)
+      .font(.system(size: 13 * u, weight: .medium))
+      .tracking(1.5 * u)
       .foregroundStyle(IridiaGlass.dim)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 20)
-      .padding(.top, 14)
+      .padding(.horizontal, 20 * u)
+      .padding(.top, 14 * u)
   }
 
   // MARK: Controller navigation
@@ -244,14 +255,14 @@ struct IridiaShelfView: View {
   // MARK: Header
 
   private var header: some View {
-    HStack(spacing: 8) {
+    HStack(spacing: 8 * u) {
       IridiaCube.mark
         .resizable()
         .scaledToFit()
-        .frame(width: 40, height: 40)
+        .frame(width: 40 * u, height: 40 * u)
         .accessibilityHidden(true)
       Text("Iridia")
-        .font(.system(size: 24, weight: .semibold))
+        .font(.system(size: 24 * u, weight: .semibold))
         .foregroundStyle(IridiaGlass.ink)
         .lineLimit(1)
         .layoutPriority(1)
@@ -259,13 +270,13 @@ struct IridiaShelfView: View {
       if !IridiaUnlock.isUnlocked {
         Button { showUnlock = true } label: {
           Text(L("Unlock"))
-            .font(.system(size: 14, weight: .bold))
+            .font(.system(size: 14 * u, weight: .bold))
             .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
             .lineLimit(1)
             .fixedSize()                 // never squeeze or wrap ("Unlo / ck")
-            .padding(.horizontal, 14)
-            .frame(height: 36)
-            .glassSurface(radius: 18, prominent: true)
+            .padding(.horizontal, 14 * u)
+            .frame(height: 36 * u)
+            .glassSurface(radius: 18 * u, prominent: true)
         }
         .buttonStyle(SpringPressStyle())
       }
@@ -276,25 +287,25 @@ struct IridiaShelfView: View {
         downloadsMenuItems
       } label: {
         Image(systemName: "plus")
-          .font(.system(size: 17, weight: .semibold))
+          .font(.system(size: 17 * u, weight: .semibold))
           .foregroundStyle(.white)
-          .frame(width: 44, height: 44)
-          .glassSurface(radius: 22)
+          .frame(width: 44 * u, height: 44 * u)
+          .glassSurface(radius: 22 * u)
       }
       .accessibilityLabel(L("Add a game"))
       glassIconButton("slider.horizontal.3", label: L("Settings"), action: onSettings)
     }
-    .padding(.horizontal, 20)
-    .padding(.top, 8)
+    .padding(.horizontal, 20 * u)
+    .padding(.top, 8 * u)
   }
 
   private func glassIconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Image(systemName: symbol)
-        .font(.system(size: 17, weight: .semibold))
+        .font(.system(size: 17 * u, weight: .semibold))
         .foregroundStyle(.white)
-        .frame(width: 44, height: 44)
-        .glassSurface(radius: 22)
+        .frame(width: 44 * u, height: 44 * u)
+        .glassSurface(radius: 22 * u)
     }
     .buttonStyle(SpringPressStyle())
     .accessibilityLabel(label)
@@ -330,19 +341,19 @@ struct IridiaShelfView: View {
       Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
       downloadsMenuItems
     } label: {
-      VStack(spacing: 12) {
+      VStack(spacing: 12 * u) {
         Image(systemName: "plus")
-          .font(.system(size: 34, weight: .semibold))
+          .font(.system(size: 34 * u, weight: .semibold))
         Text(L("Add a game"))
-          .font(.system(size: 15, weight: .semibold))
+          .font(.system(size: 15 * u, weight: .semibold))
       }
       .foregroundStyle(IridiaGlass.soft)
       .frame(width: 214 * caseScale, height: 300 * caseScale)
       .background(
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
+        RoundedRectangle(cornerRadius: 22 * u, style: .continuous)
           .strokeBorder(.white.opacity(0.28), style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
       )
-      .glassSurface(radius: 22)
+      .glassSurface(radius: 22 * u)
     }
     .accessibilityLabel(L("Add a game"))
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -352,7 +363,7 @@ struct IridiaShelfView: View {
     GeometryReader { geo in
     ScrollViewReader { proxy in
     ScrollView(.horizontal, showsIndicators: false) {
-      LazyHStack(spacing: 18) {
+      LazyHStack(spacing: 18 * u) {
         ForEach(ordered, id: \.filePath) { item in
           GlassCase(item: item, isCentred: item.filePath == current?.filePath, coverVersion: coverVersion)
             .scaleEffect(caseScale)
@@ -383,7 +394,7 @@ struct IridiaShelfView: View {
         }
       }
       .scrollTargetLayout()
-      .padding(.vertical, 12)
+      .padding(.vertical, 12 * u)
     }
     .scrollTargetBehavior(.viewAligned)
     .scrollPosition(id: $centred, anchor: .center)
@@ -416,73 +427,73 @@ struct IridiaShelfView: View {
   // MARK: Details + actions
 
   private var details: some View {
-    VStack(spacing: 6) {
+    VStack(spacing: 6 * u) {
       if games.isEmpty {
         Text(L("Your shelf is empty"))
-          .font(.system(size: 26, weight: .bold))
+          .font(.system(size: 26 * u, weight: .bold))
           .foregroundStyle(.white)
         Text(L("Add a GameCube game to start playing."))
-          .font(.system(size: 14))
+          .font(.system(size: 14 * u))
           .foregroundStyle(IridiaGlass.soft)
           .multilineTextAlignment(.center)
-        HStack(spacing: 12) {
+        HStack(spacing: 12 * u) {
           Button(action: onImport) {
             Label(L("Choose a Game File"), systemImage: "doc.badge.plus")
-              .font(.system(size: 16, weight: .bold))
+              .font(.system(size: 16 * u, weight: .bold))
               .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
               .lineLimit(1)
               .minimumScaleFactor(0.8)
-              .frame(maxWidth: .infinity, minHeight: 58)
-              .glassSurface(radius: 29, prominent: true)
+              .frame(maxWidth: .infinity, minHeight: 58 * u)
+              .glassSurface(radius: 29 * u, prominent: true)
           }
           .buttonStyle(SpringPressStyle())
           Button(action: onFilesGuide) {
             Text(L("Files App"))
-              .font(.system(size: 15, weight: .semibold))
+              .font(.system(size: 15 * u, weight: .semibold))
               .foregroundStyle(.white)
-              .frame(width: 134, height: 58)
-              .glassSurface(radius: 29)
+              .frame(width: 134 * u, height: 58 * u)
+              .glassSurface(radius: 29 * u)
           }
           .buttonStyle(SpringPressStyle())
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
+        .padding(.horizontal, 20 * u)
+        .padding(.top, 14 * u)
       } else if let item = current {
         Text(item.title.isEmpty ? L("Unknown Game") : item.title)
-          .font(.system(size: 26, weight: .bold))
+          .font(.system(size: 26 * u, weight: .bold))
           .foregroundStyle(.white)
           .lineLimit(2)
           .multilineTextAlignment(.center)
           .minimumScaleFactor(0.7)
         Text(subtitle(for: item))
-          .font(.system(size: 14))
+          .font(.system(size: 14 * u))
           .foregroundStyle(IridiaGlass.soft)
-        HStack(spacing: 12) {
+        HStack(spacing: 12 * u) {
           let resumable = Self.hasResumePoint(item)
           Button { play(item, fresh: false) } label: {
             Label(resumable ? L("Continue") : L("Play"), systemImage: "play.fill")
-              .font(.system(size: 18, weight: .bold))
+              .font(.system(size: 18 * u, weight: .bold))
               .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
-              .frame(maxWidth: .infinity, minHeight: 58)
-              .glassSurface(radius: 29, prominent: true)
+              .frame(maxWidth: .infinity, minHeight: 58 * u)
+              .glassSurface(radius: 29 * u, prominent: true)
           }
           .buttonStyle(SpringPressStyle())
           if resumable {
             Button { play(item, fresh: true) } label: {
               Text(L("Title Screen"))
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15 * u, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 134, height: 58)
-                .glassSurface(radius: 29)
+                .frame(width: 134 * u, height: 58 * u)
+                .glassSurface(radius: 29 * u)
             }
             .buttonStyle(SpringPressStyle())
           }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
+        .padding(.horizontal, 20 * u)
+        .padding(.top, 14 * u)
       }
     }
-    .padding(.top, 8)
+    .padding(.top, 8 * u)
     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: current?.filePath)
   }
 
@@ -508,32 +519,32 @@ struct IridiaShelfView: View {
   // MARK: Tab bar
 
   private var tabBar: some View {
-    HStack(spacing: 6) {
+    HStack(spacing: 6 * u) {
       // GameCube and Wii U side by side, the same as in the Wii U tab's bar.
       tab(L("GameCube"), symbol: "cube", selected: true) {}
       if let onWiiU { tab(L("Wii U"), symbol: "square.stack", selected: false, action: onWiiU) }
       tab(L("Saves"), symbol: "square.stack.3d.up", selected: false) { if let item = current { onSaves(item) } }
       tab(L("Controllers"), symbol: "gamecontroller", selected: false, action: onControllers)
     }
-    .padding(8)
-    .glassSurface(radius: 35)
-    .padding(.horizontal, 20)
-    .padding(.bottom, 8)
+    .padding(8 * u)
+    .glassSurface(radius: 35 * u)
+    .padding(.horizontal, 20 * u)
+    .padding(.bottom, 8 * u)
   }
 
   private func tab(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
     Button(action: action) {
-      VStack(spacing: 3) {
-        Image(systemName: symbol).font(.system(size: 19, weight: .semibold))
-        Text(title).font(.system(size: 11, weight: .semibold))
+      VStack(spacing: 3 * u) {
+        Image(systemName: symbol).font(.system(size: 19 * u, weight: .semibold))
+        Text(title).font(.system(size: 11 * u, weight: .semibold))
       }
       .foregroundStyle(selected ? .white : IridiaGlass.soft)
-      .frame(maxWidth: .infinity, minHeight: 54)
+      .frame(maxWidth: .infinity, minHeight: 54 * u)
       .background {
         if selected {
-          RoundedRectangle(cornerRadius: 27, style: .continuous)
+          RoundedRectangle(cornerRadius: 27 * u, style: .continuous)
             .fill(Color(red: 0.67, green: 0.59, blue: 1.0).opacity(0.28))
-            .overlay(RoundedRectangle(cornerRadius: 27, style: .continuous).strokeBorder(.white.opacity(0.3), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 27 * u, style: .continuous).strokeBorder(.white.opacity(0.3), lineWidth: 1))
         }
       }
     }

@@ -236,11 +236,9 @@ public extension ImportFileManager {
   private func presentBatchAlert(title: String, message: String) {
     guard let scene = MainSceneCoordinator.shared().mainScene else { return }
     showWindow(on: scene)
-    let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: DOLCoreLocalizedString("OK"), style: .default) { [weak self] _ in
+    IridiaAlert.show(title, message, buttons: [IridiaAlertButton(DOLCoreLocalizedString("OK")) { [weak self] in
       self?.hideWindow()
-    })
-    presentViewController(onWindow: alert)
+    }])
   }
 }
 #endif

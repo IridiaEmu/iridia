@@ -95,11 +95,10 @@ struct CheatsMenuView: View {
         loadCheats()
       }
     }
-    .alert(L("Enable Cheats?"), isPresented: $showEnableCheatsPrompt) {
-      Button(L("Turn On Cheats")) { confirmEnableCheats() }
-      Button(L("Cancel"), role: .cancel) { cancelEnableCheats() }
-    } message: {
-      Text(L("Cheats can make games slower or less stable. Turn on cheats to use this code?"))
+    .iridiaAlert(L("Enable Cheats?"), isPresented: $showEnableCheatsPrompt, message: {
+      L("Cheats can make games slower or less stable. Turn on cheats to use this code?")
+    }) {
+      [IridiaAlertButton(L("Turn On Cheats")) { confirmEnableCheats() }, .cancel { cancelEnableCheats() }]
     }
     #else
     ZStack {
@@ -178,11 +177,10 @@ struct CheatsMenuView: View {
     .onAppear { cheatsEnabledGlobal = DOLConfigBridge.mainEnableCheats()
       loadCheats()
     }
-    .alert(L("Enable Cheats?"), isPresented: $showEnableCheatsPrompt) {
-      Button(L("Turn On Cheats")) { confirmEnableCheats() }
-      Button(L("Cancel"), role: .cancel) { cancelEnableCheats() }
-    } message: {
-      Text(L("Cheats can make games slower or less stable. Turn on cheats to use this code?"))
+    .iridiaAlert(L("Enable Cheats?"), isPresented: $showEnableCheatsPrompt, message: {
+      L("Cheats can make games slower or less stable. Turn on cheats to use this code?")
+    }) {
+      [IridiaAlertButton(L("Turn On Cheats")) { confirmEnableCheats() }, .cancel { cancelEnableCheats() }]
     }
     #endif
   }

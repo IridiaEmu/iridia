@@ -134,12 +134,8 @@ struct WiiUHomeView: View {
       WiiUUnlockView(context: .browsing, onUnlocked: { showUnlock = false }, onDismiss: { showUnlock = false })
         .claimsController()
     }
-    .alert(L("Can't Open This Game"), isPresented: Binding(get: { model.ticketMissing != nil },
-                                                          set: { if !$0 { model.ticketMissing = nil } })) {
-      Button(L("OK"), role: .cancel) { model.ticketMissing = nil }
-    } message: {
-      if let game = model.ticketMissing { Text(WiiUModel.noTicketNote([game.name])) }
-    }
+    .iridiaAlert(item: $model.ticketMissing, look: .wiiU, title: { _ in L("Can't Open This Game") },
+                 message: { WiiUModel.noTicketNote([$0.name]) })
     .sheet(item: $model.keyNeeded) { game in
       NavigationStack { WiiUDiscKeyView(game: game) }
         .claimsController()
@@ -148,19 +144,13 @@ struct WiiUHomeView: View {
       NavigationStack { WiiUGameSettingsView(game: game) }
         .claimsController()
     }
-    .alert(L("Delete Game?"), isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
-      Button(L("Delete"), role: .destructive) {
-        if let game = pendingDelete { delete(game) }
-        pendingDelete = nil
-      }
-      Button(L("Cancel"), role: .cancel) { pendingDelete = nil }
-    } message: {
-      if let game = pendingDelete {
-        Text(model.addOns(of: game).isEmpty
-             ? String(format: L("Delete %@? You can't undo this."), game.name)
-             : String(format: L("Delete %@ and its update and extra content? You can't undo this."), game.name))
-      }
-    }
+    .iridiaAlert(item: $pendingDelete, look: .wiiU, title: { _ in L("Delete Game?") }, message: { game in
+      model.addOns(of: game).isEmpty
+        ? String(format: L("Delete %@? You can't undo this."), game.name)
+        : String(format: L("Delete %@ and its update and extra content? You can't undo this."), game.name)
+    }, buttons: { game in
+      [IridiaAlertButton(L("Delete"), .destructive) { delete(game) }, .cancel()]
+    })
     .fullScreenCover(item: $model.playing) { game in
       WiiUPlayView(game: game)
     }

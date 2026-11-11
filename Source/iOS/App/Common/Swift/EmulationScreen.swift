@@ -1127,11 +1127,11 @@ struct EmulationScreen: View {
       presentResumePromptIfPending()
     }
     .onAppear { presentResumePromptIfPending() }
-    .alert(L("Continue where you left off?"), isPresented: $showResumePrompt) {
-      Button(L("Continue")) { answerResumePrompt(true) }
-      Button(L("Title Screen")) { answerResumePrompt(false) }
-    } message: {
-      Text(L("Continue picks up right where you stopped. Title Screen starts the game fresh, so you can load your in-game save."))
+    .iridiaAlert(L("Continue where you left off?"), isPresented: $showResumePrompt, message: {
+      L("Continue picks up right where you stopped. Title Screen starts the game fresh, so you can load your in-game save.")
+    }) {
+      [IridiaAlertButton(L("Continue")) { answerResumePrompt(true) },
+       IridiaAlertButton(L("Title Screen")) { answerResumePrompt(false) }]
     }
     .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DOLShowPerformancePanel"))) { _ in
       refreshPerfOverlayState()   // gc-emu: test hook (-gcemuShowPerformanceAfter)
@@ -1462,30 +1462,30 @@ struct EmulationScreen: View {
       }
       .claimsController()
     }
-    .alert("Exit Game?", isPresented: $showExitConfirm) {
-      Button("Save & Quit") {
-        SaveStateService.saveSlot(selectedSlot)
-        TVEmulationBridge.stop()
-        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-        GameActivityManager.end()
-        #endif
-        NotificationCenter.default.post(name: Notification.Name("DOLEmulationRequestExitToLibrary"), object: nil)
-      }
-      Button("Quit", role: .destructive) {
-        TVEmulationBridge.stop()
-        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-        GameActivityManager.end()
-        #endif
-        NotificationCenter.default.post(name: Notification.Name("DOLEmulationRequestExitToLibrary"), object: nil)
-      }
-      Button("Continue", role: .cancel) {
-        #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
-        GameActivityManager.update(isPaused: false, elapsedSeconds: elapsedSeconds)
-        #endif
-        withAnimation(TopBarStyle.transition) { topBar.hideNow() }
-      }
-    } message: {
-      Text("Stop this game and go back to your library?")
+    .iridiaAlert(L("Exit Game?"), isPresented: $showExitConfirm, message: { L("Stop this game and go back to your library?") }) {
+      [
+        IridiaAlertButton(L("Save & Quit")) {
+          SaveStateService.saveSlot(selectedSlot)
+          TVEmulationBridge.stop()
+          #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+          GameActivityManager.end()
+          #endif
+          NotificationCenter.default.post(name: Notification.Name("DOLEmulationRequestExitToLibrary"), object: nil)
+        },
+        IridiaAlertButton(L("Quit"), .destructive) {
+          TVEmulationBridge.stop()
+          #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+          GameActivityManager.end()
+          #endif
+          NotificationCenter.default.post(name: Notification.Name("DOLEmulationRequestExitToLibrary"), object: nil)
+        },
+        IridiaAlertButton(L("Continue"), .cancel) {
+          #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
+          GameActivityManager.update(isPaused: false, elapsedSeconds: elapsedSeconds)
+          #endif
+          withAnimation(TopBarStyle.transition) { topBar.hideNow() }
+        },
+      ]
     }
     // Claim controller ownership for as long as the game is on screen. The
     // library is only *covered*, not dismissed, so SwiftUI never sends it an

@@ -25,18 +25,19 @@ enum WiiUDownloads {
   /// Explains the one step, then opens Apple's picker for the folder.
   @MainActor static func chooseFolder(model: WiiUModel) {
     let device = UIDevice.current.userInterfaceIdiom == .pad ? L("On My iPad") : L("On My iPhone")
-    let intro = UIAlertController(
-      title: L("Check Downloads for Games"),
-      message: String(format: L("Next, go to %@ (or wherever you download games), tap the Downloads folder, then tap Open. Each time you open the Wii U tab, Iridia looks there for Wii U games and asks before adding any."), device),
-      preferredStyle: .alert)
-    intro.addAction(UIAlertAction(title: L("Continue"), style: .default) { _ in
-      GameFilePicker.present(types: [.folder], directory: model.gamesDir.deletingLastPathComponent()) { urls in
-        guard let folder = urls.first else { return }
-        save(folder, model: model)
-      }
-    })
-    intro.addAction(UIAlertAction(title: L("Cancel"), style: .cancel))
-    GameFilePicker.topViewController()?.present(intro, animated: true)
+    IridiaAlert.show(
+      L("Check Downloads for Games"),
+      String(format: L("Next, go to %@ (or wherever you download games), tap the Downloads folder, then tap Open. Each time you open the Wii U tab, Iridia looks there for Wii U games and asks before adding any."), device),
+      look: .wiiU,
+      buttons: [
+        IridiaAlertButton(L("Continue")) {
+          GameFilePicker.present(types: [.folder], directory: model.gamesDir.deletingLastPathComponent()) { urls in
+            guard let folder = urls.first else { return }
+            save(folder, model: model)
+          }
+        },
+        .cancel(),
+      ])
   }
 
   @MainActor private static func save(_ folder: URL, model: WiiUModel) {
@@ -96,48 +97,41 @@ enum WiiUDownloads {
       UserDefaults.standard.set(Array(now), forKey: askedKey)
     }
     let names = WiiUModel.shortList(found.map(\.lastPathComponent))
-    let alert = UIAlertController(
-      title: String(format: L("Wii U Games in %@"), folderName),
-      message: String(format: found.count == 1 ? L("Found %@. Add it to your Wii U shelf? It's moved out of %@.")
-                                                : L("Found %@. Add them to your Wii U shelf? They're moved out of %@."),
-                      names, folderName),
-      preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: L("Add"), style: .default) { _ in
-      remember()
-      model.addFromFolder(found) { folder.stopAccessingSecurityScopedResource() }
-    })
-    alert.addAction(UIAlertAction(title: L("Not Now"), style: .cancel) { _ in
-      remember()
-      folder.stopAccessingSecurityScopedResource()
-    })
-    guard let top = GameFilePicker.topViewController() else {
-      folder.stopAccessingSecurityScopedResource(); return
-    }
-    top.present(alert, animated: true)
+    IridiaAlert.show(
+      String(format: L("Wii U Games in %@"), folderName),
+      String(format: found.count == 1 ? L("Found %@. Add it to your Wii U shelf? It's moved out of %@.")
+                                      : L("Found %@. Add them to your Wii U shelf? They're moved out of %@."),
+             names, folderName),
+      look: .wiiU,
+      buttons: [
+        IridiaAlertButton(L("Add")) {
+          remember()
+          model.addFromFolder(found) { folder.stopAccessingSecurityScopedResource() }
+        },
+        IridiaAlertButton(L("Not Now"), .cancel) {
+          remember()
+          folder.stopAccessingSecurityScopedResource()
+        },
+      ])
   }
 
   /// Access to the folder is gone (moved, renamed, or iOS dropped the permission): say so, with both ways forward.
   @MainActor private static func tellProblem(model: WiiUModel, manual: Bool) {
     guard manual || !toldProblem else { return }
     toldProblem = true
-    let a = UIAlertController(
-      title: String(format: L("Iridia Can't Open %@"), folderName),
-      message: L("Choose the folder again, or add games with Choose a Game File."),
-      preferredStyle: .alert)
-    // After the alert has gone, or there's nothing to show the next screen on.
-    let after = { (next: @escaping @MainActor () -> Void) in
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { next() }
-    }
-    a.addAction(UIAlertAction(title: L("Choose Folder"), style: .default) { _ in after { chooseFolder(model: model) } })
-    a.addAction(UIAlertAction(title: L("Choose a Game File"), style: .default) { _ in after { model.chooseGameFiles() } })
-    a.addAction(UIAlertAction(title: L("Not Now"), style: .cancel))
-    GameFilePicker.topViewController()?.present(a, animated: true)
+    IridiaAlert.show(
+      String(format: L("Iridia Can't Open %@"), folderName),
+      L("Choose the folder again, or add games with Choose a Game File."),
+      look: .wiiU,
+      buttons: [
+        IridiaAlertButton(L("Choose Folder")) { chooseFolder(model: model) },
+        IridiaAlertButton(L("Choose a Game File")) { model.chooseGameFiles() },
+        IridiaAlertButton(L("Not Now"), .cancel),
+      ])
   }
 
   @MainActor private static func alert(_ title: String, _ message: String) {
-    let a = UIAlertController(title: title, message: message, preferredStyle: .alert)
-    a.addAction(UIAlertAction(title: L("OK"), style: .default))
-    GameFilePicker.topViewController()?.present(a, animated: true)
+    IridiaAlert.show(title, message, look: .wiiU)
   }
 
   /// The Wii U games in `folder` (two levels) not asked about yet and not already in the Wii U folder. Nil when

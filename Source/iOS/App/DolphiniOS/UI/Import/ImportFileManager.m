@@ -44,6 +44,12 @@ NSString* const DOLImportFileFinishedNotification = @"DOLImportFileFinishedNotif
   self->_window = nil;
 }
 
+// gc-emu: Iridia's own popup (IridiaAlert) with one OK button that runs `then`.
+- (void)showMessageWithTitle:(NSString*)title text:(NSString*)text then:(void (^)(void))then {
+  IridiaAlertButton* ok = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"OK") role:IridiaAlertRoleNormal action:then];
+  [IridiaAlert showWithTitle:title message:text buttons:@[ok]];
+}
+
 - (void)presentViewControllerOnWindow:(UIViewController*)controller {
   [self->_window.rootViewController presentViewController:controller animated:true completion:nil];
 }
@@ -58,14 +64,9 @@ NSString* const DOLImportFileFinishedNotification = @"DOLImportFileFinishedNotif
   [self showWindowOnScene:mainScene];
   
   if (![url startAccessingSecurityScopedResource]) {
-    UIAlertController* errorAlert = [UIAlertController alertControllerWithTitle:DOLCoreLocalizedString(@"Error") message:@"Failed to start accessing security scoped resource." preferredStyle:UIAlertControllerStyleAlert];
-    
-    [errorAlert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"OK") style:UIAlertActionStyleDefault
-      handler:^(UIAlertAction* action) {
-      [self hideWindow];
-    }]];
-    
-    [self presentViewControllerOnWindow:errorAlert];
+    [self showMessageWithTitle:DOLCoreLocalizedString(@"Couldn't Add the Game")
+                          text:DOLCoreLocalizedString(@"Iridia wasn't allowed to open that file. Try choosing it again.")
+                          then:^{ [self hideWindow]; }];
     
     return;
   }
@@ -102,24 +103,12 @@ NSString* const DOLImportFileFinishedNotification = @"DOLImportFileFinishedNotif
                                                             userInfo:@{@"text": snackbar}];
 
           if (result.errorMessage != nil) {
-            UIAlertController* warningAlert = [UIAlertController alertControllerWithTitle:DOLCoreLocalizedString(@"Import") message:result.errorMessage preferredStyle:UIAlertControllerStyleAlert];
-            [warningAlert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"OK") style:UIAlertActionStyleDefault
-              handler:^(UIAlertAction* action) {
-              finish();
-            }]];
-            [self presentViewControllerOnWindow:warningAlert];
+            [self showMessageWithTitle:DOLCoreLocalizedString(@"Import") text:result.errorMessage then:finish];
           } else {
             finish();
           }
         } else if (result.errorMessage != nil) {
-          UIAlertController* errorAlert = [UIAlertController alertControllerWithTitle:DOLCoreLocalizedString(@"Error") message:result.errorMessage preferredStyle:UIAlertControllerStyleAlert];
-
-          [errorAlert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"OK") style:UIAlertActionStyleDefault
-            handler:^(UIAlertAction* action) {
-            finish();
-          }]];
-
-          [self presentViewControllerOnWindow:errorAlert];
+          [self showMessageWithTitle:DOLCoreLocalizedString(@"Couldn't Add the Game") text:result.errorMessage then:finish];
         } else {
           finish();
         }
@@ -130,25 +119,19 @@ NSString* const DOLImportFileFinishedNotification = @"DOLImportFileFinishedNotif
   }
 
   if ([fileManager fileExistsAtPath:destinationPath]) {
-    UIAlertController* errorAlert = [UIAlertController alertControllerWithTitle:DOLCoreLocalizedString(@"Error") message:@"This software has already been imported." preferredStyle:UIAlertControllerStyleAlert];
-    
-    [errorAlert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"OK") style:UIAlertActionStyleDefault
-      handler:^(UIAlertAction* action) {
-      finish();
-    }]];
-    
-    [self presentViewControllerOnWindow:errorAlert];
+    [self showMessageWithTitle:DOLCoreLocalizedString(@"Already Added")
+                          text:DOLCoreLocalizedString(@"This game is already in your library.")
+                          then:finish];
     
     return;
   }
   
-  UIAlertController* alert = [UIAlertController alertControllerWithTitle:DOLCoreLocalizedString(@"Import") message:nil preferredStyle:UIAlertControllerStyleAlert];
 
   // Both actions run the file operation OFF the main thread (a 1.4 GB copy on main is a
   // watchdog-length hang), through DOLImportStaging (staged + size-verified, so an interrupted
   // copy never leaves a truncated file under the real name), and inside a background task so
   // leaving the app mid-copy does not suspend it half-written.
-  void (^runFileOperation)(NSString*, BOOL (^)(NSError**)) = ^(NSString* verb, BOOL (^operation)(NSError**)) {
+  void (^runFileOperation)(NSString*, BOOL (^)(NSError**)) = ^(NSString* failure, BOOL (^operation)(NSError**)) {
     UIBackgroundTaskIdentifier task = [DOLImportStaging beginBackgroundTask];
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
       NSError* error = nil;
@@ -156,12 +139,9 @@ NSString* const DOLImportFileFinishedNotification = @"DOLImportFileFinishedNotif
       dispatch_async(dispatch_get_main_queue(), ^{
         [DOLImportStaging endBackgroundTask:task];
         if (!ok) {
-          UIAlertController* errorAlert = [UIAlertController alertControllerWithTitle:DOLCoreLocalizedString(@"Error") message:[NSString stringWithFormat:@"The %@ operation failed.\n\n%@", verb, error.localizedDescription] preferredStyle:UIAlertControllerStyleAlert];
-          [errorAlert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"OK") style:UIAlertActionStyleDefault
-            handler:^(UIAlertAction* action) {
-            finish();
-          }]];
-          [self presentViewControllerOnWindow:errorAlert];
+          [self showMessageWithTitle:DOLCoreLocalizedString(@"Couldn't Add the Game")
+                                text:[NSString stringWithFormat:@"%@\n\n%@", failure, error.localizedDescription]
+                                then:finish];
         } else {
           [LibraryAddedDateStoreBridge recordPath:destinationPath];
           finish();
@@ -170,26 +150,18 @@ NSString* const DOLImportFileFinishedNotification = @"DOLImportFileFinishedNotif
     });
   };
 
-  [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Copy") style:UIAlertActionStyleDefault
-    handler:^(UIAlertAction* action) {
-    runFileOperation(@"copy", ^BOOL(NSError** error) {
+  IridiaAlertButton* copy = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Copy") role:IridiaAlertRoleNormal action:^{
+    runFileOperation(DOLCoreLocalizedString(@"Iridia couldn't copy the game."), ^BOOL(NSError** error) {
       return [DOLImportStaging stagedCopyFromPath:sourcePath toPath:destinationPath error:error];
     });
-  }]];
-  
-  [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Move") style:UIAlertActionStyleDefault
-    handler:^(UIAlertAction* action) {
-    runFileOperation(@"move", ^BOOL(NSError** error) {
+  }];
+  IridiaAlertButton* move = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Move") role:IridiaAlertRoleNormal action:^{
+    runFileOperation(DOLCoreLocalizedString(@"Iridia couldn't move the game."), ^BOOL(NSError** error) {
       return [DOLImportStaging stagedMoveFromPath:sourcePath toPath:destinationPath error:error];
     });
-  }]];
-  
-  [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Cancel") style:UIAlertActionStyleCancel
-    handler:^(UIAlertAction* action) {
-    finish();
-  }]];
-  
-  [self presentViewControllerOnWindow:alert];
+  }];
+  IridiaAlertButton* cancel = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Cancel") role:IridiaAlertRoleCancel action:finish];
+  [IridiaAlert showWithTitle:DOLCoreLocalizedString(@"Import") message:nil buttons:@[copy, move, cancel]];
 }
 
 @end

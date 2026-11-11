@@ -318,25 +318,25 @@ extension WiiUImport {
       if WiiUFileTypes.isDirectory(url) { return WiiUFileTypes.isTitleFolder(url) }
       return WiiUFileTypes.isWiiUFile(url) || url.lastPathComponent.lowercased() == "keys.txt"
     }
-    guard !stray.isEmpty, let top = GameFilePicker.topViewController() else { return }
+    guard !stray.isEmpty else { return }
     let remember = {
       UserDefaults.standard.set(Array(asked.union(stray.map(\.lastPathComponent))), forKey: strayAskedKey)
       strayAlertShowing = false
     }
-    let alert = UIAlertController(
-      title: L("Wii U Games in the GameCube Folder"),
-      message: String(format: stray.count == 1 ? L("%@ belongs on the Wii U tab. Move it to the Wii U folder?")
-                                               : L("%@ belong on the Wii U tab. Move them to the Wii U folder?"),
-                      WiiUModel.shortList(stray.map(\.lastPathComponent))),
-      preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: L("Move"), style: .default) { _ in
-      remember()
-      NotificationCenter.default.post(name: showTabNotification, object: nil)
-      WiiUModel.shared.addIncoming(stray)
-    })
-    alert.addAction(UIAlertAction(title: L("Not Now"), style: .cancel) { _ in remember() })
     strayAlertShowing = true
-    top.present(alert, animated: true)
+    IridiaAlert.show(
+      L("Wii U Games in the GameCube Folder"),
+      String(format: stray.count == 1 ? L("%@ belongs on the Wii U tab. Move it to the Wii U folder?")
+                                      : L("%@ belong on the Wii U tab. Move them to the Wii U folder?"),
+             WiiUModel.shortList(stray.map(\.lastPathComponent))),
+      buttons: [
+        IridiaAlertButton(L("Move")) {
+          remember()
+          NotificationCenter.default.post(name: showTabNotification, object: nil)
+          WiiUModel.shared.addIncoming(stray)
+        },
+        IridiaAlertButton(L("Not Now"), .cancel) { remember() },
+      ])
   }
 }
 
@@ -383,11 +383,11 @@ extension WiiUModel {
     }
     // keys.txt alone is always copied; games get the same Copy / Move question as the GameCube shelf.
     if sorted.items.isEmpty && sorted.archives.isEmpty { finish(false); return }
-    let question = UIAlertController(title: L("Import"), message: nil, preferredStyle: .alert)
-    question.addAction(UIAlertAction(title: L("Copy"), style: .default) { _ in finish(false) })
-    question.addAction(UIAlertAction(title: L("Move"), style: .default) { _ in finish(true) })
-    question.addAction(UIAlertAction(title: L("Cancel"), style: .cancel) { _ in finish(nil) })
-    GameFilePicker.topViewController()?.present(question, animated: true)
+    IridiaAlert.show(L("Import"), look: .wiiU, buttons: [
+      IridiaAlertButton(L("Copy")) { finish(false) },
+      IridiaAlertButton(L("Move")) { finish(true) },
+      .cancel { finish(nil) },
+    ])
   }
 
   /// Archives the Files app put straight into the Wii U folder: unpacked once, and removed when a game came out.
@@ -491,9 +491,7 @@ extension WiiUModel {
   }
 
   private func alert(title: String, message: String) {
-    let a = UIAlertController(title: title, message: message, preferredStyle: .alert)
-    a.addAction(UIAlertAction(title: L("OK"), style: .default))
-    GameFilePicker.topViewController()?.present(a, animated: true)
+    IridiaAlert.show(title, message, look: .wiiU)
   }
 }
 #endif

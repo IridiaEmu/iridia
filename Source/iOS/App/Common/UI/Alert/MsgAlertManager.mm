@@ -86,64 +86,37 @@ static bool MsgAlert(const char* caption, const char* text, bool question, Commo
 
   _waitEvent.Reset();
 
+  // gc-emu: shown as Iridia's own popup (IridiaAlert) instead of the system alert.
   void (^presentAlert)(void) = ^{
-    UIWindow* window = [[UIWindow alloc] initWithWindowScene:mainScene];
-    window.frame = [UIScreen mainScreen].bounds;
-    window.rootViewController = [[UIViewController alloc] init];
-    window.windowLevel = UIWindowLevelAlert;
-    
-    UIWindow* topWindow = mainScene.windows.lastObject;
-    window.windowLevel = topWindow.windowLevel + 1;
-    
-    UIAlertController* alert = [UIAlertController alertControllerWithTitle:foundationCaption message:foundationText preferredStyle:UIAlertControllerStyleAlert];
-    
-    void (^finish)(void) = ^void() {
-      [window setHidden:true];
+    void (^finish)(bool) = ^void(bool answer) {
+      confirmed = answer;
       alertFinished = true;
       self->_waitEvent.Set();
     };
 
+    NSMutableArray<IridiaAlertButton*>* buttons = [NSMutableArray array];
     if (question) {
-      [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"No") style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction* action) {
-        confirmed = false;
-
-        finish();
-      }]];
-
-      [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Yes") style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction * action) {
-        confirmed = true;
-
-        finish();
-      }]];
-    }
-    else
-    {
+      [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Yes") role:IridiaAlertRoleNormal
+        action:^{ finish(true); }]];
+      [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"No") role:IridiaAlertRoleCancel
+        action:^{ finish(false); }]];
+    } else {
       // iCube: offer a Learn More link to the GameCube BIOS help page on the IPL-missing panic.
       // Routed through the in-app wiki (DOLHelpBridge) rather than Safari: this alert fires on
       // tvOS too (no browser to open), and the guide is bundled offline, so this action is
       // always actionable instead of silently failing without network/on tvOS.
       if (isGCIPLAlert) {
-        [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Learn More") style:UIAlertActionStyleDefault
-          handler:^(UIAlertAction* action) {
-          confirmed = true;
-          finish();
+        [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Learn More") role:IridiaAlertRoleNormal
+          action:^{
+          finish(true);
           [DOLHelpBridge presentBIOSGuide];
         }]];
       }
-
-      [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"OK") style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction* action) {
-        confirmed = true;
-
-        finish();
-      }]];
+      [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"OK")
+        role:isGCIPLAlert ? IridiaAlertRoleCancel : IridiaAlertRoleNormal action:^{ finish(true); }]];
     }
 
-    [window makeKeyAndVisible];
-
-    [window.rootViewController presentViewController:alert animated:true completion:nil];
+    [IridiaAlert showWithTitle:foundationCaption message:foundationText buttons:buttons];
   };
 
   if ([NSThread isMainThread]) {

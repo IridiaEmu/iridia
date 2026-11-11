@@ -669,46 +669,25 @@ static NSString* const kGfxOverscanFullscreenKey = @"gfx_overscan_fullscreen";
       return;
     }
 
-    UIWindow* window = [[UIWindow alloc] initWithWindowScene:mainScene];
-    window.frame = UIScreen.mainScreen.bounds;
-    window.rootViewController = [[UIViewController alloc] init];
-    UIWindow* topWindow = mainScene.windows.lastObject;
-    window.windowLevel = topWindow.windowLevel + 1;
-
-    UIAlertController* alert = [UIAlertController
-        alertControllerWithTitle:DOLCoreLocalizedString(@"GameCube BIOS not found")
-                         message:DOLCoreLocalizedString(@"This game is set to boot to the GameCube menu, but the GameCube BIOS (IPL) isn't installed, so it can't start. You can boot the game directly without the menu, or install a GameCube BIOS dump. Learn More explains how.")
-                  preferredStyle:UIAlertControllerStyleAlert];
-
-    void (^finish)(void) = ^{ [window setHidden:YES]; };
-
-    [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Boot Game Directly")
-                                              style:UIAlertActionStyleDefault
-                                            handler:^(UIAlertAction* action) {
+    // gc-emu: Iridia's own popup (IridiaAlert) instead of the system alert.
+    IridiaAlertButton* direct = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Boot Game Directly")
+      role:IridiaAlertRoleNormal action:^{
       // Enable skip-IPL (boot straight into the game, no menu) and retry the launch.
       [DOLConfigBridge setMainSkipIPL:YES];
-      finish();
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [self emulationLoopWithBootParameter:bootParameter];
       });
-    }]];
-
-    [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Learn More")
-                                              style:UIAlertActionStyleDefault
-                                            handler:^(UIAlertAction* action) {
-      finish();
+    }];
+    IridiaAlertButton* learn = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Learn More")
+      role:IridiaAlertRoleNormal action:^{
       NSURL* url = [NSURL URLWithString:@"https://icube-emu.com/help/gamecube-bios"];
       [UIApplication.sharedApplication openURL:url options:@{} completionHandler:nil];
-    }]];
-
-    [alert addAction:[UIAlertAction actionWithTitle:DOLCoreLocalizedString(@"Cancel")
-                                              style:UIAlertActionStyleCancel
-                                            handler:^(UIAlertAction* action) {
-      finish();
-    }]];
-
-    [window makeKeyAndVisible];
-    [window.rootViewController presentViewController:alert animated:YES completion:nil];
+    }];
+    IridiaAlertButton* cancel = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Cancel")
+      role:IridiaAlertRoleCancel action:nil];
+    [IridiaAlert showWithTitle:DOLCoreLocalizedString(@"GameCube BIOS not found")
+                       message:DOLCoreLocalizedString(@"This game is set to boot to the GameCube menu, but the GameCube BIOS (IPL) isn't installed, so it can't start. You can boot the game directly without the menu, or install a GameCube BIOS dump. Learn More explains how.")
+                       buttons:@[direct, learn, cancel]];
   });
 }
 

@@ -1952,17 +1952,14 @@ struct TVLibraryView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showBugNotice = true }
       }
     }
-    .alert(L("Found a Bug?"), isPresented: $showBugNotice) {
-      Button(L("Email Us")) { BugReport.compose { showBugEmailCopied = true } }
-      Button(L("OK"), role: .cancel) {}
-    } message: {
-      Text(String(format: L("Iridia is new, so you may run into problems. Email %@ and tell us what happened. You can also find Report a Bug at the top of Settings."), BugReport.email))
+    .iridiaAlert(L("Found a Bug?"), isPresented: $showBugNotice, message: {
+      String(format: L("Iridia is new, so you may run into problems. Email %@ and tell us what happened. You can also find Report a Bug at the top of Settings."), BugReport.email)
+    }) {
+      [IridiaAlertButton(L("Email Us")) { BugReport.compose { showBugEmailCopied = true } }, IridiaAlertButton(L("OK"), .cancel)]
     }
-    .alert(L("Email Address Copied"), isPresented: $showBugEmailCopied) {
-      Button(L("OK"), role: .cancel) {}
-    } message: {
-      Text(String(format: L("Send your bug report to %@."), BugReport.email))
-    }
+    .iridiaAlert(L("Email Address Copied"), isPresented: $showBugEmailCopied, message: {
+      String(format: L("Send your bug report to %@."), BugReport.email)
+    })
     .onDisappear {
       func removeAllObservers() {
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("DOLLaunchGameByGameID"), object: nil)
@@ -2017,25 +2014,29 @@ struct TVLibraryView: View {
       Button(L("United States")) { TVLibraryBridge.performOnlineSystemUpdate(withRegion: "USA") }
       Button(L("Cancel"), role: .cancel) {}
     }
-    .confirmationDialog(L("A game is already running."), isPresented: $model.showReplaceAlert, titleVisibility: .visible) {
-      Button(L("Replace Game"), role: .destructive) {
-        TVEmulationBridge.stop()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-          if let item = model.pendingSelection {
-            model.currentGame = item
-            navigateTo = item
+    .iridiaAlert(L("A game is already running."), isPresented: $model.showReplaceAlert, message: {
+      L("Stop this game and start the other one?")
+    }) {
+      [
+        IridiaAlertButton(L("Replace Game"), .destructive) {
+          TVEmulationBridge.stop()
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            if let item = model.pendingSelection {
+              model.currentGame = item
+              navigateTo = item
+            }
           }
-        }
-      }
-      Button(L("Continue Current Game"), role: .cancel) {
-        // If the pending selection was a "Start Fresh (Skip Resume)" request, its
-        // one-shot flag is already armed and would otherwise sit there and silently
-        // eat the *next*, unrelated launch's auto-resume. No-op when it wasn't armed.
-        SaveStateService.skipResumeOnce = false
-        if let current = model.currentGame { navigateTo = current }
-      }
-      Button(L("Cancel")) { SaveStateService.skipResumeOnce = false }
-    } message: { Text(L("Stop this game and start the other one?")) }
+        },
+        IridiaAlertButton(L("Continue Current Game")) {
+          // If the pending selection was a "Start Fresh (Skip Resume)" request, its
+          // one-shot flag is already armed and would otherwise sit there and silently
+          // eat the *next*, unrelated launch's auto-resume. No-op when it wasn't armed.
+          SaveStateService.skipResumeOnce = false
+          if let current = model.currentGame { navigateTo = current }
+        },
+        IridiaAlertButton(L("Cancel"), .cancel) { SaveStateService.skipResumeOnce = false },
+      ]
+    }
       .sheet(item: $showPropertiesFor) { TVSoftwarePropertiesView(item: $0).claimsController() }
       .sheet(item: $showCheatListFor) { TVCheatListView(item: $0).claimsController() }
       // D17: while this sheet is up, `.claimsController()` pushes a new
@@ -2136,39 +2137,27 @@ struct TVLibraryView: View {
       }
 #endif
     /// Delete confirmation and action
-      .alert(L("Delete Game?"), isPresented: Binding(get: { itemPendingDelete != nil }, set: { if !$0 { itemPendingDelete = nil } })) {
-        Button(L("Delete"), role: .destructive) {
-          if let toDelete = itemPendingDelete {
-            deleteLocalGame(toDelete)
-            itemPendingDelete = nil
-          }
-        }
-        Button(L("Cancel"), role: .cancel) { itemPendingDelete = nil }
-      } message: { if let item = itemPendingDelete { Text(L("Delete \(item.title)? You can't undo this.")) } }
-      .alert(L("Delete Selected Games?"), isPresented: $showBatchDeleteConfirm) {
-        Button(L("Delete"), role: .destructive) {
-          performBatchDelete(paths: pendingBatchDeletePaths)
-          pendingBatchDeletePaths.removeAll()
-        }
-        Button(L("Cancel"), role: .cancel) {
-          pendingBatchDeletePaths.removeAll()
-        }
-      } message: {
-        Text("\(pendingBatchDeletePaths.count) \(L("selected games will be deleted. You can't undo this."))")
+      .iridiaAlert(item: $itemPendingDelete, title: { _ in L("Delete Game?") },
+                   message: { L("Delete \($0.title)? You can't undo this.") }) { item in
+        [IridiaAlertButton(L("Delete"), .destructive) { deleteLocalGame(item) }, .cancel()]
+      }
+      .iridiaAlert(L("Delete Selected Games?"), isPresented: $showBatchDeleteConfirm, message: {
+        "\(pendingBatchDeletePaths.count) \(L("selected games will be deleted. You can't undo this."))"
+      }) {
+        [
+          IridiaAlertButton(L("Delete"), .destructive) {
+            performBatchDelete(paths: pendingBatchDeletePaths)
+            pendingBatchDeletePaths.removeAll()
+          },
+          .cancel { pendingBatchDeletePaths.removeAll() },
+        ]
       }
     // Storage error alert
-      .alert(L("Storage Error"), isPresented: $showStorageErrorAlert) {
-        Button(L("OK")) {}
-      } message: { Text(storageAlertMessage) }
+      .iridiaAlert(L("Storage Error"), isPresented: $showStorageErrorAlert, message: { storageAlertMessage })
     // Low storage warning - using confirmationDialog instead of alert to avoid conflicts
-      .confirmationDialog(L("Low Storage Warning"), isPresented: $showLowStorageWarning, titleVisibility: .visible) {
-        Button(L("Continue Anyway")) {
-          if let item = itemPendingLaunch {
-            proceedWithGameLaunch(item)
-          }
-        }
-        Button(L("Cancel"), role: .cancel) {}
-      } message: { Text(storageAlertMessage) }
+      .iridiaAlert(L("Low Storage Warning"), isPresented: $showLowStorageWarning, message: { storageAlertMessage }) {
+        [IridiaAlertButton(L("Continue Anyway")) { if let item = itemPendingLaunch { proceedWithGameLaunch(item) } }, .cancel()]
+      }
       .sheet(item: $showCacheInfoFor) { item in
         CacheInfoView(item: item, showSubtitles: showSubtitles)
           .claimsController()

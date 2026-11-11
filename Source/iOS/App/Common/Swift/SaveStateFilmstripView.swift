@@ -17,12 +17,6 @@ struct SaveStateFilmstripView: View {
   @StateObject private var vm = SaveStatesViewModel()
   @State private var actionTarget: SaveStateInfo?
   @State private var renameTarget: SaveStateInfo?
-  #if !os(tvOS)
-  // Only iOS drives rename through an `.alert` with an embedded TextField;
-  // tvOS uses `RenameStateSheet` below, which owns its own text state
-  // (UIAlertController text fields aren't supported on tvOS).
-  @State private var renameText: String = ""
-  #endif
   @State private var deleteTarget: SaveStateInfo?
   /// Explains why an incompatible save state can't be safely loaded. Reachable
   /// from every card's action menu below (not just the iOS-only badge tap in
@@ -96,49 +90,25 @@ struct SaveStateFilmstripView: View {
     // Per-card action menu. One dialog, driven by whichever card was selected,
     // rather than per-card state -- keeps the "one focus target per card"
     // contract intact on tvOS while still offering every action.
-    .confirmationDialog(
-      actionTarget?.displayName ?? "",
-      isPresented: Binding(
-        get: { actionTarget != nil },
-        set: { if !$0 { actionTarget = nil } }
-      ),
-      titleVisibility: .visible
-    ) {
-      if let target = actionTarget {
-        Button(L("Load")) {
-          loadOrBoot(target)
-          actionTarget = nil
-        }
-        // Only offered when THIS game is the one actually running: SaveStateService.saveSlot
-        // calls straight into TVEmulationBridge.saveState, which is a silent no-op with no
-        // running core to save from (e.g. reached from the library's "View Save States" on a
-        // game that isn't booted, or the cross-game SaveStatesBrowserView).
-        if let slot = target.slot, isThisGameRunning {
-          Button(String(format: L("Save Here (Slot %d)"), slot)) {
-            _ = SaveStateService.saveSlot(slot)
-            actionTarget = nil
-            Task { await vm.load(gameID: gameID) }
-          }
-        }
-        Button(L("Rename")) {
-          #if !os(tvOS)
-          renameText = target.displayName
-          #endif
-          renameTarget = target
-          actionTarget = nil
-        }
-        Button(L("Delete"), role: .destructive) {
-          deleteTarget = target
-          actionTarget = nil
-        }
-        if !target.isCompatible {
-          Button(L("Why Incompatible?")) {
-            actionTarget = nil
-            showIncompatibleHelp = true
-          }
-        }
-        Button(L("Cancel"), role: .cancel) { actionTarget = nil }
+    .iridiaAlert(item: $actionTarget, title: { $0.displayName }) { target in
+      var buttons = [IridiaAlertButton(L("Load")) { loadOrBoot(target) }]
+      // Only offered when THIS game is the one actually running: SaveStateService.saveSlot
+      // calls straight into TVEmulationBridge.saveState, which is a silent no-op with no
+      // running core to save from (e.g. reached from the library's "View Save States" on a
+      // game that isn't booted, or the cross-game SaveStatesBrowserView).
+      if let slot = target.slot, isThisGameRunning {
+        buttons.append(IridiaAlertButton(String(format: L("Save Here (Slot %d)"), slot)) {
+          _ = SaveStateService.saveSlot(slot)
+          Task { await vm.load(gameID: gameID) }
+        })
       }
+      buttons.append(IridiaAlertButton(L("Rename")) { renameTarget = target })
+      buttons.append(IridiaAlertButton(L("Delete"), .destructive) { deleteTarget = target })
+      if !target.isCompatible {
+        buttons.append(IridiaAlertButton(L("Why Incompatible?")) { showIncompatibleHelp = true })
+      }
+      buttons.append(.cancel())
+      return buttons
     }
     .sheet(isPresented: $showIncompatibleHelp) {
       NavigationStack {
@@ -158,22 +128,9 @@ struct SaveStateFilmstripView: View {
     }
     // Delete is destructive and irreversible, so it gets its own explicit
     // confirmation step separate from the action dialog above.
-    .alert(
-      L("Delete Save State"),
-      isPresented: Binding(
-        get: { deleteTarget != nil },
-        set: { if !$0 { deleteTarget = nil } }
-      )
-    ) {
-      Button(L("Cancel"), role: .cancel) { deleteTarget = nil }
-      Button(L("Delete"), role: .destructive) {
-        if let target = deleteTarget {
-          vm.delete(state: target, inGameID: gameID)
-        }
-        deleteTarget = nil
-      }
-    } message: {
-      Text(L("This save state will be deleted. You can't undo this."))
+    .iridiaAlert(item: $deleteTarget, title: { _ in L("Delete Save State") },
+                 message: { _ in L("This save state will be deleted. You can't undo this.") }) { target in
+      [IridiaAlertButton(L("Delete"), .destructive) { vm.delete(state: target, inGameID: gameID) }, .cancel()]
     }
     // tvOS note: `UIAlertController`/`.alert` does not support an embedded
     // text field on tvOS (only iOS/macOS do), so a TextField-in-alert is a
@@ -190,19 +147,9 @@ struct SaveStateFilmstripView: View {
       }
     }
     #else
-    .alert(L("Rename Save"), isPresented: Binding(
-      get: { renameTarget != nil },
-      set: { if !$0 { renameTarget = nil } }
-    )) {
-      TextField(L("Title"), text: $renameText)
-      Button(L("Cancel"), role: .cancel) { renameTarget = nil }
-      Button(L("Save")) {
-        if let target = renameTarget {
-          let newTitle = renameText
-          Task { await vm.rename(state: target, to: newTitle, inGameID: gameID) }
-        }
-        renameTarget = nil
-      }
+    .iridiaPrompt(item: $renameTarget, title: L("Rename Save"), placeholder: L("Title"), text: { $0.displayName },
+                  confirm: L("Save")) { target, newTitle in
+      Task { await vm.rename(state: target, to: newTitle, inGameID: gameID) }
     }
     #endif
     .fullScreenCover(item: $bootTarget) { item in

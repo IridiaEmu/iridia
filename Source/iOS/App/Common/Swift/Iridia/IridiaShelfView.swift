@@ -491,10 +491,11 @@ struct IridiaShelfView: View {
 
   private var tabBar: some View {
     HStack(spacing: 6) {
-      tab(L("Games"), symbol: "cube", selected: true) {}
+      // GameCube and Wii U side by side, the same as in the Wii U tab's bar.
+      tab(L("GameCube"), symbol: "cube", selected: true) {}
+      if let onWiiU { tab(L("Wii U"), symbol: "square.stack", selected: false, action: onWiiU) }
       tab(L("Saves"), symbol: "square.stack.3d.up", selected: false) { if let item = current { onSaves(item) } }
       tab(L("Controllers"), symbol: "gamecontroller", selected: false, action: onControllers)
-      if let onWiiU { tab(L("Wii U"), symbol: "square.stack", selected: false, action: onWiiU) }
     }
     .padding(8)
     .glassSurface(radius: 35)

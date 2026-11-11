@@ -616,15 +616,22 @@ struct TVLibraryView: View {
         if !showPlatformFilterBar { platformFilter = .all }
       }
 #if os(iOS) && canImport(IridiaCafeCore)
-      .fullScreenCover(isPresented: $showWiiU) {
-        WiiUHomeView(onGameCube: { showWiiU = false })
+      // The Wii U tab sits in place over the GameCube shelf and cross-fades in and out, like switching tabs in
+      // one app: both screens keep the header, shelf and tab bar in the same places. The shelf underneath is
+      // hidden from VoiceOver meanwhile.
+      .accessibilityHidden(showWiiU)
+      .overlay {
+        if showWiiU {
+          WiiUHomeView(onGameCube: { withAnimation(Self.tabSwitch) { showWiiU = false } })
+            .transition(.opacity)
+        }
       }
       .onAppear {
         // Test hook (not in App Store builds): -wiiuTab YES opens the Wii U tab at launch.
         #if !APPSTORE
         if UserDefaults.standard.bool(forKey: "wiiuTab") {
           NSLog("[WiiU] test hook: opening the Wii U tab")
-          DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { showWiiU = true }
+          DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { withAnimation(Self.tabSwitch) { showWiiU = true } }
         }
         #endif
       }
@@ -1291,10 +1298,13 @@ struct TVLibraryView: View {
     }
   }
 
+  /// gc-emu: switching between the GameCube and Wii U tabs.
+  static let tabSwitch = Animation.easeInOut(duration: 0.28)
+
   /// gc-emu: opens the Wii U tab (nil where the Wii U core isn't built in).
   private var wiiUAction: (() -> Void)? {
     #if os(iOS) && canImport(IridiaCafeCore)
-    return { showWiiU = true }
+    return { withAnimation(Self.tabSwitch) { showWiiU = true } }
     #else
     return nil
     #endif
@@ -2081,9 +2091,18 @@ struct TVLibraryView: View {
         guard show else { return }
         showImportSoftwarePicker = false
         GameFilePicker.present { urls in
+          // A Wii U file is a game, just for the other tab: say so instead of "isn't a game file".
+          let wiiUExtensions: Set<String> = ["wux", "wud", "wua", "wuhb", "rpx"]
+          let isWiiU = { (url: URL) in wiiUExtensions.contains(url.pathExtension.lowercased()) }
           let supported = urls.filter { ImportableFileTypes.isImportableFile($0) }
-          let rejected = urls.filter { !ImportableFileTypes.isImportableFile($0) }
-          if !rejected.isEmpty {
+          let rejected = urls.filter { !ImportableFileTypes.isImportableFile($0) && !isWiiU($0) }
+          let wiiU = urls.filter(isWiiU)
+          if !wiiU.isEmpty {
+            let names = wiiU.map(\.lastPathComponent).joined(separator: ", ")
+            NotificationCenter.default.post(
+              name: NSNotification.Name("DOLShowSnackbar"), object: nil,
+              userInfo: ["text": String(format: L("%@ is a Wii U game. Add it on the Wii U tab."), names)])
+          } else if !rejected.isEmpty {
             let names = rejected.map(\.lastPathComponent).joined(separator: ", ")
             NotificationCenter.default.post(
               name: NSNotification.Name("DOLShowSnackbar"), object: nil,

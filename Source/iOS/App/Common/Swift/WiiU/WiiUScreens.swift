@@ -154,10 +154,10 @@ struct WiiUHelpView: View {
   var body: some View {
     List {
       Section(L("Adding a game")) {
-        Text(String(format: L("1. Open the Files app and go to %@."), WiiUModel.filesPath))
-        Text(L("2. Copy your own game there. Disc images (.wux, .wud), .wua files and installed game folders all work. Updates and extra content go in the same folder. Homebrew programs (.rpx) work too."))
-        Text(L("3. Copy keys.txt with the key for your own disc into the same folder."))
-        Text(L("4. Come back here and tap the refresh button."))
+        Text(L("1. Tap + at the top, then Choose a Game File, and pick your own game. Or copy it with the Files app into the Wii U folder."))
+        Text(L("2. Disc images (.wux, .wud), .wua files and installed game folders all work. Add updates and extra content the same way. Homebrew programs (.rpx) work too."))
+        Text(L("3. Disc images also need keys.txt with the key for your own disc. Add it the same way, then close and reopen Iridia."))
+        Text(String(format: L("4. If you used the Files app (%@), come back here and tap the refresh button."), WiiUModel.filesPath))
       }
       Section(L("Controls")) {
         Text(L("Touch controls follow the GamePad layout. A quick tap on a stick clicks it. Using a game controller hides the touch controls."))
@@ -173,6 +173,52 @@ struct WiiUHelpView: View {
     }
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(L("Help"))
+    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .wiiUScreen()
+  }
+}
+
+/// Adding a Wii U game with the Files app, step by step (the Wii U tab's version of the GameCube shelf's guide).
+struct WiiUFilesGuideView: View {
+  @Environment(\.dismiss) private var dismiss
+
+  private var steps: [String] {
+    let device = UIDevice.current.userInterfaceIdiom == .pad ? L("On My iPad") : L("On My iPhone")
+    return [
+      L("Open the Files app."),
+      L("Go to where your game is (for example Downloads or iCloud Drive)."),
+      L("Press and hold the game file or folder."),
+      L("Tap Move."),
+      String(format: L("Tap %1$@, then the %2$@ folder, then the %3$@ folder."), device, FilesAppNames.appFolder, WiiUModel.folderName),
+      String(format: L("Tap Move, then come back to %@ and tap the refresh button."), FilesAppNames.appFolder),
+    ]
+  }
+
+  var body: some View {
+    List {
+      Section(L("Steps")) {
+        ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+          Text("\(index + 1). \(step)")
+        }
+      }
+      Section(L("Where games go")) {
+        Text(WiiUModel.filesPath)
+        Text(L("WUA files, game folders, updates and homebrew (.rpx) work as they are. Disc images (.wux, .wud) also need keys.txt with your own disc's key in the same folder."))
+          .font(.footnote)
+          .foregroundStyle(WiiUTheme.dim)
+      }
+      Section {
+        Button {
+          let path = WiiUModel.shared.gamesDir.path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+          if let url = URL(string: "shareddocuments://" + path) { UIApplication.shared.open(url) }
+        } label: {
+          Label(L("Open the Files App"), systemImage: "arrow.up.forward.app")
+        }
+      }
+    }
+    .foregroundStyle(WiiUTheme.ink)
+    .navigationTitle(L("Add Games with Files"))
+    .navigationBarTitleDisplayMode(.inline)
     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
     .wiiUScreen()
   }

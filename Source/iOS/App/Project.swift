@@ -441,8 +441,8 @@ let iCube = Target.target(
             // the quote-include search path. $(inherited) is load-bearing: it keeps
             // Common.xcconfig's Core/** + Library paths (target base outranks the xcconfig).
             "USER_HEADER_SEARCH_PATHS": ["$(inherited)", "$(SRCROOT)/Common/**", "$(SRCROOT)/DolphiniOS/**"],
-            "MARKETING_VERSION": "1.1.0",
-            "CURRENT_PROJECT_VERSION": "15",
+            "MARKETING_VERSION": "1.1.5",
+            "CURRENT_PROJECT_VERSION": "16",
             // Literal name (not $(TARGET_NAME)): Tuist resolves PRODUCT_NAME at generate time;
             // scheme-specific home-screen labels stay on DOL_APP_DISPLAY_NAME in preset xcconfigs.
             "PRODUCT_NAME": "iCube",
@@ -616,8 +616,8 @@ func extensionTarget(
                 "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
                 "TARGETED_DEVICE_FAMILY": .string(deviceFamily),
                 "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"],
-                "MARKETING_VERSION": "1.1.0",
-                "CURRENT_PROJECT_VERSION": "15",
+                "MARKETING_VERSION": "1.1.5",
+                "CURRENT_PROJECT_VERSION": "16",
                 // DEVIATION from brief: without this, Tuist does NOT merge the partial
                 // Info.plist with generated CFBundleIdentifier/CFBundleExecutable/etc:
                 // it copies the .file() plist as-is (INFOPLIST_FILE alone, no

@@ -15,12 +15,14 @@ import UniformTypeIdentifiers
 
   private init(onPick: @escaping ([URL]) -> Void) { self.onPick = onPick }
 
-  static func present(onPick: @escaping ([URL]) -> Void) {
+  /// `types` and `directory` default to the GameCube shelf's: any file, opening on the Games folder.
+  /// The Wii U tab also allows folders (installed games and updates are folders).
+  static func present(types: [UTType] = [.data], directory: URL? = nil, onPick: @escaping ([URL]) -> Void) {
     guard active == nil, let presenter = topViewController() else { return }
-    let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: false)
+    let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: false)
     picker.allowsMultipleSelection = true
     picker.shouldShowFileExtensions = true
-    picker.directoryURL = URL(fileURLWithPath: UserFolderUtil.getSoftwareFolder(), isDirectory: true)
+    picker.directoryURL = directory ?? URL(fileURLWithPath: UserFolderUtil.getSoftwareFolder(), isDirectory: true)
     let delegate = GameFilePicker(onPick: onPick)
     picker.delegate = delegate
     active = delegate
@@ -36,7 +38,7 @@ import UniformTypeIdentifiers
     GameFilePicker.active = nil
   }
 
-  private static func topViewController() -> UIViewController? {
+  static func topViewController() -> UIViewController? {
     let scene = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
       .first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.first as? UIWindowScene

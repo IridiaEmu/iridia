@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // gc-emu: Wii U tab state. Starts the Wii U core (IridiaCafeCore) the first time the tab opens, finds the
-// player's games in Documents/Wii U, and hands a chosen game to the play screen. Players bring their own
-// games and keys.txt, the same way as GameCube games.
+// player's games in Documents/Wii U (added with "Choose a Game File" or the Files app), and hands a chosen
+// game to the play screen. Players bring their own games, and keys.txt for disc images.
 
 #if os(iOS) && canImport(IridiaCafeCore)
 import Foundation
@@ -26,6 +26,8 @@ final class WiiUModel: ObservableObject {
   @Published private(set) var games: [WiiUGame] = []
   @Published private(set) var scanning = false
   @Published var playing: WiiUGame?
+  /// True while picked games are being copied into the Wii U folder (WiiUImport).
+  @Published var importing = false
 
   /// Documents/Wii U: the folder players see in Files ("On My iPhone > Iridia > Wii U").
   let gamesDir: URL

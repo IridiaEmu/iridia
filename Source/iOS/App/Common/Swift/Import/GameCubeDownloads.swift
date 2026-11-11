@@ -12,9 +12,9 @@ enum GameCubeDownloads {
   private static let askedKey = "gcDownloadsAsked"
   @MainActor private static var busy = false
 
-  /// Disc image types that only ever hold a GameCube (or Wii) game. .iso, .bin and .img are checked by content.
-  private static let gameExtensions: Set<String> = ["gcm", "tgc", "gcz", "ciso", "rvz", "nkit", "wia", "dol"]
-  private static let checkedExtensions: Set<String> = ["iso", "bin", "img"]
+  /// GameCube game files. Disc images are checked by content: Wii games use the same formats, and this
+  /// version doesn't play them. (A .dol can't be told apart, so it's offered.)
+  private static let gameExtensions: Set<String> = ["gcm", "tgc", "gcz", "ciso", "rvz", "nkit", "wia", "dol", "iso", "bin", "img"]
 
   @MainActor static func chooseFolder() {
     DownloadsFolder.choose(look: .gameCube) { check(manual: true) }
@@ -132,8 +132,7 @@ enum GameCubeDownloads {
   nonisolated private static func isGameCubeGame(_ url: URL) -> Bool {
     if WiiUFileTypes.isDirectory(url) { return false }
     let ext = url.pathExtension.lowercased()
-    if gameExtensions.contains(ext) { return true }
-    if checkedExtensions.contains(ext) { return isGameCubeDisc(url) }
+    if gameExtensions.contains(ext) { return ext == "dol" || isGameCubeDisc(url, ext: ext) }
     if ImportableFileTypes.isArchiveFile(url), let names = DownloadsFolder.archiveNames(url) {
       return names.contains { name in
         let ext = (name as NSString).pathExtension
@@ -143,10 +142,24 @@ enum GameCubeDownloads {
     return false
   }
 
-  /// GameCube discs have 0xC2339F3D at 0x1C.
-  nonisolated private static func isGameCubeDisc(_ url: URL) -> Bool {
-    guard let head = WiiUFileTypes.readHead(url, count: 0x20) else { return false }
-    return head[0x1C..<0x20] == Data([0xC2, 0x33, 0x9F, 0x3D])
+  /// GameCube, not Wii, by the disc header: a GameCube disc has 0xC2339F3D at 0x1C. RVZ and WIA say so at
+  /// 0x48 (1 GameCube, 2 Wii), GCZ at 4 (0 GameCube, 1 Wii), and a CISO's disc starts at 0x8000.
+  nonisolated private static func isGameCubeDisc(_ url: URL, ext: String) -> Bool {
+    let magic = Data([0xC2, 0x33, 0x9F, 0x3D])
+    switch ext {
+    case "rvz", "wia":
+      guard let head = WiiUFileTypes.readHead(url, count: 0x4C) else { return false }
+      return head[0x48..<0x4C] == Data([0, 0, 0, 1])
+    case "gcz":
+      guard let head = WiiUFileTypes.readHead(url, count: 8) else { return false }
+      return head[4..<8] == Data([0, 0, 0, 0])
+    case "ciso":
+      guard let head = WiiUFileTypes.readHead(url, count: 0x8020) else { return false }
+      return head[0x801C..<0x8020] == magic
+    default:
+      guard let head = WiiUFileTypes.readHead(url, count: 0x20) else { return false }
+      return head[0x1C..<0x20] == magic
+    }
   }
 }
 #endif

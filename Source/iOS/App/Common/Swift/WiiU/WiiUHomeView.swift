@@ -85,6 +85,8 @@ struct WiiUHomeView: View {
     .onAppear {
       model.start()
       model.rescan()
+      // Look in the player's Downloads folder (if they turned that on) once the shelf has settled.
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { WiiUDownloads.check(model: model) }
       // Test hooks (not in App Store builds): -wiiuOpen settings|help|unlock|filesguide|import opens that screen;
       // -wiiuAutoplay <name part>[,<name part>...] starts those games one after another (the next one when the
       // previous ends).
@@ -113,6 +115,9 @@ struct WiiUHomeView: View {
     }
     .onChange(of: model.playing) { _, playing in
       if playing == nil { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { autoplayNext() } }
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+      WiiUDownloads.check(model: model)
     }
     .claimsController()
     .sheet(item: $sheet) { which in
@@ -178,6 +183,19 @@ struct WiiUHomeView: View {
   }
 
   /// Deletes the game's file or folder from the Wii U folder. Only ever something inside that folder.
+  /// "Check Downloads for Games" until a folder is chosen, then "Check Downloads Now".
+  @ViewBuilder private var downloadsMenuItem: some View {
+    if WiiUDownloads.isOn {
+      Button { WiiUDownloads.check(model: model, manual: true) } label: {
+        Label(String(format: L("Check %@ Now"), WiiUDownloads.folderName), systemImage: "arrow.down.circle")
+      }
+    } else {
+      Button { WiiUDownloads.chooseFolder(model: model) } label: {
+        Label(L("Check Downloads for Games"), systemImage: "arrow.down.circle")
+      }
+    }
+  }
+
   /// Its update and extra content go too: without the game they're no use.
   private func delete(_ game: WiiUGame) {
     let folder = model.gamesDir.standardizedFileURL.path
@@ -222,6 +240,7 @@ struct WiiUHomeView: View {
         Menu {
           Button { model.chooseGameFiles() } label: { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
           Button { sheet = .filesGuide } label: { Label(L("Add with the Files App"), systemImage: "folder") }
+          downloadsMenuItem
         } label: {
           Image(systemName: "plus")
             .font(.system(size: 17, weight: .semibold))
@@ -274,6 +293,7 @@ struct WiiUHomeView: View {
       Menu {
         Button { model.chooseGameFiles() } label: { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
         Button { sheet = .filesGuide } label: { Label(L("Add with the Files App"), systemImage: "folder") }
+        downloadsMenuItem
       } label: {
         emptyCase(symbol: "plus", text: L("Add a game"))
       }

@@ -425,6 +425,36 @@ final class ZipImportHelper: NSObject {
     try extractArchive(kind: mapArchiveKind(sourceKind), sourceURL: copyURL, to: destination)
   }
 
+  /// gc-emu: the names inside a ZIP or 7Z archive, read from its directory without unpacking anything. Nil for
+  /// other formats or an archive that can't be read.
+  static func entryNames(ofArchiveAt url: URL) -> [String]? {
+    switch ImportableFileTypes.archiveKind(for: url) {
+    case .zip?:
+      return (try? ZipEntryScanner.scan(fileAt: url))?.map(\.name)
+    case .sevenZip?:
+      #if canImport(PLzmaSDK)
+      do {
+        let decoder = try Decoder(stream: try InStream(path: Path(url.path)), fileType: .sevenZ, delegate: nil)
+        _ = try decoder.open()
+        let items = try decoder.items()
+        var names: [String] = []
+        for index in 0..<items.count {
+          let item = try items.item(at: index)
+          guard hasObject(item) else { return nil }
+          names.append(try item.path().description)
+        }
+        return names
+      } catch {
+        return nil
+      }
+      #else
+      return nil
+      #endif
+    default:
+      return nil
+    }
+  }
+
   /// Throws `unsafeEntry` for the first archive item path that could be written outside the extraction folder.
   static func validateItemPaths(_ paths: [String]) throws {
     if let unsafe = paths.first(where: { !ZipEntryScanner.isSafeRelativePath($0) }) {

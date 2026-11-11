@@ -49,6 +49,7 @@ struct WiiUSettingsView: View {
   @AppStorage("cafeShowLayoutButton") private var showLayoutButton = true
   @State private var noJit: String?
   @State private var restoreMessage: String?
+  @State private var downloadsOn = WiiUDownloads.isOn
 
   var body: some View {
     List {
@@ -75,6 +76,19 @@ struct WiiUSettingsView: View {
         Toggle(L("Performance mode"), isOn: $performanceMode)
       } header: { Text(L("Speed")) } footer: {
         Text(L("Variable frame timing shows each frame as soon as it is ready, which can raise the frame rate. Performance mode skips one wait for the graphics chip each frame; it is faster, but some games may show glitches. Changes apply the next time you start a game."))
+      }
+      Section {
+        if downloadsOn {
+          LabeledContent(L("Checking"), value: WiiUDownloads.folderName)
+          Button(L("Stop Checking")) { WiiUDownloads.stop(); downloadsOn = false }
+        } else {
+          Button(L("Check Downloads for Games")) {
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { WiiUDownloads.chooseFolder(model: WiiUModel.shared) }
+          }
+        }
+      } header: { Text(L("Downloads")) } footer: {
+        Text(L("Each time you open the Wii U tab, Iridia looks in the folder you chose for Wii U games and asks before moving any to the Wii U folder."))
       }
       Section(L("Controls")) {
         Toggle(L("Button vibration"), isOn: $haptics)
@@ -158,6 +172,7 @@ struct WiiUHelpView: View {
         Text(L("2. Disc images (.wux, .wud), .wua files and installed game folders all work. Add updates and extra content the same way. Homebrew programs (.rpx) work too, and ZIP or 7Z files are unpacked for you. Installed game folders need their title.tik file."))
         Text(L("3. Disc images also need the key for your own disc. Tap Play and Iridia asks for it, or add keys.txt the same way."))
         Text(String(format: L("4. If you used the Files app (%@), come back here and tap the refresh button."), WiiUModel.filesPath))
+        Text(L("5. To add games you download, tap + and then Check Downloads for Games, and choose your Downloads folder. Iridia asks before adding anything it finds there."))
       }
       Section(L("Controls")) {
         Text(L("Touch controls follow the GamePad layout. A quick tap on a stick clicks it. Using a game controller hides the touch controls."))

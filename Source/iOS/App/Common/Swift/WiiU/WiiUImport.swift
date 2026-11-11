@@ -438,7 +438,7 @@ extension WiiUModel {
     }
   }
 
-  private func copyIn(_ sorted: WiiUImport.Sorted, move: Bool, notes: [String], gameCubeArchivesToGameCube: Bool = false,
+  func copyIn(_ sorted: WiiUImport.Sorted, move: Bool, notes: [String], gameCubeArchivesToGameCube: Bool = false,
                       done: @escaping () -> Void) {
     importing = true
     let folder = gamesDir

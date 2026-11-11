@@ -705,8 +705,9 @@ struct TVLibraryView: View {
   /// iOS document pickers
 #if os(iOS) || targetEnvironment(macCatalyst)
   @State private var showImportSoftwarePicker = false
-  // gc-emu: Iridia's Glass Shelf home (direction A) is the default on iOS; "grid" is iCube's grid.
-  @AppStorage("iridia_library_style") private var libraryStyle = "shelf"
+  // gc-emu: the Glass Shelf is the only home on iOS (the grid view was removed in 1.1.5, so a "grid" saved
+  // by an older version is ignored).
+  private let libraryStyle = "shelf"
   @State private var showLibraryControllers = false
   @State private var showFilesAppGuide = false
   @State private var showImportNANDPicker = false
@@ -890,7 +891,6 @@ struct TVLibraryView: View {
         onSettings: { openLibrarySettings() },   // iOS pushes Settings; `showSettings` is tvOS only
         onSaves: { item in if !item.gameID.isEmpty { navigateToSaveStates = GameIDRoute(id: item.gameID) } },
         onControllers: { showLibraryControllers = true },
-        onShowGrid: { withAnimation { libraryStyle = "grid" } },
         onProperties: { showPropertiesFor = $0 },
         onDelete: { itemPendingDelete = $0 },
         onWiiU: wiiUAction
@@ -1580,11 +1580,6 @@ struct TVLibraryView: View {
   @ViewBuilder
   private var libraryViewMenuSection: some View {
     Section(L("View")) {
-#if os(iOS)
-      Button(action: { libraryMenuAction { withAnimation { libraryStyle = "shelf" } } }) {
-        Label(L("Glass Shelf"), systemImage: "rectangle.stack")
-      }
-#endif
       Button(action: {
         libraryMenuAction {
           if isSelectionMode {

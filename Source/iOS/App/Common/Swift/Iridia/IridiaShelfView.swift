@@ -72,7 +72,6 @@ struct IridiaShelfView: View {
   let onSettings: () -> Void
   let onSaves: (TVGameItem) -> Void
   let onControllers: () -> Void
-  let onShowGrid: () -> Void
   let onProperties: (TVGameItem) -> Void
   let onDelete: (TVGameItem) -> Void
   /// Opens the Wii U tab (nil where the Wii U core isn't built in).
@@ -268,7 +267,6 @@ struct IridiaShelfView: View {
         }
         .buttonStyle(SpringPressStyle())
       }
-      glassIconButton("square.grid.2x2", label: L("Grid view"), action: onShowGrid)
       // Two ways in: pick a file now, or learn the Files app route (better for big games).
       Menu {
         Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }

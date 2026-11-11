@@ -14,6 +14,8 @@ struct WiiUGame: Identifiable, Hashable {
   let id: String          // file path
   let title: CemuTitle
   var name: String { title.name }
+  /// A disc image (.wux, .wud) that no key in keys.txt opens yet. Play asks for the key (WiiUDiscKeyView).
+  var needsKey: Bool { title.format == WiiUModel.needsKeyFormat }
 }
 
 @MainActor
@@ -28,6 +30,10 @@ final class WiiUModel: ObservableObject {
   @Published var playing: WiiUGame?
   /// True while picked games are being copied into the Wii U folder (WiiUImport).
   @Published var importing = false
+  /// A disc image the player tried to play without its key; shows the key screen.
+  @Published var keyNeeded: WiiUGame?
+  /// The shelf label of a disc image that needs its key.
+  static let needsKeyFormat = L("Needs a key")
 
   /// Documents/Wii U: the folder players see in Files ("On My iPhone > Iridia > Wii U").
   let gamesDir: URL
@@ -79,13 +85,15 @@ final class WiiUModel: ObservableObject {
     }
   }
 
-  func rescan() {
-    guard phase == .ready, !scanning, playing == nil else { return }
+  func rescan(then done: (() -> Void)? = nil) {
+    guard phase == .ready, !scanning, playing == nil else { done?(); return }
     copyKeysIfPresent()
+    CemuBridge.reloadKeys()
     scanning = true
     let dir = gamesDir
     Task.detached(priority: .userInitiated) {
-      var titles = CemuBridge.scanGames() + Self.homebrew(in: dir)
+      let found = CemuBridge.scanGames()
+      var titles = found + Self.homebrew(in: dir) + Self.discsNeedingKeys(in: dir, found: found)
       // Test hook (not in App Store builds): -wiiuShowOnly <name part> lists only matching games (store screenshots).
       #if !APPSTORE
       if let only = UserDefaults.standard.string(forKey: "wiiuShowOnly") {
@@ -96,12 +104,14 @@ final class WiiUModel: ObservableObject {
         self.games = titles.map { WiiUGame(id: $0.path, title: $0) }
           .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         self.scanning = false
+        done?()
       }
     }
   }
 
   func play(_ game: WiiUGame) {
     guard phase == .ready, playing == nil else { return }
+    if game.needsKey { keyNeeded = game; return }
     WiiULastPlayed.mark(game.id)
     playing = game
   }
@@ -123,6 +133,28 @@ final class WiiUModel: ObservableObject {
       t.format = "homebrew"
       return t
     }
+  }
+
+  /// Disc images in the top of the Wii U folder that the core couldn't open (no key for them in keys.txt).
+  /// They still go on the shelf, so the player can add the key from there.
+  nonisolated private static func discsNeedingKeys(in dir: URL, found: [CemuTitle]) -> [CemuTitle] {
+    let opened = Set(found.map { URL(fileURLWithPath: $0.path).resolvingSymlinksInPath().path })
+    let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+    return files.filter { url in
+      guard ["wux", "wud", "iso"].contains(url.pathExtension.lowercased()), WiiUImport.classify(url) == .wiiU else { return false }
+      return !opened.contains(url.resolvingSymlinksInPath().path)
+    }.map { url in
+      let t = CemuTitle()
+      t.name = url.deletingPathExtension().lastPathComponent
+      t.path = url.path
+      t.format = needsKeyFormat
+      return t
+    }
+  }
+
+  /// Adds the disc keys in `text` (pasted, or a keys.txt) to the Wii U folder's keys.txt.
+  func addDiscKeys(_ text: String) throws -> Int {
+    try WiiUImport.mergeKeys(text: text, into: gamesDir)
   }
 
   /// The core reads disc keys from keys.txt in its data folder; players put theirs next to their games.

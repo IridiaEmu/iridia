@@ -9,6 +9,7 @@
 #include "config/NetworkSettings.h"
 #include "Cafe/CafeSystem.h"
 #include "Cafe/TitleList/TitleList.h"
+#include "Cafe/Filesystem/FST/KeyCache.h"
 #include "Cafe/HW/Latte/Core/Latte.h"
 #include "Cafe/HW/Latte/Core/LatteOverlay.h"
 #include "Cafe/HW/Latte/Core/IridiaPerf.h"
@@ -183,6 +184,13 @@ static std::string FormatName(const TitleInfo& info)
 	}
 	CafeTitleList::ReleaseInternalList();
 	return out;
+}
+
++ (void)reloadKeys
+{
+	if (s_running)
+		return;
+	KeyCache_Reload();
 }
 
 + (nullable NSString *)launchTitle:(CemuTitle *)title layer:(CAMetalLayer *)layer width:(int)width height:(int)height

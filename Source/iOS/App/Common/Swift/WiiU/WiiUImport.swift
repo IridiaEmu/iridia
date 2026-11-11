@@ -123,23 +123,40 @@ enum WiiUImport {
     }
   }
 
+  enum KeyError: LocalizedError {
+    case noKeys
+    var errorDescription: String? { L("That isn't a disc key. A key is 32 characters, using 0 to 9 and A to F.") }
+  }
+
+  /// The key on a keys.txt line, the way the core reads it: before any # or ;, without spaces, dashes or
+  /// underscores. Nil unless it's 32 hex characters (anything else would make the core show an error).
+  nonisolated static func key(in line: Substring) -> String? {
+    let text = line.prefix { $0 != "#" && $0 != ";" }
+    let k = text.filter { !" \t-_".contains($0) }.lowercased()
+    return k.count == 32 && k.allSatisfy(\.isHexDigit) ? k : nil
+  }
+
   /// Adds the keys in `source` that the Wii U folder's keys.txt doesn't have yet. Returns how many.
   nonisolated static func mergeKeys(from source: URL, into folder: URL) throws -> Int {
+    try mergeKeys(text: String(contentsOf: source, encoding: .utf8), into: folder)
+  }
+
+  /// Adds the keys in `incoming` that keys.txt doesn't have yet (other lines are left out). Returns how many;
+  /// throws when `incoming` has no key at all.
+  nonisolated static func mergeKeys(text incoming: String, into folder: URL) throws -> Int {
     let target = folder.appendingPathComponent("keys.txt")
-    let incoming = try String(contentsOf: source, encoding: .utf8)
     let existing = (try? String(contentsOf: target, encoding: .utf8)) ?? ""
-    func key(_ line: Substring) -> String {
-      String(line.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
-        .trimmingCharacters(in: .whitespaces).lowercased()
-    }
-    var known = Set(existing.split(whereSeparator: \.isNewline).map(key).filter { !$0.isEmpty })
+    var known = Set(existing.split(whereSeparator: \.isNewline).compactMap { key(in: $0) })
     var added: [String] = []
+    var valid = 0
     for line in incoming.split(whereSeparator: \.isNewline) {
-      let k = key(line)
-      guard !k.isEmpty, !known.contains(k) else { continue }
+      guard let k = key(in: line) else { continue }
+      valid += 1
+      guard !known.contains(k) else { continue }
       known.insert(k)
-      added.append(String(line))
+      added.append(line.contains("#") ? line.trimmingCharacters(in: .whitespaces) : k)
     }
+    guard valid > 0 else { throw KeyError.noKeys }
     guard !added.isEmpty else { return 0 }
     var text = existing
     if !text.isEmpty, !text.hasSuffix("\n") { text += "\n" }
@@ -235,8 +252,6 @@ extension WiiUModel {
         if outcome.keysAdded > 0 {
           lines.append(outcome.keysAdded == 1 ? L("Added 1 key to keys.txt.")
                                               : String(format: L("Added %ld keys to keys.txt."), outcome.keysAdded))
-          // The core reads keys.txt once, when Iridia starts; discs that need the new keys show up after that.
-          lines.append(L("Close and reopen Iridia to see disc images that use them."))
         } else if !sorted.keys.isEmpty, outcome.errors.isEmpty {
           lines.append(L("keys.txt already has these keys."))
         }

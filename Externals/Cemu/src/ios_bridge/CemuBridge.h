@@ -37,6 +37,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Rescans the games folder and returns the base games found (updates and DLC are used automatically).
 + (NSArray<CemuTitle *> *)scanGames;
+/// Reads keys.txt again (call before scanGames after it changed). Not while a game runs.
++ (void)reloadKeys;
 
 /// Starts a game drawing into `layer` (sized in points; the layer's contentsScale gives pixels).
 /// Returns nil on success, otherwise a message for the player.

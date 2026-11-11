@@ -129,6 +129,10 @@ struct WiiUHomeView: View {
       WiiUUnlockView(context: .browsing, onUnlocked: { showUnlock = false }, onDismiss: { showUnlock = false })
         .claimsController()
     }
+    .sheet(item: $model.keyNeeded) { game in
+      NavigationStack { WiiUDiscKeyView(game: game) }
+        .claimsController()
+    }
     .sheet(item: $gameSettings) { game in
       NavigationStack { WiiUGameSettingsView(game: game) }
         .claimsController()
@@ -426,6 +430,7 @@ struct WiiUHomeView: View {
   }
 
   private func lastPlayedText(_ item: WiiUGame) -> String {
+    if item.needsKey { return L("Needs the key for your disc") }
     guard let date = WiiULastPlayed.all()[item.id] else { return L("Not played yet") }
     let f = RelativeDateTimeFormatter()
     f.unitsStyle = .full

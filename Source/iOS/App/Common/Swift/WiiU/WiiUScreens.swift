@@ -156,7 +156,7 @@ struct WiiUHelpView: View {
       Section(L("Adding a game")) {
         Text(L("1. Tap + at the top, then Choose a Game File, and pick your own game. Or copy it with the Files app into the Wii U folder."))
         Text(L("2. Disc images (.wux, .wud), .wua files and installed game folders all work. Add updates and extra content the same way. Homebrew programs (.rpx) work too."))
-        Text(L("3. Disc images also need keys.txt with the key for your own disc. Add it the same way, then close and reopen Iridia."))
+        Text(L("3. Disc images also need the key for your own disc. Tap Play and Iridia asks for it, or add keys.txt the same way."))
         Text(String(format: L("4. If you used the Files app (%@), come back here and tap the refresh button."), WiiUModel.filesPath))
       }
       Section(L("Controls")) {
@@ -203,7 +203,7 @@ struct WiiUFilesGuideView: View {
       }
       Section(L("Where games go")) {
         Text(WiiUModel.filesPath)
-        Text(L("WUA files, game folders, updates and homebrew (.rpx) work as they are. Disc images (.wux, .wud) also need keys.txt with your own disc's key in the same folder."))
+        Text(L("WUA files, game folders, updates and homebrew (.rpx) work as they are. Disc images (.wux, .wud) also need your own disc's key: tap Play and Iridia asks for it."))
           .font(.footnote)
           .foregroundStyle(WiiUTheme.dim)
       }
@@ -221,6 +221,101 @@ struct WiiUFilesGuideView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
     .wiiUScreen()
+  }
+}
+
+/// Shown when Play is tapped on a disc image (.wux, .wud) that no key in keys.txt opens yet. The player pastes
+/// their disc's key or picks a keys.txt; the shelf is scanned again and the game starts if the key fits.
+struct WiiUDiscKeyView: View {
+  let game: WiiUGame
+  @ObservedObject private var model = WiiUModel.shared
+  @Environment(\.dismiss) private var dismiss
+  @State private var key = ""
+  @State private var message: String?
+  @State private var checking = false
+  @FocusState private var typing: Bool
+
+  var body: some View {
+    List {
+      Section {
+        Text(String(format: L("%@ is a disc image. To open it, Iridia needs the key for your own disc."), game.name))
+      }
+      Section {
+        TextField(L("Disc key"), text: $key, axis: .vertical)
+          .font(.system(.body, design: .monospaced))
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .keyboardType(.asciiCapable)
+          .submitLabel(.done)
+          .focused($typing)
+          .onChange(of: key) { _, text in
+            // A vertical field takes Return as a new line; treat it as Add Key instead.
+            if text.contains("\n") { key = text.replacingOccurrences(of: "\n", with: ""); add(key) }
+          }
+        PasteButton(payloadType: String.self) { strings in
+          Task { @MainActor in key = strings.first ?? "" }
+        }
+        Button(L("Add Key")) { add(key) }
+          .fontWeight(.semibold)
+          .foregroundStyle(WiiUTheme.accent)
+          .disabled(checking || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      } header: {
+        Text(L("Paste the Key"))
+      } footer: {
+        Text(L("32 characters, using 0 to 9 and A to F."))
+      }
+      Section {
+        Button(L("Choose keys.txt")) { chooseKeysFile() }
+          .foregroundStyle(WiiUTheme.accent)
+          .disabled(checking)
+      } footer: {
+        Text(L("A text file with one key per line. Iridia keeps the keys in keys.txt in the Wii U folder."))
+      }
+      if checking {
+        Section { HStack(spacing: 10) { ProgressView(); Text(L("Checking the key…")) } }
+      } else if let message {
+        Section { Text(message).foregroundStyle(WiiUTheme.warning) }
+      }
+    }
+    .foregroundStyle(WiiUTheme.ink)
+    .navigationTitle(L("Disc Key Needed"))
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("Cancel")) { dismiss() } } }
+    .wiiUScreen()
+  }
+
+  private func chooseKeysFile() {
+    typing = false
+    GameFilePicker.present(types: [.plainText, .data]) { urls in
+      guard let url = urls.first else { return }
+      let accessed = url.startAccessingSecurityScopedResource()
+      defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+      guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+        message = L("That file couldn't be read. Choose a text file with your disc's key.")
+        return
+      }
+      add(text)
+    }
+  }
+
+  /// Saves the key, scans the shelf again, and starts the game if the key opens it.
+  private func add(_ text: String) {
+    typing = false
+    message = nil
+    do { _ = try model.addDiscKeys(text) } catch {
+      message = error.localizedDescription
+      return
+    }
+    checking = true
+    model.rescan {
+      checking = false
+      if let opened = model.games.first(where: { $0.id == game.id }), !opened.needsKey {
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { model.play(opened) }
+      } else {
+        message = L("That key doesn't open this disc. Check that it's the key for this disc.")
+      }
+    }
   }
 }
 

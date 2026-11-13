@@ -41,13 +41,8 @@ GamePad picture go to the on-screen controls, never to the GamePad touchscreen.
 
 ## Screenshots
 
-In `screens-shots/` (iPhone 18 Pro and iPad Pro 13" Simulators, latest build). Names are
-`<device>-<orientation>-<state>.jpg`:
-
-- `tvOnly`, `pip`, `pip-swap`, `gamePad`, `split`, `split-swap` (no Split on iPhone landscape: it falls back)
-- `menu` (long-press menu), `tip`, `label` (the 1 s label after a change), `pause` (pause menu)
-- `mac-kirby-gamepad-full.jpg`: Kirby and the Rainbow Curse in GamePad full screen on the Mac study build
-- `mac-botw-gamepad-full.jpg`: BotW's GamePad picture full screen on the Mac study build
+Screenshots of every layout were taken on the iPhone 18 Pro and iPad Pro 13" Simulators and the Mac study
+build. They aren't in the repository because they show game footage.
 
 Note: in the Simulator BotW only gets to its first screen and its **TV picture stays black** there, in every
 layout including TV only and with the previous build too, so the TV area looks empty in the shots. The

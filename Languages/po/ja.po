@@ -280,8 +280,7 @@ msgstr "指定されたファイル \"{0}\" は存在しません"
 #: Source/Core/Core/Boot/Boot.cpp:269
 #, c++-format
 msgid "\"{0}\" is an invalid GCM/ISO file, or is not a GC/Wii ISO."
-msgstr ""
-"\"{0}\" は無効なファイル、またはゲームキューブ／Wii のISOではありません"
+msgstr "\"{0}\" は無効なファイル、またはGameCube／Wii のISOではありません"
 
 #: Source/Core/Core/Boot/Boot.cpp:291 Source/Core/Core/Boot/Boot.cpp:308
 #, c++-format
@@ -1368,10 +1367,7 @@ msgid ""
 "BBA MAC address {0} invalid for XLink Kai. A valid Nintendo GameCube MAC "
 "address must be used. Generate a new MAC address starting with 00:09:bf or "
 "00:17:ab."
-msgstr ""
-"BBA MACアドレス{0}がXLink Kaiに対して無効です。有効なニンテンドーゲームキュー"
-"ブのMACアドレスを使用する必要があります。00:09:bfまたは00:17:abで始まる新しい"
-"MACアドレスを生成してください。"
+msgstr "BBA MACアドレス{0}がXLink Kaiに対して無効です。有効なニンテンドーGameCubeのMACアドレスを使用する必要があります。00:09:bfまたは00:17:abで始まる新しいMACアドレスを生成してください。"
 
 #: Source/Core/Core/HW/EXI/EXI_Device.h:93
 msgid "Dummy"
@@ -3462,11 +3458,7 @@ msgid ""
 "\n"
 "Because GameCube disc images contain little verification data, there may be "
 "problems that Dolphin is unable to detect."
-msgstr ""
-"\n"
-"\n"
-"ゲームキューブ用ゲームデータには整合性チェックのためのデータがほとんど含まれ"
-"ていないため、Dolphinでは検出できない問題があるかもしれません。"
+msgstr "\n\nGameCube用ゲームデータには整合性チェックのためのデータがほとんど含まれていないため、Dolphinでは検出できない問題があるかもしれません。"
 
 #: Source/Core/DiscIO/VolumeVerifier.cpp:1484
 msgid ""
@@ -4999,7 +4991,7 @@ msgstr "標準コントローラ"
 
 #: Source/Core/DolphinQt/Config/GamecubeControllersWidget.cpp:33
 msgid "GameCube Controller Adapter (USB)"
-msgstr "ゲームキューブ コントローラ アダプター (USB)"
+msgstr "GameCube コントローラ アダプター (USB)"
 
 #: Source/Core/DolphinQt/Config/GamecubeControllersWidget.cpp:34
 msgid "Steering Wheel"
@@ -5027,7 +5019,7 @@ msgstr "キーボードコントローラ"
 
 #: Source/Core/DolphinQt/Config/GamecubeControllersWidget.cpp:74
 msgid "GameCube Controllers"
-msgstr "ゲームキューブ デバイス設定"
+msgstr "GameCube デバイス設定"
 
 #: Source/Core/DolphinQt/Config/GamecubeControllersWidget.cpp:81
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:71
@@ -7431,23 +7423,23 @@ msgstr "ゲームボーイアドバンス"
 
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:456
 msgid "GameCube Keyboard at Port %1"
-msgstr "ポート %1のゲームキューブ キーボード"
+msgstr "ポート %1のGameCube キーボード"
 
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:457
 msgid "GameCube Keyboard"
-msgstr "ゲームキューブ キーボード"
+msgstr "GameCube キーボード"
 
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:464
 msgid "GameCube Controller at Port %1"
-msgstr "ポート %1のゲームキューブ コントローラ"
+msgstr "ポート %1のGameCube コントローラ"
 
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:465
 msgid "GameCube Controller"
-msgstr "ゲームキューブ コントローラー"
+msgstr "GameCube コントローラー"
 
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:469
 msgid "GameCube Microphone Slot %1"
-msgstr "スロット %1のゲームキューブ マイク"
+msgstr "スロット %1のGameCube マイク"
 
 #: Source/Core/DolphinQt/Config/Mapping/MappingWindow.cpp:480
 msgid "General and Options"
@@ -7731,7 +7723,7 @@ msgstr "フォルダ"
 
 #: Source/Core/DolphinQt/Config/SettingsWindow.cpp:201
 msgid "GameCube"
-msgstr "ゲームキューブ"
+msgstr "GameCube"
 
 #: Source/Core/DolphinQt/Config/VerifyWidget.cpp:63
 msgid "Problem"
@@ -10806,7 +10798,7 @@ msgstr "新しくメモリーカードを作成"
 #: Source/Core/DolphinQt/GCMemcardCreateNewDialog.cpp:73
 #: Source/Core/DolphinQt/Settings/GameCubePane.cpp:442
 msgid "GameCube Memory Cards (*.raw *.gcp)"
-msgstr "ゲームキューブ メモリーカードファイル (*.raw *.gcp)"
+msgstr "GameCube メモリーカードファイル (*.raw *.gcp)"
 
 #: Source/Core/DolphinQt/GCMemcardCreateNewDialog.cpp:73
 #: Source/Core/DolphinQt/Settings/GameCubePane.cpp:694
@@ -10815,7 +10807,7 @@ msgstr "すべてのファイル (*)"
 
 #: Source/Core/DolphinQt/GCMemcardManager.cpp:97
 msgid "GameCube Memory Card Manager"
-msgstr "ゲームキューブ メモリーカードマネージャ"
+msgstr "GameCube メモリーカードマネージャ"
 
 #: Source/Core/DolphinQt/GCMemcardManager.cpp:113
 msgid "&Export as .gci..."
@@ -10908,7 +10900,7 @@ msgstr ""
 
 #: Source/Core/DolphinQt/GCMemcardManager.cpp:360
 msgid "GameCube Memory Cards"
-msgstr "ゲームキューブ メモリーカードファイル"
+msgstr "GameCube メモリーカードファイル"
 
 #: Source/Core/DolphinQt/GCMemcardManager.cpp:375
 msgid "Data inconsistency in GCMemcardManager, aborting action."
@@ -11067,8 +11059,7 @@ msgstr "ファイルを読み込めませんでした。"
 
 #: Source/Core/DolphinQt/GCMemcardManager.cpp:831
 msgid "Filesize does not match any known GameCube Memory Card size."
-msgstr ""
-"ファイルサイズがどの種類のゲームキューブメモリカードにも適合しなかったため"
+msgstr "ファイルサイズがどの種類のGameCubeメモリカードにも適合しなかったため"
 
 #: Source/Core/DolphinQt/GCMemcardManager.cpp:834
 msgid "Filesize in header mismatches actual card size."
@@ -11813,7 +11804,7 @@ msgstr "Wii"
 
 #: Source/Core/DolphinQt/MenuBar.cpp:765
 msgid "Show GameCube"
-msgstr "ゲームキューブ"
+msgstr "GameCube"
 
 #: Source/Core/DolphinQt/MenuBar.cpp:766
 msgid "Show Triforce"
@@ -13972,7 +13963,7 @@ msgstr "ROMと同じフォルダにセーブファイルを保存する"
 
 #: Source/Core/DolphinQt/Settings/GameCubePane.cpp:234
 msgid "Saves:"
-msgstr "セーブ保存先"
+msgstr "セーブ"
 
 #: Source/Core/DolphinQt/Settings/GameCubePane.cpp:440
 msgid "Choose a File to Open or Create"
@@ -13995,11 +13986,7 @@ msgid ""
 "%1\n"
 "is either corrupted or not a GameCube memory card file.\n"
 "%2"
-msgstr ""
-"このファイル\n"
-"%1\n"
-"は破損しているか、ゲームキューブメモリカードファイルではありません。\n"
-"%2"
+msgstr "このファイル\n%1\nは破損しているか、GameCubeメモリカードファイルではありません。\n%2"
 
 #: Source/Core/DolphinQt/Settings/GameCubePane.cpp:515
 msgid ""
@@ -15789,7 +15776,7 @@ msgstr "TAS用入力 GBA %1"
 
 #: Source/Core/DolphinQt/TAS/GCTASInputWindow.cpp:28
 msgid "GameCube TAS Input %1"
-msgstr "TAS用入力 ゲームキューブ %1"
+msgstr "TAS用入力 GameCube %1"
 
 #: Source/Core/DolphinQt/TAS/GCTASInputWindow.cpp:30
 msgid "Main Stick"

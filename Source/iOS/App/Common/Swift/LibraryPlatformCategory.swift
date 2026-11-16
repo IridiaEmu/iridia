@@ -106,8 +106,10 @@ enum LibraryPlatformMapper {
   static func detectedCategory(for item: TVGameItem) -> LibraryPlatformCategory {
     if let platform = DiscIOPlatform(rawValue: Int(item.platform)) {
       switch platform {
-      case .gameCubeDisc, .triforce, .elfOrDOL:
+      case .gameCubeDisc, .triforce:
         return .gameCube
+      case .elfOrDOL:
+        return item.isWiiTitle ? .wii : .gameCube   // gc-emu: Wii homebrew sits with the Wii games
       case .wiiDisc:
         return .wii
       case .wiiWAD:

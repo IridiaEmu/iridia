@@ -36,6 +36,7 @@ enum WiiUSettings {
 
 struct WiiUSettingsView: View {
   let onUnlock: () -> Void
+  let onControllers: () -> Void
 
   @Environment(\.dismiss) private var dismiss
   @ObservedObject private var store = IridiaUnlock.store
@@ -68,7 +69,7 @@ struct WiiUSettingsView: View {
           .disabled(store.isBusy)
         }
       } header: { Text(L("Full Version")) } footer: {
-        Text(restoreMessage ?? L("One purchase unlocks GameCube and Wii U games. Without it, each game plays in free play sessions of 20 minutes."))
+        Text(restoreMessage ?? L("One purchase unlocks GameCube, Wii and Wii U games. Without it, each Wii U game plays in free play sessions of 20 minutes."))
       }
       Section {
         Toggle(L("Show speed"), isOn: $showSpeed)
@@ -98,6 +99,7 @@ struct WiiUSettingsView: View {
         }
         Text(L("Touch controls hide when you use a game controller."))
           .font(.footnote).foregroundStyle(WiiUTheme.dim)
+        Button(action: onControllers) { Label(L("Game Controllers"), systemImage: "gamecontroller") }
       }
       Section {
         Picker(L("Layout for new games"), selection: $defaultLayout) {
@@ -114,21 +116,23 @@ struct WiiUSettingsView: View {
       }
       Section(L("About")) {
         LabeledContent(L("Renderer"), value: "Metal")
-        LabeledContent(L("CPU"), value: L("Interpreter (no JIT)"))
+        LabeledContent(L("CPU"), value: L("Interpreter"))
+        #if !APPSTORE
         if WiiUModel.canRunGames {
-          Button(L("Check for JIT")) { noJit = CemuBridge.noJitSelfCheck() }
+          Button("Check for JIT") { noJit = CemuBridge.noJitSelfCheck() }
           if let noJit {
             Text(noJit.hasPrefix("PASS") ? L("Passed: no code is generated at runtime.") : noJit)
               .font(.footnote).foregroundStyle(WiiUTheme.dim)
           }
         }
+        #endif
         Text(L("Wii U support is experimental. Games may run slowly or show glitches. Based on Cemu (MPL 2.0)."))
           .font(.footnote).foregroundStyle(WiiUTheme.dim)
       }
     }
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(L("Wii U Settings"))
-    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .menuClose { dismiss() }
     .wiiUScreen()
   }
 }
@@ -156,7 +160,7 @@ struct WiiUGameSettingsView: View {
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(game.name)
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .menuClose { dismiss() }
     .onChange(of: prefs) { _, p in p.save(game.settingsKey) }
     .wiiUScreen()
   }
@@ -188,7 +192,7 @@ struct WiiUHelpView: View {
     }
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(L("Help"))
-    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .menuClose { dismiss() }
     .wiiUScreen()
   }
 }
@@ -234,7 +238,7 @@ struct WiiUFilesGuideView: View {
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(L("Add Games with Files"))
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { dismiss() } } }
+    .menuClose { dismiss() }
     .wiiUScreen()
   }
 }
@@ -295,7 +299,7 @@ struct WiiUDiscKeyView: View {
     .foregroundStyle(WiiUTheme.ink)
     .navigationTitle(L("Disc Key Needed"))
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("Cancel")) { dismiss() } } }
+    .menuClose { dismiss() }
     .wiiUScreen()
   }
 
@@ -348,7 +352,10 @@ struct WiiUUnlockView: View {
   @ObservedObject private var store = IridiaUnlock.store
   @State private var message: String?
 
-  private var priceText: String { store.product?.displayPrice ?? "$2.99" }
+  private var buyText: String {
+    guard let price = store.product?.displayPrice else { return L("Unlock Full Version") }
+    return String(format: L("Unlock for %@"), price)
+  }
 
   var body: some View {
     ZStack {
@@ -366,7 +373,7 @@ struct WiiUUnlockView: View {
               .multilineTextAlignment(.center)
             Text(context == .sessionEnded
                  ? L("The game is paused. Unlock the full version to keep playing, or quit and start another free 20-minute session whenever you like. Quitting keeps everything the game has saved.")
-                 : L("Wii U free play sessions last 20 minutes, and you can start as many as you like. One purchase removes the limit for GameCube and Wii U games."))
+                 : L("Wii U free play sessions last 20 minutes, and you can start as many as you like. One purchase removes the limit for GameCube, Wii and Wii U games."))
               .font(.system(size: 15))
               .foregroundStyle(WiiUTheme.soft)
               .multilineTextAlignment(.center)
@@ -374,7 +381,7 @@ struct WiiUUnlockView: View {
           .padding(.horizontal, 24)
 
           VStack(alignment: .leading, spacing: 12) {
-            benefit("infinity", L("Unlimited play time in GameCube and Wii U games"))
+            benefit("infinity", L("Unlimited play time in GameCube, Wii and Wii U games"))
             benefit("gauge.with.dots.needle.67percent", L("Hide the speed readout"))
             benefit("sparkles", L("Every feature, plus future updates"))
             benefit("checkmark.seal", L("One-time purchase. No subscription, no ads."))
@@ -398,7 +405,7 @@ struct WiiUUnlockView: View {
             } label: {
               HStack(spacing: 8) {
                 if store.isBusy { ProgressView().tint(WiiUTheme.onAccent) }
-                Text(String(format: L("Unlock for %@"), priceText))
+                Text(buyText)
               }
               .font(.system(size: 18, weight: .bold))
               .foregroundStyle(WiiUTheme.onAccent)

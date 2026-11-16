@@ -6,7 +6,7 @@ import PVLibrarySnapshot
 /// "Play a random game in iCube". Picks uniformly from the whole snapshot library.
 struct PlayRandomGameIntent: AppIntent {
     static var title: LocalizedStringResource = "Play Random Game"
-    static var description = IntentDescription("Launches a random game from your iCube library.")
+    static var description = IntentDescription("Launches a random game from your Iridia library.")
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {

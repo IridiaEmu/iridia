@@ -28,13 +28,14 @@ enum MotionSettings {
     Key.invertRoll: false,
     Key.invertPitch: false,
     // `setupEnhancedMotionControls()` used to force this on for every touchscreen Wii boot.
-    Key.enhancedShakeDetection: true,
+    // gc-emu: off until the player turns on "Shake the phone to shake" (Wii Settings).
+    Key.enhancedShakeDetection: false,
     Key.full6DOF: true,
-    Key.wiimoteIMU: true,
+    // gc-emu: off until the player turns on "Tilt the phone to tilt" (Wii Settings).
+    Key.wiimoteIMU: false,
     Key.nunchukIMU: false,
-    Key.irPointerGain: 1.0,
-    // 1.0 keeps the gyro pointer exactly as it was before the setting existed.
-    Key.gyroPointerSensitivity: 1.0,
+    Key.irPointerGain: 1.25,
+    Key.gyroPointerSensitivity: 1.25,
   ]
 
   static func registerDefaults(in store: UserDefaults = .standard) {

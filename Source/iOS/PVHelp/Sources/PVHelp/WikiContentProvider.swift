@@ -14,13 +14,23 @@ protocol WikiURLLoading: Sendable {
 
 extension URLSession: WikiURLLoading {}
 
+/// gc-emu: the app's transport. Never touches the network; loads fall through to bundled pages.
+struct OfflineWikiLoader: WikiURLLoading {
+    func data(from url: URL) async throws -> (Data, URLResponse) {
+        throw URLError(.notConnectedToInternet)
+    }
+}
+
 public final class WikiContentProvider: Sendable {
     public let cache: WikiContentCache
     private let session: WikiURLLoading
 
+    /// gc-emu: the app shows only the pages bundled with it. Nothing is downloaded, and anything an
+    /// older version cached from the network is dropped, so every page shown is one we ship.
     public init() {
         self.cache = WikiContentCache()
-        self.session = URLSession.shared
+        self.session = OfflineWikiLoader()
+        self.cache.clearAll()
     }
 
     /// Test-only seam: inject a fake cache/transport. Not `public` — only reachable from this
@@ -105,7 +115,7 @@ public final class WikiContentProvider: Sendable {
         }
 
         // Last resort: a page we have neither cached nor bundled, and can't reach.
-        return WikiPage(path: path, title: title, content: "**Offline** — This page is not yet cached. Connect to the internet and try again.")
+        return WikiPage(path: path, title: title, content: "This page isn't available.")
     }
 
     @discardableResult

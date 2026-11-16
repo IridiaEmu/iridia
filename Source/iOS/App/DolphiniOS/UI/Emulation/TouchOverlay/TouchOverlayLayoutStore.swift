@@ -146,6 +146,37 @@ final class TouchOverlayLayoutStore: ObservableObject {
     kind.rawValue + "." + orientation.rawValue
   }
 
+  static func key(_ kind: TouchOverlayPadKind, _ orientation: TouchOverlayOrientation, game: String) -> String {
+    "game." + game + "." + key(kind, orientation)
+  }
+
+  /// The running game. While it is set, that game's own layout is used when it has one, and edits are
+  /// saved for that game only (starting from the layout shared by all games). Nil: the shared layout.
+  var game: String? {
+    didSet { if game != oldValue { revision += 1 } }
+  }
+
+  private func readKey(_ kind: TouchOverlayPadKind, _ orientation: TouchOverlayOrientation) -> String {
+    if let game, layouts[Self.key(kind, orientation, game: game)] != nil { return Self.key(kind, orientation, game: game) }
+    return Self.key(kind, orientation)
+  }
+
+  private func writeKey(_ kind: TouchOverlayPadKind, _ orientation: TouchOverlayOrientation) -> String {
+    guard let game else { return Self.key(kind, orientation) }
+    let key = Self.key(kind, orientation, game: game)
+    if layouts[key] == nil { layouts[key] = layouts[Self.key(kind, orientation)] ?? [:] }
+    return key
+  }
+
+  /// Draws the controls again after a setting they read outside the store changed (the opacity).
+  func redraw() { revision += 1 }
+
+  /// True while the running game has a layout of its own for `kind`.
+  func gameHasOwnLayout(padKind kind: TouchOverlayPadKind) -> Bool {
+    guard let game else { return false }
+    return TouchOverlayOrientation.allCases.contains { layouts[Self.key(kind, $0, game: game)] != nil }
+  }
+
   private func load() {
     if let url = fileURL, FileManager.default.fileExists(atPath: url.path) {
       do {
@@ -184,7 +215,7 @@ final class TouchOverlayLayoutStore: ObservableObject {
 
   private func entry(_ group: TouchOverlayGroup, _ padKind: TouchOverlayPadKind,
                      _ orientation: TouchOverlayOrientation) -> Entry? {
-    layouts[Self.key(padKind, orientation)]?[group.rawValue]
+    layouts[readKey(padKind, orientation)]?[group.rawValue]
   }
 
   /// The stored centre of a group in `bounds`, or nil when the user has not moved it.
@@ -218,7 +249,7 @@ final class TouchOverlayLayoutStore: ObservableObject {
   }
 
   func hasCustomLayout(padKind: TouchOverlayPadKind, orientation: TouchOverlayOrientation) -> Bool {
-    !(layouts[Self.key(padKind, orientation)] ?? [:]).isEmpty
+    !(layouts[readKey(padKind, orientation)] ?? [:]).isEmpty
   }
 
   /// The box a group occupies in `bounds`: the stored centre when the user moved it, otherwise
@@ -253,7 +284,7 @@ final class TouchOverlayLayoutStore: ObservableObject {
   private func update(_ group: TouchOverlayGroup, _ padKind: TouchOverlayPadKind,
                       _ orientation: TouchOverlayOrientation, in bounds: CGRect,
                       _ change: (inout Entry) -> Void) {
-    let key = Self.key(padKind, orientation)
+    let key = writeKey(padKind, orientation)
     reanchorFractions(key, in: bounds)
     var entry = layouts[key]?[group.rawValue] ?? Entry()
     change(&entry)
@@ -291,10 +322,11 @@ final class TouchOverlayLayoutStore: ObservableObject {
     update(group, padKind, orientation, in: bounds) { $0.scale = [Double(clampedX), Double(clampedY)] }
   }
 
-  /// The editor's "Reset": clear every custom position of a pad kind, both orientations.
+  /// The editor's "Reset": clear every custom position of a pad kind, both orientations. In a game, only
+  /// that game's own layout goes, so it uses the shared one again.
   func reset(padKind: TouchOverlayPadKind) {
     for orientation in TouchOverlayOrientation.allCases {
-      layouts.removeValue(forKey: Self.key(padKind, orientation))
+      layouts.removeValue(forKey: game.map { Self.key(padKind, orientation, game: $0) } ?? Self.key(padKind, orientation))
     }
     save()
     revision += 1
@@ -306,7 +338,7 @@ final class TouchOverlayLayoutStore: ObservableObject {
   /// they were resetting the IR pad's rectangle.
   func resetGroup(_ group: TouchOverlayGroup, padKind: TouchOverlayPadKind) {
     for orientation in TouchOverlayOrientation.allCases {
-      layouts[Self.key(padKind, orientation)]?.removeValue(forKey: group.rawValue)
+      layouts[writeKey(padKind, orientation)]?.removeValue(forKey: group.rawValue)
     }
     save()
     revision += 1

@@ -128,6 +128,8 @@ final class ControllerHubViewModel {
   private(set) var state: ControllerHubState
   /// Edit Layout… outside a game: `ControllerHubView` presents the full-screen editor.
   var isLayoutEditorPresented = false
+  /// A Plays as choice that couldn't be made, shown on the Controllers screen.
+  var notice: String?
   /// Edit IR Area…: `ControllerHubView` presents the full-screen IR area editor.
   var isIRAreaEditorPresented = false
 
@@ -449,7 +451,9 @@ final class ControllerHubViewModel {
       case .moveDevice(let qualifier, let from, let to):
         // Moving into a port that has a device would overwrite it: refuse before writing anything.
         if let destination = state.players.first(where: { $0.kind == to.kind && $0.port == to.port }), destination.isBound {
-          EmulationToast.post(String(format: L("%@ is in use. Change that player's device first."), destination.title))
+          let message = String(format: L("%@ is in use. Change that player's device first."), destination.title)
+          EmulationToast.post(message)
+          notice = message
           reload()
           return
         }

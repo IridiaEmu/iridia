@@ -256,6 +256,7 @@ struct SkinOverlayInput {
           switch kind {
           case .button(let id): result.insert(Key(channel: .button, id: id))
           case .axisButton(let id): result.insert(Key(channel: .axis, id: id))
+          case .buttons(let ids): ids.forEach { result.insert(Key(channel: .button, id: $0)) }
           case .stick, .dpad, .irSurface: break
           }
         }

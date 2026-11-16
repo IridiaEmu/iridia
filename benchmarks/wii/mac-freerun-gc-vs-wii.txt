@@ -1,0 +1,10 @@
+# Mac (M4), no JIT, headless Metal, Dolphin.Core.EmulationSpeed=0, IridiaBench FREERUN (no vsync wait).
+# Same program built for GameCube and for Wii. Two rounds.
+iridiabench-free-x16.dol: maxSpeed 0.8424 frames/s 30.44 (per emulated s 36.14, host 32.85 ms/frame) check 3a2268d2
+iridiabench-wii-free-x16.dol: maxSpeed 0.5573 frames/s 30.22 (per emulated s 54.23, host 33.09 ms/frame) check 3a2268d2
+iridiabench-free-x4.dol: maxSpeed 0.8373 frames/s 120.33 (per emulated s 143.72, host 8.31 ms/frame) check cfa55e7f
+iridiabench-wii-free-x4.dol: maxSpeed 0.5636 frames/s 121.67 (per emulated s 215.87, host 8.22 ms/frame) check cfa55e7f
+iridiabench-free-x16.dol: maxSpeed 0.8219 frames/s 29.67 (per emulated s 36.09, host 33.71 ms/frame) check 3a2268d2
+iridiabench-wii-free-x16.dol: maxSpeed 0.5383 frames/s 29.22 (per emulated s 54.28, host 34.22 ms/frame) check 3a2268d2
+iridiabench-free-x4.dol: maxSpeed 0.8274 frames/s 119.22 (per emulated s 144.09, host 8.39 ms/frame) check cfa55e7f
+iridiabench-wii-free-x4.dol: maxSpeed 0.5575 frames/s 120.56 (per emulated s 216.26, host 8.29 ms/frame) check cfa55e7f

@@ -16,7 +16,7 @@ enum PerformanceTuningModelBuilder {
     } else {
       sections.append(MenuSection(id: "engine-optimizations-hint", header: L("Engine Optimizations"), items: [
         SettingsRow.action("engine-optimizations-hint", L("Select a Cached Interpreter engine"),
-                           L("Select Cached Interpreter or Cached Interpreter (IR) as the CPU engine above to configure optimizations. The plain Interpreter and JIT engines don't use these."),
+                           L("Select Cached Interpreter or Cached Interpreter (IR) as the CPU engine above to configure optimizations. The plain Interpreter doesn't use these."),
                            enabled: false, run: {}),
       ]))
     }

@@ -16,11 +16,6 @@ import PVHelp
 /// missing-BIOS "Learn More" action through here instead of `UIApplication.open`.
 @objc(DOLHelpBridge)
 final class HelpPresentationBridge: NSObject {
-  /// Presents the GameCube BIOS (IPL) guide. Safe to call from any thread.
-  @objc static func presentBIOSGuide() {
-    presentWikiPage(path: WikiConstants.Paths.biosRequirements, title: L("BIOS Requirements"))
-  }
-
   @objc static func presentWikiPage(path: String, title: String) {
     DispatchQueue.main.async {
       guard let presenter = topViewController() else { return }

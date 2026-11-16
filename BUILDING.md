@@ -132,6 +132,23 @@ scripts/verify_no_jit.sh path/to/App.ipa
 ```
 It checks entitlements, imported symbols, defined symbols and strings, the core's `gcemu-no-jit-v1` marker, and bundled files. Exit code 0 means PASS.
 
+## 7. Public source snapshot (release gate)
+
+The public GPL source is published as **one clean snapshot commit**, never this repo's history (older
+commits contain Wii keys that 1.2 removed). For each release:
+
+1. Make the snapshot: a new repo whose only commit is the release tree (for example
+   `git archive <release tag> | tar -x -C <new folder>`, then `git init`, add, one commit).
+2. Run the gate on it. It must print `RESULT: PASS` before anything is pushed:
+   ```sh
+   scripts/check_public_snapshot.sh <new folder>
+   ```
+   It fails if more than one commit is reachable, if the working tree differs from the commit, or if any
+   file holds a Wii key: raw, hex, C byte list or base64, and inside zip/tar/gzip/bzip2/xz files.
+3. Check the app too: `python3 scripts/verify_no_wii_keys.py --strict <App.app or .xcarchive>`.
+
+Dry run on a ref of this repo (no history check): `scripts/check_public_snapshot.sh --tree HEAD`.
+
 ## Known issues and fixes
 
 | Symptom | Cause | Fix |

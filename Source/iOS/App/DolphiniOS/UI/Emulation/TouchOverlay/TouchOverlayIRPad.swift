@@ -167,6 +167,7 @@ struct TouchOverlayIRPadView: UIViewRepresentable {
       guard let touch = touches.first(where: { isTouchAllowed($0) }) else { return }
       primaryTouch = touch
       touchStartPoint = touch.location(in: self)
+      if mode == .follow { sendIR(computeXY(at: touchStartPoint)) }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {

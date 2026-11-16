@@ -52,6 +52,7 @@ void PerformanceMetrics::Reset()
   m_vps_counter.Reset();
 
   m_time_sleeping = DT::zero();
+  m_cpu_wait_base_ns = StallMetrics::CpuThreadWaitNs();
   m_samples = {};
 
   m_speed = 0;
@@ -90,7 +91,9 @@ void PerformanceMetrics::AdjustClockSpeed(s64 ticks, u32 new_ppc_clock, u32 old_
 void PerformanceMetrics::CountPerformanceMarker(s64 core_ticks, u32 ticks_per_second)
 {
   const auto clock_time = Clock::now();
-  const auto work_time = clock_time - m_time_sleeping;
+  const auto gpu_wait = std::chrono::duration_cast<DT>(
+      std::chrono::nanoseconds{StallMetrics::CpuThreadWaitNs() - m_cpu_wait_base_ns});
+  const auto work_time = clock_time - m_time_sleeping - gpu_wait;
 
   m_samples.emplace_back(
       PerfSample{.clock_time = clock_time, .work_time = work_time, .core_ticks = core_ticks});
@@ -257,6 +260,12 @@ void PerformanceMetrics::SetLatestFramePresentationOffset(DT offset)
 void PerformanceMetrics::SetLatestFrameBufferSize(u32 width, u32 height)
 {
   m_frame_buffer_size.store(FrameBufferSize{width, height}, std::memory_order_relaxed);
+}
+
+void PerformanceMetrics::UpdateCounterStats()
+{
+  m_vps_counter.UpdateStats();
+  m_fps_counter.UpdateStats();
 }
 
 void PerformanceMetrics::DrawImGuiStats(const float backbuffer_scale)

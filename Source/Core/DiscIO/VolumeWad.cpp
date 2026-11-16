@@ -168,6 +168,13 @@ bool VolumeWAD::CheckContentIntegrity(const IOS::ES::Content& content,
   return Common::SHA1::CalculateDigest(decrypted_data.data(), content.size) == content.sha1;
 }
 
+// gc-emu: a WAD's contents are always encrypted with its title key, which only the common key opens.
+bool VolumeWAD::IsMissingWiiKey() const
+{
+  return m_ticket.IsValid() &&
+         !IOS::HLE::IOSC::HasCommonKey(m_ticket.GetConsoleType(), m_ticket.GetCommonKeyIndex());
+}
+
 IOS::ES::TicketReader VolumeWAD::GetTicketWithFixedCommonKey() const
 {
   if (!m_ticket.IsValid() || !m_tmd.IsValid())

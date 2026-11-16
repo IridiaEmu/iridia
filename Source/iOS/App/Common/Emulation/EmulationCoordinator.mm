@@ -26,6 +26,7 @@ NSString* const DOLExternalDisplayDidChangeNotification = @"DOLExternalDisplayDi
 #import "Core/HW/EXI/EXI_DeviceIPL.h"
 #import "DiscIO/Enums.h"
 #import "DiscIO/Volume.h"
+#import "DiscIO/VolumeWad.h"
 #import "Core/Config/GraphicsSettings.h"
 #import "Core/Core.h"
 #import "Core/System.h"
@@ -107,7 +108,7 @@ static std::string _ICubeBuildPerfSettingsString(const char* phase)
   auto lineF = [&](const char* k, float v) { char buf[32]; snprintf(buf, sizeof(buf), "%.3f", v); line(k, buf); };
   auto section = [&](const char* title) { b += "  --- "; b += title; b += " ---\n"; };
 
-  b += "=== iCube settings @ ";
+  b += "=== Iridia settings @ ";
   b += phase;
   b += " ";
   b += gid.empty() ? "(no-gameid)" : gid;
@@ -644,6 +645,34 @@ static NSString* const kGfxOverscanFullscreenKey = @"gfx_overscan_fullscreen";
     }
   }
 
+  // gc-emu: Wii. An encrypted disc image needs the player's key file: go back to the shelf, which asks for it.
+  // WAD files aren't supported. Boot would refuse both too (Boot.cpp), with no explanation for the player.
+  if (bootParameter.bootType == EmulationBootTypeFile) {
+    std::unique_ptr<BootParameters> boot = [bootParameter generateDolphinBootParameter];
+    bool missingKey = false;
+    bool isWAD = false;
+    if (boot && std::holds_alternative<BootParameters::Disc>(boot->parameters)) {
+      const auto& disc = std::get<BootParameters::Disc>(boot->parameters);
+      missingKey = disc.volume && disc.volume->IsMissingWiiKey();
+    } else if (boot && std::holds_alternative<DiscIO::VolumeWAD>(boot->parameters)) {
+      missingKey = std::get<DiscIO::VolumeWAD>(boot->parameters).IsMissingWiiKey();
+      isWAD = true;
+    }
+    if (missingKey && isWAD) {
+      [self presentUnsupportedWADAlert];
+      return;
+    }
+    if (missingKey) {
+      NSString* path = bootParameter.path;
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:DOLEmulationDidEndNotification object:self userInfo:nil];
+        if (path)
+          [[NSNotificationCenter defaultCenter] postNotificationName:@"IridiaWiiKeyNeeded" object:self userInfo:@{ @"path": path }];
+      });
+      return;
+    }
+  }
+
   NSDictionary* willStartInfo = bootParameter.path ? @{ @"path": bootParameter.path } : nil;
   [[NSNotificationCenter defaultCenter] postNotificationName:DOLEmulationWillStartNotification object:self userInfo:willStartInfo];
 
@@ -678,16 +707,24 @@ static NSString* const kGfxOverscanFullscreenKey = @"gfx_overscan_fullscreen";
         [self emulationLoopWithBootParameter:bootParameter];
       });
     }];
-    IridiaAlertButton* learn = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Learn More")
-      role:IridiaAlertRoleNormal action:^{
-      NSURL* url = [NSURL URLWithString:@"https://icube-emu.com/help/gamecube-bios"];
-      [UIApplication.sharedApplication openURL:url options:@{} completionHandler:nil];
-    }];
     IridiaAlertButton* cancel = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Cancel")
       role:IridiaAlertRoleCancel action:nil];
     [IridiaAlert showWithTitle:DOLCoreLocalizedString(@"GameCube BIOS not found")
-                       message:DOLCoreLocalizedString(@"This game is set to boot to the GameCube menu, but the GameCube BIOS (IPL) isn't installed, so it can't start. You can boot the game directly without the menu, or install a GameCube BIOS dump. Learn More explains how.")
-                       buttons:@[direct, learn, cancel]];
+                       message:DOLCoreLocalizedString(@"This game is set to boot to the GameCube menu, but the GameCube BIOS (IPL) isn't installed, so it can't start. You can boot the game directly without the menu.")
+                       buttons:@[direct, cancel]];
+  });
+}
+
+// OK ends the run the way a normal exit does, which takes the player back to the shelf.
+- (void)presentUnsupportedWADAlert {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    IridiaAlertButton* ok = [[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"OK")
+      role:IridiaAlertRoleNormal action:^{
+      [[NSNotificationCenter defaultCenter] postNotificationName:DOLEmulationDidEndNotification object:self userInfo:nil];
+    }];
+    [IridiaAlert showWithTitle:DOLCoreLocalizedString(@"Wii channels (WAD files) aren't supported")
+                       message:DOLCoreLocalizedString(@"Iridia plays Wii discs and Wii homebrew (.dol, .elf).")
+                       buttons:@[ok]];
   });
 }
 

@@ -62,6 +62,7 @@ public:
   bool Read(u64 offset, u64 length, u8* buffer, const Partition& partition) const override;
   bool HasWiiHashes() const override;
   bool HasWiiEncryption() const override;
+  bool IsMissingWiiKey() const override;
   std::vector<Partition> GetPartitions() const override;
   Partition GetGamePartition() const override;
   std::optional<u32> GetPartitionType(const Partition& partition) const override;

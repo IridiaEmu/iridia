@@ -19,6 +19,8 @@ import UIKit
 enum GCEmuBenchmark {
   private struct Sample: Codable {
     let t: Double
+    /// Once a second, so long runs show when the phone heats up.
+    var thermal: String?
     let speed: Double
     let maxSpeed: Double
     let fps: Double
@@ -107,8 +109,18 @@ enum GCEmuBenchmark {
     }
   }
 
-  /// Call once at launch. Does nothing unless -gcemuBench is set.
+  /// A scripted benchmark run. Always false in App Store builds, so no launch option can skip free play.
+  static var isRunning: Bool {
+    #if APPSTORE
+    return false
+    #else
+    return UserDefaults.standard.double(forKey: "gcemuBench") > 0
+    #endif
+  }
+
+  /// Call once at launch. Does nothing unless -gcemuBench is set, and nothing at all in App Store builds.
   static func armIfRequested() {
+    #if !APPSTORE
     armPauseMenuIfRequested()
     armPerformancePanelIfRequested()
     let d = UserDefaults.standard
@@ -131,6 +143,7 @@ enum GCEmuBenchmark {
       let game = (note.userInfo?["gameID"] as? String) ?? (note.userInfo?["title"] as? String) ?? "game"
       start(duration: duration, warmup: warmup, label: label, game: game)
     }
+    #endif
   }
 
   private static func thermal() -> String {
@@ -175,7 +188,8 @@ enum GCEmuBenchmark {
       let snap = DOLPerfBridge.snapshot()
       func v(_ k: String) -> Double { snap[k]?.doubleValue ?? 0 }
       if tick % 10 == 0 {
-        samples.append(Sample(t: now, speed: v("speed"), maxSpeed: v("maxSpeed"), fps: v("fps"), vps: v("vps")))
+        samples.append(Sample(t: now, thermal: tick % 200 == 0 ? thermal() : nil,
+                              speed: v("speed"), maxSpeed: v("maxSpeed"), fps: v("fps"), vps: v("vps")))
       }
       tick += 1
       let raw = v("rawFrameTimeMs")

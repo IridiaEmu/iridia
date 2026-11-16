@@ -6,28 +6,8 @@ import CoreGraphics
 import Foundation
 import UIKit
 
-/// The DEFAULT (un-customised) layout of every pad kind for a given screen.
-///
-/// GameCube is computed from the canvas and safe area (`gameCube(canvas:safeArea:orientation:)`):
-/// the xib it used to copy was authored for a 768x1024 iPad in portrait with 46x30 buttons, so on
-/// phones its groups overlapped and its round buttons came out as 30 pt dots.
-///
-/// The Wii pads still come from their xibs, shifted inward by the safe area so nothing sits under
-/// the notch or the home indicator. Each xib pins its controls to the bottom and to a horizontal
-/// edge with Auto Layout; the numbers below are the control frames at that design size turned
-/// into edge insets, which is what those constraints produce on any screen.
-///
-/// Source frames (x, y, w, h at the design size), kept here so the derivation is checkable:
-/// - TCWiiPad.xib (375x667): DPad (0,401,128,128), LeftStick (0,539,128,128), A (309,597,46,30),
-///   B (309,527,46,30), One (248,572,46,30), Two (248,622,46,30), Minus (248,522,46,30),
-///   Plus (187,552,46,30), HOME (187,477,46,30), C (187,597,46,30), Z (309,477,46,30).
-/// - TCSidewaysWiiPad.xib (768x1024): DPad (0,896,128,128), B (25.5,779,77,77), A (705,878,43,43),
-///   One (622,941,43,43), Two (705,941,43,43), Plus (630.5,886.5,26,26), Minus (713.5,827,26,26),
-///   HOME (368,992,32,32).
-/// - TCClassicWiiPad.xib (375x667): ZL (16,302,77,77), L (16,352,77,77), ZR (282,302,77,77),
-///   R (282,352,77,77), DPad (22.5,435,115,115), X (269.5,434,43,43), Y (228,471,43,43),
-///   A (311,471,43,43), B (269.5,508,43,43), LeftStick (16,543,128,128), RightStick (227,543,128,128),
-///   Minus (137.5,639,26,26), HOME (171.5,636,32,32), Plus (211.5,639,26,26).
+/// The default (un-customised) layout of every pad kind, computed from the canvas and safe area so the
+/// same sizes and spacing hold on every screen.
 enum TouchOverlayDefaults {
   // Raw TCButtonType ids the xibs use (TCButtonType.swift). Named here once.
   enum ButtonID {
@@ -35,6 +15,7 @@ enum TouchOverlayDefaults {
     static let gcDpadUp = 6, gcMainStick = 10, gcCStick = 15, gcTriggerL = 20, gcTriggerR = 21
     static let wiiA = 100, wiiB = 101, wiiMinus = 102, wiiPlus = 103, wiiHome = 104, wiiOne = 105, wiiTwo = 106
     static let wiiDpadUp = 107
+    static let wiiShake = [132, 133, 134]
     static let nunchukC = 200, nunchukZ = 201, nunchukStick = 202
     static let classicA = 300, classicB = 301, classicX = 302, classicY = 303, classicMinus = 304
     static let classicPlus = 305, classicHome = 306, classicZL = 307, classicZR = 308
@@ -43,7 +24,6 @@ enum TouchOverlayDefaults {
   }
 
   private static let smallButton = CGSize(width: 46, height: 30)
-  private static let stick = CGSize(width: 128, height: 128)
 
   /// Phase 3 (task item 1): the Wii IR drag/follow surface's default rect is "the whole overlay
   /// minus a safe margin" on every side, not the phase-2 placeholder's literal full bounds — that
@@ -79,7 +59,7 @@ enum TouchOverlayDefaults {
     switch kind {
     case .gameCube: return gameCube(canvas: canvas, safeArea: safeArea, orientation: orientation)
     case .wiiRemote: return wiiRemote(canvas: canvas, safeArea: safeArea, orientation: orientation)
-    case .wiiRemoteSideways: return shifted(wiiRemoteSideways, by: safeArea)
+    case .wiiRemoteSideways: return wiiRemoteSideways(canvas: canvas, safeArea: safeArea, orientation: orientation)
     case .wiiClassic: return wiiClassic(canvas: canvas, safeArea: safeArea, orientation: orientation)
     }
   }
@@ -87,24 +67,6 @@ enum TouchOverlayDefaults {
   static func layout(for group: TouchOverlayGroup, kind: TouchOverlayPadKind, orientation: TouchOverlayOrientation,
                      canvas: CGSize, safeArea: UIEdgeInsets) -> TouchOverlayGroupLayout? {
     layout(for: kind, orientation: orientation, canvas: canvas, safeArea: safeArea).first { $0.group == group }
-  }
-
-  /// Moves edge-anchored groups inward by the safe area: what the xibs' safe-area-relative
-  /// constraints did. `.fillInset` groups (the IR surface) cover the whole pad on purpose.
-  private static func shifted(_ layouts: [TouchOverlayGroupLayout], by safeArea: UIEdgeInsets) -> [TouchOverlayGroupLayout] {
-    layouts.map { layout in
-      let p = layout.placement
-      let dx: CGFloat
-      switch p.anchor {
-      case .bottomLeading: dx = safeArea.left
-      case .bottomTrailing: dx = safeArea.right
-      case .bottomCenter: dx = (safeArea.left - safeArea.right) / 2
-      case .fill, .fillInset: return layout
-      }
-      let placement = TouchOverlayPlacement(p.anchor, inset: CGPoint(x: p.inset.x + dx, y: p.inset.y + safeArea.bottom),
-                                            size: p.size, margin: p.margin)
-      return TouchOverlayGroupLayout(group: layout.group, placement: placement, controls: layout.controls)
-    }
   }
 
   // MARK: Computed layouts (GameCube, Wii Remote + Nunchuk, Classic Controller)
@@ -289,6 +251,11 @@ enum TouchOverlayDefaults {
     /// 1, 2 and the Nunchuk's C.
     static let small: CGFloat = 48
     static let z = CGSize(width: 80, height: 44)
+    static let shake = CGSize(width: 80, height: 44)
+  }
+
+  private static func shake(_ inset: TouchOverlayPlacement.Inset, size: CGSize) -> TouchOverlayGroupLayout {
+    single(.wiiShake, inset, size: size, kind: .buttons(ids: ButtonID.wiiShake), id: "wii.shake")
   }
 
   /// Left hand: the Nunchuk stick at rest, the D-pad above it, Z and C above that. Right hand: A
@@ -314,8 +281,11 @@ enum TouchOverlayDefaults {
     let oneTwoCenter = CGPoint(x: s.right - ab.size.width - gap - oneTwo.size.width / 2, y: s.bottom - oneTwo.size.height / 2)
     let systemCenter = CGPoint(x: s.right - system.size.width / 2,
                                y: s.bottom - max(ab.size.height, oneTwo.size.height) - gap - system.size.height / 2)
+    let shakeSize = s.size(WiiRemote.shake)
+    let shakeCenter = CGPoint(x: s.w / 2, y: s.bottom - shakeSize.height / 2)
 
     return [
+      shake(s.centered(shakeCenter), size: shakeSize),
       single(.nunchukStick, s.leading(stickCenter), size: CGSize(width: stick, height: stick),
              kind: .stick(baseId: ButtonID.nunchukStick), id: "nunchuk.stick"),
       single(.wiiDpad, s.leading(dpadCenter), size: CGSize(width: dpad, height: dpad),
@@ -344,31 +314,59 @@ enum TouchOverlayDefaults {
     ]
   }
 
-  // MARK: Wii Remote sideways (768x1024)
+  // MARK: Wii Remote sideways
 
-  private static let wiiRemoteSideways: [TouchOverlayGroupLayout] = [
-    // DPad (0,896,128,128): centre (64,960).
-    single(.wiiDpad, .bottomLeading, inset: CGPoint(x: 64, y: 64), size: stick,
-           kind: .dpad(baseId: ButtonID.wiiDpadUp), id: "wii.dpad"),
-    // B (25.5,779,77,77): centre (64,817.5).
-    single(.sidewaysB, .bottomLeading, inset: CGPoint(x: 64, y: 206.5), size: CGSize(width: 77, height: 77),
-           kind: .button(id: ButtonID.wiiB), id: "wii.b"),
-    // Minus (713.5,827,26) A (705,878,43) Plus (630.5,886.5,26) One (622,941,43) Two (705,941,43):
-    // union (622,827)-(748,984) = 126x157, centre (685,905.5).
-    TouchOverlayGroupLayout(
-      group: .sidewaysFaceCluster,
-      placement: TouchOverlayPlacement(.bottomTrailing, inset: CGPoint(x: 83, y: 118.5), size: CGSize(width: 126, height: 157)),
-      controls: [
-        button("wii.minus", ButtonID.wiiMinus, 91.5, 0, size: CGSize(width: 26, height: 26)),
-        button("wii.a", ButtonID.wiiA, 83, 51, size: CGSize(width: 43, height: 43)),
-        button("wii.plus", ButtonID.wiiPlus, 8.5, 59.5, size: CGSize(width: 26, height: 26)),
-        button("wii.one", ButtonID.wiiOne, 0, 114, size: CGSize(width: 43, height: 43)),
-        button("wii.two", ButtonID.wiiTwo, 83, 114, size: CGSize(width: 43, height: 43)),
+  private enum Sideways {
+    static let dpad: CGFloat = 104
+    static let two: CGFloat = 72
+    static let one: CGFloat = 56
+    static let a: CGFloat = 48
+    static let b: CGFloat = 56
+  }
+
+  /// B is the trigger, so it sits above the right hand rather than on the face.
+  private static func wiiRemoteSideways(canvas: CGSize, safeArea: UIEdgeInsets,
+                                        orientation: TouchOverlayOrientation) -> [TouchOverlayGroupLayout] {
+    let s = Screen(canvas: canvas, safeArea: safeArea, orientation: orientation)
+    let gap = s.gap
+    let dpad = Sideways.dpad * s.u, two = Sideways.two * s.u, one = Sideways.one * s.u, a = Sideways.a * s.u
+    let bSize = s.size(Sideways.b), shakeSize = s.size(WiiRemote.shake)
+    let system = row(Array(repeating: s.size(Spacing.systemButton), count: 3), gap: gap)
+
+    let dpadCenter = CGPoint(x: s.left + dpad / 2 + s.diagonal / 2, y: s.bottom - dpad / 2)
+    let shakeCenter = CGPoint(x: s.left + shakeSize.width / 2, y: s.bottom - dpad - gap - shakeSize.height / 2)
+
+    let face = CGSize(width: one + gap + two, height: a + gap + two)
+    let faceControls = [
+      TouchOverlayControl(id: "wii.one", kind: .button(id: ButtonID.wiiOne),
+                          frame: CGRect(x: 0, y: face.height - two / 2 - one / 2, width: one, height: one)),
+      TouchOverlayControl(id: "wii.two", kind: .button(id: ButtonID.wiiTwo),
+                          frame: CGRect(x: one + gap, y: face.height - two, width: two, height: two)),
+      TouchOverlayControl(id: "wii.a", kind: .button(id: ButtonID.wiiA),
+                          frame: CGRect(x: one + gap / 2 - a / 2, y: 0, width: a, height: a)),
+    ]
+    let faceCenter = CGPoint(x: s.right - face.width / 2, y: s.bottom - face.height / 2)
+    let bCenter = CGPoint(x: s.right - bSize.width / 2, y: s.bottom - face.height - gap - bSize.height / 2)
+    let between = (s.right - face.width) - (s.left + dpad + s.diagonal / 2)
+    let handsHeight = max(face.height + gap + bSize.height, dpad + gap + shakeSize.height)
+    let systemY = between >= system.size.width + 2 * gap
+      ? s.bottom - system.size.height / 2
+      : s.bottom - handsHeight - gap - system.size.height / 2
+    let systemCenter = CGPoint(x: s.w / 2, y: systemY)
+
+    return [
+      single(.wiiDpad, s.leading(dpadCenter), size: CGSize(width: dpad, height: dpad),
+             kind: .dpad(baseId: ButtonID.wiiDpadUp), id: "wii.dpad"),
+      shake(s.leading(shakeCenter), size: shakeSize),
+      group(.sidewaysFaceCluster, s.trailing(faceCenter), size: face, controls: faceControls),
+      single(.sidewaysB, s.trailing(bCenter), size: bSize, kind: .button(id: ButtonID.wiiB), id: "wii.b"),
+      group(.sidewaysHome, s.centered(systemCenter), size: system.size, controls: [
+        TouchOverlayControl(id: "wii.minus", kind: .button(id: ButtonID.wiiMinus), frame: system.frames[0]),
+        TouchOverlayControl(id: "wii.home", kind: .button(id: ButtonID.wiiHome), frame: system.frames[1]),
+        TouchOverlayControl(id: "wii.plus", kind: .button(id: ButtonID.wiiPlus), frame: system.frames[2]),
       ]),
-    // HOME (368,992,32,32): centre (384,1008) = horizontal centre, 16 up.
-    single(.sidewaysHome, .bottomCenter, inset: CGPoint(x: 0, y: 16), size: CGSize(width: 32, height: 32),
-           kind: .button(id: ButtonID.wiiHome), id: "wii.home"),
-  ]
+    ]
+  }
 
   // MARK: Wii Remote + Classic Controller
 

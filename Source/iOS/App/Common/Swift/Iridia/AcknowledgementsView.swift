@@ -33,6 +33,10 @@ struct AcknowledgementsView: View {
   private let additions: [Credit] = [
     Credit(name: "PLzmaSDK", detail: "7-Zip archive support (Oleh Kulykov).", license: "MIT", url: "https://github.com/OlehKulykov/PLzmaSDK"),
     Credit(name: "LZMA SDK", detail: "7-Zip compression (Igor Pavlov), used by PLzmaSDK.", license: "Public domain", url: "https://www.7-zip.org/sdk.html"),
+    Credit(name: "SWCompression", detail: "gzip, bzip2 and tar archive support (Timofey Solomko).", license: "MIT", url: "https://github.com/tsolomko/SWCompression"),
+    Credit(name: "BitByteData", detail: "Bit reading used by SWCompression (Timofey Solomko).", license: "MIT", url: "https://github.com/tsolomko/BitByteData"),
+    Credit(name: "Zip", detail: "ZIP archive support (Roy Marmelstein).", license: "MIT", url: "https://github.com/marmelroy/Zip"),
+    Credit(name: "minizip", detail: "ZIP reading inside Zip (Gilles Vollant).", license: "zlib", url: "https://github.com/madler/zlib/tree/master/contrib/minizip"),
     Credit(name: "MoltenVK", detail: "Vulkan on Metal, for the optional Vulkan renderer.", license: "Apache-2.0", url: "https://github.com/KhronosGroup/MoltenVK"),
     Credit(name: "Droid Sans", detail: "The GameCube system fonts Dolphin generates for games (no Nintendo fonts are included).", license: "Apache-2.0", url: "https://fonts.google.com/specimen/Droid+Sans"),
     Credit(name: "Noto Sans CJK", detail: "The Wii U system fonts the Wii U core gives games (no Nintendo fonts are included).", license: "SIL Open Font License 1.1", url: "https://github.com/notofonts/noto-cjk"),

@@ -74,6 +74,18 @@ final class GCEmuTouchPadView: UIView {
     pad.frame = o == .portrait
       ? CGRect(x: 0, y: bounds.height * 0.5, width: bounds.width, height: bounds.height * 0.5)
       : bounds
+    pad.layoutIfNeeded()
+    publishCornerClearance()
+  }
+
+  private func publishCornerClearance() {
+    guard let window else { return }
+    let safe = window.safeAreaInsets
+    let band = safe.top + TouchOverlayCorner.buttonBottom
+    let blockers = pad.controlFrames.map { pad.convert($0, to: window) }
+      .filter { $0.minY < band && $0.midX > window.bounds.width / 2 }
+    let clearance = blockers.map(\.minX).min().map { window.bounds.width - safe.right - $0 + 8 } ?? 0
+    if TouchOverlayCorner.shared.trailingClearance != clearance { TouchOverlayCorner.shared.trailingClearance = clearance }
   }
 
   /// Only touches that land on our controls are ours; everything else reaches the

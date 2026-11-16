@@ -85,6 +85,9 @@ struct MenuModal {
 /// over another one silences the covered screen's input even though SwiftUI
 /// does not fire `onDisappear` for a merely-covered view (design doc §2/§3).
 struct MenuScreen: View {
+  #if os(iOS)
+  @Environment(\.menuLook) private var menuLook
+  #endif
   let model: MenuModel
   var style: MenuStyle
   /// Fires on B / tvOS `.onExitCommand`. `nil` for a screen with nothing to
@@ -483,11 +486,10 @@ struct MenuScreen: View {
         }
       }
       // gc-emu: Iridia look for every list menu (Settings and friends): the indigo stage behind,
-      // translucent glass rows, dark appearance, lavender accents.
+      // translucent glass rows, dark appearance, lavender accents. Opened from the Wii tab, its grey and
+      // white instead, light or dark with the system.
       .scrollContentBackground(.hidden)
-      .background(IridiaGlass.stage)
-      .environment(\.colorScheme, .dark)
-      .tint(Color(red: 0.72, green: 0.66, blue: 1.0))
+      .modifier(MenuLookStyle(look: menuLook))
       .onChange(of: focusedID) { _, id in
         if let id { withAnimation { proxy.scrollTo(id, anchor: .center) } }
       }
@@ -540,7 +542,11 @@ struct MenuScreen: View {
     }
     .disabled(!item.isEnabled)
     .id(item.id)
-    .listRowBackground(focusedID == item.id ? Color.accentColor.opacity(0.22) : Color.white.opacity(0.07))
+    .listRowBackground(focusedID == item.id ? Color.accentColor.opacity(0.22) : rowBackground)
+  }
+
+  private var rowBackground: Color {
+    menuLook == .iridia ? Color.white.opacity(0.07) : Color(uiColor: .secondarySystemGroupedBackground)
   }
 
   // MARK: iOS — tiles style
@@ -995,3 +1001,58 @@ private extension Array {
     stride(from: 0, to: count, by: Swift.max(1, size)).map { Array(self[$0 ..< Swift.min($0 + size, count)]) }
   }
 }
+
+#if os(iOS)
+/// The colours a list menu uses. The Wii and Wii U tabs set theirs on their sheets, so the screens they open
+/// (and everything pushed from them) match.
+enum MenuLook {
+  case iridia, wii, wiiU
+
+  var system: HomeSystem {
+    switch self {
+    case .iridia: return .gameCube
+    case .wii: return .wii
+    case .wiiU: return .wiiU
+    }
+  }
+}
+
+private struct MenuLookKey: EnvironmentKey {
+  static let defaultValue = MenuLook.iridia
+}
+
+extension EnvironmentValues {
+  var menuLook: MenuLook {
+    get { self[MenuLookKey.self] }
+    set { self[MenuLookKey.self] = newValue }
+  }
+}
+
+struct MenuLookStyle: ViewModifier {
+  let look: MenuLook
+
+  func body(content: Content) -> some View {
+    switch look {
+    case .iridia:
+      content
+        .background(IridiaGlass.stage)
+        .environment(\.colorScheme, .dark)
+        .tint(IridiaGlass.accent)
+    case .wii:
+      content
+        .background(WiiTheme.stage)
+        .tint(WiiTheme.accent)
+        .foregroundStyle(WiiTheme.ink)
+    case .wiiU:
+      #if canImport(IridiaCafeCore)
+      content
+        .background(WiiUTheme.stage)
+        .tint(WiiUTheme.accent)
+        .foregroundStyle(WiiUTheme.ink)
+      #else
+      content.modifier(MenuLookStyle(look: .wii))
+      #endif
+    }
+  }
+}
+#endif

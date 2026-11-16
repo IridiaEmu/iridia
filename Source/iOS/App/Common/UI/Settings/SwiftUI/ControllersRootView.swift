@@ -49,15 +49,19 @@ struct TouchOverlayLayoutEditorView: View {
   /// Drawn over the running game, which then also decides the pad. Elsewhere a picker chooses it.
   private let overGame: Bool
   private let onDone: () -> Void
+  /// Over a game: its own layout and opacity are edited. Elsewhere the layout every game shares.
+  private let gameID: String?
   @State private var padKind: TouchOverlayPadKind
+  @State private var runningGame: String?
 
   /// - Parameter mode: `.layout` moves and resizes every group; `.irArea` (Edit IR Area…) only
   ///   reshapes the Wii Remote's IR pad, so it comes with `padKind: .wiiRemote`, the only pad kind
   ///   whose default layout has `wiiIRPad`.
   init(mode: TouchOverlayEditMode = .layout, padKind: TouchOverlayPadKind, overGame: Bool,
-       onDone: @escaping () -> Void) {
+       gameID: String? = nil, onDone: @escaping () -> Void) {
     self.mode = mode
     self.overGame = overGame
+    self.gameID = gameID
     self.onDone = onDone
     _padKind = State(initialValue: padKind)
   }
@@ -69,8 +73,17 @@ struct TouchOverlayLayoutEditorView: View {
         .ignoresSafeArea()
       TouchOverlayView(padKind: padKind, deviceId: 0, irMode: TCWiiTouchIRMode.gyro.rawValue,
                        initialEditMode: mode, onDone: onDone,
-                       toolbarAccessory: overGame || mode != .layout ? nil : AnyView(padPicker))
+                       toolbarAccessory: overGame || mode != .layout ? nil : AnyView(padPicker),
+                       gameID: overGame ? gameID : nil)
         .id(padKind)
+    }
+    .onAppear {
+      guard !overGame else { return }
+      runningGame = TouchOverlayLayoutStore.shared.game
+      TouchOverlayLayoutStore.shared.game = nil
+    }
+    .onDisappear {
+      if !overGame, let runningGame { TouchOverlayLayoutStore.shared.game = runningGame }
     }
     // The game hides the status bar; so does the editor, so both report the same top inset (it is
     // the status bar's height on a screen without a sensor housing) and lay defaults out alike.

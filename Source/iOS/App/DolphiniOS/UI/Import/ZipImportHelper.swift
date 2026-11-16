@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Foundation
-#if canImport(Zip)
-import Zip
-#endif
 #if canImport(PLzmaSDK)
 import PLzmaSDK
 #endif
@@ -168,6 +165,7 @@ final class ZipImportHelper: NSObject {
     case .notAZip, .inconsistentDirectory, .multiDisk, .directoryTooLarge:
       return unsupportedLayoutMessage
     case .truncated, nil:
+      if let unpack = error as? UnpackError { return unpack.localizedDescription }
       return "The archive could not be extracted. It may be corrupt or password-protected.\n\n\(error.localizedDescription)"
     }
   }
@@ -408,7 +406,7 @@ final class ZipImportHelper: NSObject {
   ///
   /// The archive is first copied into a private directory of its own, and everything below reads that copy: `sourceURL`
   /// is a Files-app, web-upload or `Software/` file that another writer can rewrite at any time.
-  static func extractArchive(at sourceURL: URL, to destination: URL) throws {
+  static func extractArchive(at sourceURL: URL, to destination: URL, progress: UnpackProgress? = nil) throws {
     guard let sourceKind = ImportableFileTypes.archiveKind(for: sourceURL) else {
       throw archiveUnavailableError("This archive format")
     }
@@ -422,7 +420,35 @@ final class ZipImportHelper: NSObject {
     let copyKind = try copyURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
     guard copyKind.isRegularFile == true, copyKind.isSymbolicLink != true else { throw ArchiveImportError.notARegularFile }
     try fm.createDirectory(at: destination, withIntermediateDirectories: true)
-    try extractArchive(kind: mapArchiveKind(sourceKind), sourceURL: copyURL, to: destination)
+    try extractArchive(kind: mapArchiveKind(sourceKind), sourceURL: copyURL, to: destination, progress: progress)
+    if progress?.isCancelled == true { throw UnpackError.cancelled }
+    progress?.setFraction(1)
+  }
+
+  /// How much space the files inside a ZIP or 7Z archive take once unpacked. Nil for other formats or an
+  /// archive that can't be read.
+  static func unpackedSize(of url: URL) -> Int64? {
+    switch ImportableFileTypes.archiveKind(for: url) {
+    case .zip?:
+      return ZipStreamExtractor.unpackedSize(of: url)
+    case .sevenZip?:
+      #if canImport(PLzmaSDK)
+      do {
+        let decoder = try Decoder(stream: try InStream(path: Path(url.path)), fileType: .sevenZ, delegate: nil)
+        _ = try decoder.open()
+        let items = try decoder.items()
+        var total: Int64 = 0
+        for index in 0..<items.count { total += Int64(clamping: try items.item(at: index).size) }
+        return total
+      } catch {
+        return nil
+      }
+      #else
+      return nil
+      #endif
+    default:
+      return nil
+    }
   }
 
   /// gc-emu: the names inside a ZIP or 7Z archive, read from its directory without unpacking anything. Nil for
@@ -462,44 +488,75 @@ final class ZipImportHelper: NSObject {
     }
   }
 
-  private static func extractArchive(kind: ArchiveKind, sourceURL: URL, to tempDir: URL) throws {
+  private static func extractArchive(kind: ArchiveKind, sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     switch kind {
     case .zip:
-      try extractZipArchive(sourceURL: sourceURL, to: tempDir)
+      try extractZipArchive(sourceURL: sourceURL, to: tempDir, progress: progress)
     case .sevenZip:
-      try extractSevenZip(sourceURL: sourceURL, to: tempDir)
+      try extractSevenZip(sourceURL: sourceURL, to: tempDir, progress: progress)
     case .xz:
-      try extractXz(sourceURL: sourceURL, to: tempDir)
+      try extractXz(sourceURL: sourceURL, to: tempDir, progress: progress)
     case .tar:
       try extractTarArchive(sourceURL: sourceURL, to: tempDir)
     case .tarGz:
-      try extractTarGzArchive(sourceURL: sourceURL, to: tempDir)
+      try extractTarGzArchive(sourceURL: sourceURL, to: tempDir, progress: progress)
     case .tarBz2:
       try extractTarBz2Archive(sourceURL: sourceURL, to: tempDir)
     case .gzip:
-      try extractGzipSingleFile(sourceURL: sourceURL, to: tempDir)
+      try extractGzipSingleFile(sourceURL: sourceURL, to: tempDir, progress: progress)
     case .bzip2:
       try extractBzip2SingleFile(sourceURL: sourceURL, to: tempDir)
     }
   }
 
-  private static func extractZipArchive(sourceURL: URL, to tempDir: URL) throws {
-    #if canImport(Zip)
+  private static func extractZipArchive(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     // The scan and the extraction read the same private copy, and `tempDir` is empty, so a rejected archive writes nothing.
     _ = try ZipEntryScanner.scan(fileAt: sourceURL)
-    try Zip.unzipFile(sourceURL, destination: tempDir, overwrite: true, password: nil, progress: nil)
-    #else
-    throw archiveUnavailableError("Zip")
-    #endif
+    try ZipStreamExtractor.extract(sourceURL, to: tempDir, progress: progress)
   }
 
   #if canImport(PLzmaSDK)
-  private static func extractSevenZip(sourceURL: URL, to tempDir: URL) throws {
-    try extractWithPLzma(sourceURL: sourceURL, to: tempDir, fileType: .sevenZ)
+  private static func extractSevenZip(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
+    try extractWithPLzma(sourceURL: sourceURL, to: tempDir, fileType: .sevenZ, progress: progress)
   }
 
-  private static func extractXz(sourceURL: URL, to tempDir: URL) throws {
-    try extractWithPLzma(sourceURL: sourceURL, to: tempDir, fileType: .xz)
+  private static func extractXz(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
+    try extractWithPLzma(sourceURL: sourceURL, to: tempDir, fileType: .xz, progress: progress)
+  }
+
+  private final class PLzmaProgress: DecoderDelegate {
+    let progress: UnpackProgress
+    init(_ progress: UnpackProgress) { self.progress = progress }
+
+    func decoder(decoder: Decoder, path: String, progress fraction: Double) {
+      progress.setFraction(fraction)
+    }
+  }
+
+  /// Runs `extract`, aborting `decoder` from another thread once the player cancels. An abort from inside PLzmaSDK's
+  /// progress callback is ignored, because the callback runs with the extract callback's lock held.
+  private static func extractCancellable(_ decoder: Decoder, progress: UnpackProgress?, _ extract: () throws -> Void) throws {
+    guard let progress else { return try extract() }
+    let finished = NSLock()
+    var done = false
+    let watcher = Thread {
+      while !finished.withLock({ done }) {
+        if progress.isCancelled {
+          try? decoder.abort()
+          return
+        }
+        Thread.sleep(forTimeInterval: 0.05)
+      }
+    }
+    watcher.start()
+    defer { finished.withLock { done = true } }
+    do {
+      try extract()
+    } catch {
+      if progress.isCancelled { throw UnpackError.cancelled }
+      throw error
+    }
+    if progress.isCancelled { throw UnpackError.cancelled }
   }
 
   /// PLzmaSDK joins each item path onto the destination with `Path.append`, which only collapses separators and never
@@ -507,13 +564,17 @@ final class ZipImportHelper: NSObject {
   /// `../x` is written outside the destination. It creates plain files only, never links. The paths are checked from
   /// `decoder.items()`, which reads them from the same `kpidPath` property as the extraction, before anything is written.
   /// An xz stream holds one unnamed file, so its output name comes from the archive's own name, never from its contents.
-  private static func extractWithPLzma(sourceURL: URL, to tempDir: URL, fileType: FileType) throws {
+  private static func extractWithPLzma(sourceURL: URL, to tempDir: URL, fileType: FileType, progress: UnpackProgress?) throws {
     let stream = try InStream(path: Path(sourceURL.path))
-    let decoder = try Decoder(stream: stream, fileType: fileType, delegate: nil)
+    let delegate = progress.map(PLzmaProgress.init)
+    let decoder = try Decoder(stream: stream, fileType: fileType, delegate: delegate)
     _ = try decoder.open()
     if fileType == .xz {
+      progress?.setTotal(WiiUImport.size(of: sourceURL))
       let outputName = sourceURL.deletingPathExtension().lastPathComponent
-      _ = try decoder.extract(to: Path(tempDir.appendingPathComponent(outputName).path))
+      try extractCancellable(decoder, progress: progress) {
+        _ = try decoder.extract(to: Path(tempDir.appendingPathComponent(outputName).path))
+      }
       return
     }
     let items = try decoder.items()
@@ -526,7 +587,10 @@ final class ZipImportHelper: NSObject {
       paths.append(try item.path().description)
     }
     try validateItemPaths(paths)
-    _ = try decoder.extract(to: Path(tempDir.path))
+    var total: Int64 = 0
+    for index in 0..<items.count { total += Int64(clamping: try items.item(at: index).size) }
+    progress?.setTotal(total)
+    try extractCancellable(decoder, progress: progress) { _ = try decoder.extract(to: Path(tempDir.path)) }
   }
 
   /// Whether `item` wraps a real archive item. `OpenCallback::initialItemAt` returns a null item when it cannot read an
@@ -539,42 +603,55 @@ final class ZipImportHelper: NSObject {
     return (pointer as? UnsafeMutableRawPointer) != nil
   }
   #else
-  private static func extractSevenZip(sourceURL: URL, to tempDir: URL) throws {
+  private static func extractSevenZip(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     throw archiveUnavailableError("7z")
   }
 
-  private static func extractXz(sourceURL: URL, to tempDir: URL) throws {
+  private static func extractXz(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     throw archiveUnavailableError("xz")
   }
   #endif
 
   #if canImport(SWCompression)
-  private static func extractGzipSingleFile(sourceURL: URL, to tempDir: URL) throws {
-    let data = try Data(contentsOf: sourceURL)
-    let decompressed = try GzipArchive.unarchive(archive: data)
+  private static func extractGzipSingleFile(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     let outputName = sourceURL.deletingPathExtension().lastPathComponent
-    try decompressed.write(to: tempDir.appendingPathComponent(outputName))
+    try GzipStreamExtractor.extract(sourceURL, to: tempDir.appendingPathComponent(outputName), progress: progress)
+  }
+
+  /// tar and bz2 are unpacked in memory, so big ones would get the app closed. Phones with 4 GB get a lower tar cap.
+  static let tarLimit: Int64 = ProcessInfo.processInfo.physicalMemory > 6 << 30 ? 1_000_000_000 : 500_000_000
+  static let bzip2Limit: Int64 = 250_000_000
+
+  private static func checkSize(_ url: URL, kind: String, limit: Int64) throws {
+    let size = Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+    if size > limit { throw UnpackError.tooBig(kind: kind, limit: limit) }
   }
 
   private static func extractBzip2SingleFile(sourceURL: URL, to tempDir: URL) throws {
+    try checkSize(sourceURL, kind: "bz2", limit: bzip2Limit)
     let data = try Data(contentsOf: sourceURL)
     let decompressed = try BZip2.decompress(data: data)
     let outputName = sourceURL.deletingPathExtension().lastPathComponent
     try decompressed.write(to: tempDir.appendingPathComponent(outputName))
   }
 
+  /// The tar is mapped rather than read, so only the files taken out of it are held in memory.
   private static func extractTarArchive(sourceURL: URL, to tempDir: URL) throws {
-    let data = try Data(contentsOf: sourceURL)
+    try checkSize(sourceURL, kind: "tar", limit: tarLimit)
+    let data = try Data(contentsOf: sourceURL, options: .alwaysMapped)
     try writeTarEntries(try TarContainer.open(container: data), to: tempDir)
   }
 
-  private static func extractTarGzArchive(sourceURL: URL, to tempDir: URL) throws {
-    let data = try Data(contentsOf: sourceURL)
-    let tarData = try GzipArchive.unarchive(archive: data)
-    try writeTarEntries(try TarContainer.open(container: tarData), to: tempDir)
+  /// The tar is unpacked next to the private copy of the archive, which is removed with it.
+  private static func extractTarGzArchive(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
+    let tar = sourceURL.deletingLastPathComponent().appendingPathComponent(UUID().uuidString + ".tar")
+    defer { try? FileManager.default.removeItem(at: tar) }
+    try GzipStreamExtractor.extract(sourceURL, to: tar, progress: progress)
+    try extractTarArchive(sourceURL: tar, to: tempDir)
   }
 
   private static func extractTarBz2Archive(sourceURL: URL, to tempDir: URL) throws {
+    try checkSize(sourceURL, kind: "bz2", limit: bzip2Limit)
     let data = try Data(contentsOf: sourceURL)
     let tarData = try BZip2.decompress(data: data)
     try writeTarEntries(try TarContainer.open(container: tarData), to: tempDir)
@@ -604,7 +681,7 @@ final class ZipImportHelper: NSObject {
     }
   }
   #else
-  private static func extractGzipSingleFile(sourceURL: URL, to tempDir: URL) throws {
+  private static func extractGzipSingleFile(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     throw archiveUnavailableError("gzip")
   }
 
@@ -614,13 +691,13 @@ final class ZipImportHelper: NSObject {
 
   private static func extractTarArchive(sourceURL: URL, to tempDir: URL) throws {
     #if canImport(PLzmaSDK)
-    try extractWithPLzma(sourceURL: sourceURL, to: tempDir, fileType: .tar)
+    try extractWithPLzma(sourceURL: sourceURL, to: tempDir, fileType: .tar, progress: nil)
     #else
     throw archiveUnavailableError("tar")
     #endif
   }
 
-  private static func extractTarGzArchive(sourceURL: URL, to tempDir: URL) throws {
+  private static func extractTarGzArchive(sourceURL: URL, to tempDir: URL, progress: UnpackProgress?) throws {
     throw archiveUnavailableError("tar.gz")
   }
 

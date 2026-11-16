@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import Foundation
+import UIKit
 
 /// How the emulated Wii Remote's pointer is driven. Raw values are `MAIN_TOUCH_PAD_IR_MODE`'s.
 /// The core has no "off" value: 0 means the gyro drives it and the touch pad is idle.
@@ -14,9 +15,9 @@ enum PointerMode: Int, CaseIterable, Identifiable {
 
   var title: String {
     switch self {
-    case .gyro: return L("Gyro")
-    case .touchFollow: return L("Touch – Follow")
-    case .touchDrag: return L("Touch – Drag")
+    case .gyro: return UIDevice.current.userInterfaceIdiom == .pad ? L("Point the iPad") : L("Point the phone")
+    case .touchFollow: return L("Follow your finger")
+    case .touchDrag: return L("Drag on the screen")
     }
   }
 

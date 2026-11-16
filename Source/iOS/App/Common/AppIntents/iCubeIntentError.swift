@@ -11,7 +11,7 @@ enum iCubeIntentError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .noRecentGame: return "You haven't played any games yet."
-        case .noGames: return "Your iCube library is empty."
+        case .noGames: return "Your Iridia library is empty."
         }
     }
 }

@@ -41,7 +41,7 @@ enum TouchOverlayArt {
   private static func rimGlow(_ variant: Variant) -> Color {
     switch variant {
     case .gameCube: return Color(red: 0.62, green: 0.48, blue: 0.95)
-    case .wii: return Color(red: 0.32, green: 0.62, blue: 1.0)
+    case .wii: return Color(white: 0.82)
     }
   }
 
@@ -50,22 +50,29 @@ enum TouchOverlayArt {
   private static func neutralBody(_ variant: Variant) -> (top: Color, bottom: Color) {
     switch variant {
     case .gameCube: return (Color(red: 0.46, green: 0.36, blue: 0.66), Color(red: 0.24, green: 0.17, blue: 0.40))
-    case .wii: return (.white, Color(white: 0.86))
+    case .wii: return (Color(red: 0.58, green: 0.59, blue: 0.62), Color(red: 0.29, green: 0.30, blue: 0.32))
     }
   }
+
+  private static let wiiPrimary = (top: Color(white: 1.0), bottom: Color(red: 0.80, green: 0.81, blue: 0.83))
 
   /// Per-control accent color. GameCube gives A/B/Start their real hardware colors; everything
   /// else (and all of Wii, which reads through the rim glow instead of a body tint) uses the
   /// palette's neutral body.
   static func accent(for controlId: String, variant: Variant) -> (top: Color, bottom: Color) {
-    guard variant == .gameCube else { return neutralBody(.wii) }
     let suffix = controlId.split(separator: ".").last.map(String.init) ?? ""
+    guard variant == .gameCube else { return isWiiPrimary(controlId) ? wiiPrimary : neutralBody(.wii) }
     switch suffix {
     case "a": return (Color(red: 0.32, green: 0.86, blue: 0.40), Color(red: 0.10, green: 0.55, blue: 0.22))
     case "b": return (Color(red: 0.95, green: 0.30, blue: 0.28), Color(red: 0.65, green: 0.08, blue: 0.10))
     case "start": return (Color(white: 0.98), Color(white: 0.80))
     default: return neutralBody(.gameCube)
     }
+  }
+
+  /// A is white on the Wii pads, the way it is green on GameCube.
+  private static func isWiiPrimary(_ controlId: String) -> Bool {
+    controlId == "wii.a" || controlId == "classic.a"
   }
 
   /// Short label text for a control id ("gc.a" -> "A", "wii.one" -> "1"). Every control keeps its
@@ -77,7 +84,6 @@ enum TouchOverlayArt {
     case "two": return "2"
     case "minus": return "\u{2212}"
     case "plus": return "+"
-    case "home": return "\u{2302}"
     default: return suffix.uppercased()
     }
   }
@@ -86,20 +92,41 @@ enum TouchOverlayArt {
 
   /// One face-style button: shaped body (per `shape`), gradient fill, gloss highlight, rim +
   /// colored glow (brighter/inset when `pressed`), with its label centered on top.
-  @ViewBuilder
+  /// GameCube and Wii buttons are the same parts; only the palette differs.
+  @ViewBuilder @MainActor
   static func button(controlId: String, shape: ButtonShape, variant: Variant, pressed: Bool) -> some View {
+    if variant == .wii {
+      WiiPart { size in
+        PadArt.shared.button(padShape(shape), size: size, base: isWiiPrimary(controlId) ? WiiPlastic.primary : WiiPlastic.body,
+                             text: label(for: controlId), pressed: pressed)
+      }
+    } else {
+      gameCubeButton(controlId: controlId, shape: shape, variant: variant, pressed: pressed)
+    }
+  }
+
+  private static func padShape(_ shape: ButtonShape) -> PadShape {
+    switch shape {
+    case .circle, .kidney: return .circle
+    case .bar: return .trapezoid
+    case .pill: return .capsule
+    }
+  }
+
+  @ViewBuilder
+  private static func gameCubeButton(controlId: String, shape: ButtonShape, variant: Variant, pressed: Bool) -> some View {
     let (top, bottom) = accent(for: controlId, variant: variant)
-    let glow = variant == .gameCube ? rimGlow(.gameCube) : rimGlow(.wii)
+    let glow = rimGlow(variant)
     ZStack {
-      buttonShape(shape)
+      buttonShape(shape, variant)
         .fill(LinearGradient(colors: pressed ? [bottom, top] : [top, bottom], startPoint: .top, endPoint: .bottom))
-      buttonShape(shape)
+      buttonShape(shape, variant)
         .fill(LinearGradient(colors: [Color.white.opacity(pressed ? 0.10 : 0.34), .clear], startPoint: .top, endPoint: .center))
-      buttonShape(shape)
-        .stroke(variant == .wii ? glow.opacity(pressed ? 0.95 : 0.6) : Color.white.opacity(0.5), lineWidth: pressed ? 2 : 1)
+      buttonShape(shape, variant)
+        .stroke(Color.white.opacity(0.5), lineWidth: pressed ? 2 : 1)
       Text(label(for: controlId))
         .font(.caption2.weight(.bold))
-        .foregroundStyle(variant == .gameCube ? Color.white.opacity(0.9) : Color.black.opacity(0.55))
+        .foregroundStyle(variant == .wii && isWiiPrimary(controlId) ? Color.black.opacity(0.6) : Color.white.opacity(0.9))
     }
     // Only the press scale eases. The fills, rim and both shadows switch straight to their pressed
     // look: animating them re-blurred both shadows (radius and colour interpolating) on every frame of
@@ -113,7 +140,7 @@ enum TouchOverlayArt {
     .shadow(color: glow.opacity(pressed ? 0.85 : 0.35), radius: pressed ? 8 : 4)
   }
 
-  private static func buttonShape(_ shape: ButtonShape) -> AnyShape {
+  private static func buttonShape(_ shape: ButtonShape, _ variant: Variant) -> AnyShape {
     switch shape {
     case .circle: return AnyShape(Circle())
     case .kidney: return AnyShape(KidneyShape())
@@ -125,8 +152,31 @@ enum TouchOverlayArt {
   // MARK: D-pad
 
   /// Real cross D-pad with per-arm gloss and a lit arrow for every currently-pressed direction.
-  @ViewBuilder
+  @ViewBuilder @MainActor
   static func dpad(pressed: Set<TouchOverlayHitTester.DPadDirection>, variant: Variant) -> some View {
+    if variant == .wii {
+      GeometryReader { geo in
+        let side = floor(min(geo.size.width, geo.size.height))
+        let size = CGSize(width: side, height: side)
+        let pad = PadArt.padding(for: size)
+        ZStack {
+          Image(uiImage: PadArt.shared.dpad(size: size, base: WiiPlastic.body))
+            .frame(width: side + pad * 2, height: side + pad * 2)
+          ForEach(Array(wiiArms.enumerated()), id: \.offset) { _, arm in
+            if pressed.contains(arm.0) { Image(uiImage: PadArt.shared.dpadArm(size: size, direction: arm.1)) }
+          }
+        }
+        .frame(width: geo.size.width, height: geo.size.height)
+      }
+    } else {
+      gameCubeDPad(pressed: pressed, variant: variant)
+    }
+  }
+
+  private static let wiiArms: [(TouchOverlayHitTester.DPadDirection, Int)] = [(.up, 0), (.down, 1), (.left, 2), (.right, 3)]
+
+  @ViewBuilder
+  private static func gameCubeDPad(pressed: Set<TouchOverlayHitTester.DPadDirection>, variant: Variant) -> some View {
     let (top, bottom) = neutralBody(variant)
     let glow = rimGlow(variant)
     // Proportions of the original 128 pt art, so a smaller or larger D-pad keeps its arrows on
@@ -179,8 +229,21 @@ enum TouchOverlayArt {
   /// Dished analog base with an OCTAGONAL GATE ring drawn purely for looks — the actual travel
   /// math (`TouchOverlayInput.stickAxes`) is a circle and stays that way (design §5 note: don't
   /// couple cosmetic gate art to hit-test geometry).
-  @ViewBuilder
+  @ViewBuilder @MainActor
   static func stickBase(variant: Variant, dragging: Bool) -> some View {
+    if variant == .wii {
+      GeometryReader { geo in
+        let side = floor(min(geo.size.width, geo.size.height))
+        Image(uiImage: PadArt.shared.stickWell(size: CGSize(width: side, height: side), base: WiiPlastic.well))
+          .frame(width: geo.size.width, height: geo.size.height)
+      }
+    } else {
+      gameCubeStickBase(variant: variant, dragging: dragging)
+    }
+  }
+
+  @ViewBuilder
+  private static func gameCubeStickBase(variant: Variant, dragging: Bool) -> some View {
     let glow = rimGlow(variant)
     ZStack {
       Circle()
@@ -195,8 +258,17 @@ enum TouchOverlayArt {
     }
   }
 
-  @ViewBuilder
+  @ViewBuilder @MainActor
   static func stickKnob(variant: Variant) -> some View {
+    if variant == .wii {
+      WiiPart { size in PadArt.shared.stickCap(size: size, base: WiiPlastic.body, pressed: false) }
+    } else {
+      gameCubeStickKnob(variant: variant)
+    }
+  }
+
+  @ViewBuilder
+  private static func gameCubeStickKnob(variant: Variant) -> some View {
     let (top, bottom) = neutralBody(variant)
     Circle()
       .fill(RadialGradient(colors: [top, bottom], center: UnitPoint(x: 0.38, y: 0.3), startRadius: 1, endRadius: 40))
@@ -215,6 +287,29 @@ enum TouchOverlayArt {
     RoundedRectangle(cornerRadius: 20, style: .continuous)
       .fill(Color.white.opacity(0.06))
       .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(glow.opacity(0.35), lineWidth: 1.5))
+  }
+}
+
+/// The Wii pad's plastic, drawn with the Wii U renderer.
+private enum WiiPlastic {
+  static let body = UIColor(red: 0.50, green: 0.51, blue: 0.54, alpha: 1)
+  static let primary = UIColor(red: 0.94, green: 0.95, blue: 0.96, alpha: 1)
+  static let well = UIColor(red: 0.20, green: 0.21, blue: 0.23, alpha: 1)
+}
+
+/// A rendered part sized to its frame, with room around it for the contact shadow.
+private struct WiiPart: View {
+  let image: @MainActor (CGSize) -> UIImage
+
+  var body: some View {
+    GeometryReader { geo in
+      let size = CGSize(width: floor(geo.size.width), height: floor(geo.size.height))
+      let pad = PadArt.padding(for: size)
+      Image(uiImage: image(size))
+        .frame(width: size.width + pad * 2, height: size.height + pad * 2)
+        .frame(width: geo.size.width, height: geo.size.height)
+    }
+    .allowsHitTesting(false)
   }
 }
 

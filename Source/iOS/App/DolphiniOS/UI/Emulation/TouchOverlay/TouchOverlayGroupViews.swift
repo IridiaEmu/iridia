@@ -78,6 +78,8 @@ struct TouchOverlayButtonClusterView: View {
             if !down {
               TCManagerInterface.setAxisValueFor(raw, controller: deviceId, value: 0.0)
             }
+          case .buttons(let ids):
+            for raw in ids { TCManagerInterface.setButtonStateFor(raw, controller: deviceId, state: down) }
           case .stick, .dpad, .irSurface:
             break
           }
@@ -107,6 +109,7 @@ struct TouchOverlayButtonClusterView: View {
         switch control.kind {
         case .button(let raw): TCManagerInterface.setButtonStateFor(raw, controller: deviceId, state: false)
         case .axisButton(let raw): TCManagerInterface.setAxisValueFor(raw, controller: deviceId, value: 0.0)
+        case .buttons(let ids): for raw in ids { TCManagerInterface.setButtonStateFor(raw, controller: deviceId, state: false) }
         case .stick, .dpad, .irSurface: break
         }
       }
@@ -122,7 +125,7 @@ struct TouchOverlayButtonClusterView: View {
     case "a", "b", "one", "two", "c": return .circle
     case "x", "y": return .kidney
     case "z", "l", "r", "zl", "zr": return .bar
-    case "start", "minus", "plus", "home": return .pill
+    case "start", "minus", "plus", "home", "shake": return .pill
     default: return .circle
     }
   }

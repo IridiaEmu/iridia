@@ -189,7 +189,9 @@ final class TVLibraryViewModel: ObservableObject {
         print("    [\(idx)]: '\(item.title)' (isLocal: \(isLocal(item)), titleEmpty: \(item.title.isEmpty))")
       }
 #endif
-      if let local = group.first(where: { isLocal($0) }) {
+      if group.count > 1, let playable = group.first(where: { isPlayableHere($0) }) {
+        representatives.append(playable)
+      } else if let local = group.first(where: { isLocal($0) }) {
 #if DEBUG
         print("    -> Using local representative: '\(local.title)'")
 #endif
@@ -229,6 +231,12 @@ final class TVLibraryViewModel: ObservableObject {
 
   func sources(for item: TVGameItem) -> [TVGameItem] {
     groupsByKey[key(for: item)] ?? [item]
+  }
+
+  /// A file on this device that starts without asking for anything first (a Wii disc needing the key
+  /// file, or a WAD, does not).
+  func isPlayableHere(_ item: TVGameItem) -> Bool {
+    isLocal(item) && !item.isWiiWAD && !item.needsWiiKey()
   }
 }
 
@@ -285,9 +293,8 @@ struct TVLibraryView: View {
   // MARK: - Multi-select state
 
   @State private var isSelectionMode = false
-  /// gc-emu: the Wii U tab, shown over the GameCube library.
-  @State private var showWiiU = false
   #if os(iOS)
+  @ObservedObject private var homeRouter = HomeRouter.shared
   /// gc-emu: Unlock Full Version from the grid view's toolbar (the shelf has its own Unlock button).
   @State private var showGridUnlock = false
   @ObservedObject private var unlockStore = IridiaUnlock.store
@@ -616,46 +623,54 @@ struct TVLibraryView: View {
         if !showPlatformFilterBar { platformFilter = .all }
       }
 #if os(iOS)
-      // Check Downloads for Games (if the player turned it on): when the app opens or comes back, and when the
-      // GameCube tab is shown again. Never while a game is running (checked inside).
+      // Check Downloads for Games (if the player turned it on), for every tab: when the app opens or comes back.
+      // Never while a game is running (checked inside).
       .task {
         try? await Task.sleep(for: .seconds(1.5))
-        if !showWiiU { GameCubeDownloads.check() }
+        checkDownloads()
       }
       .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-        if !showWiiU { GameCubeDownloads.check() }
-      }
-      .onChange(of: showWiiU) { _, onWiiU in
-        if !onWiiU { GameCubeDownloads.check() }
+        checkDownloads()
       }
 #endif
 #if os(iOS) && canImport(IridiaCafeCore)
-      // The Wii U tab sits in place over the GameCube shelf and cross-fades in and out, like switching tabs in
-      // one app: both screens keep the header, shelf and tab bar in the same places. The shelf underneath is
-      // hidden from VoiceOver meanwhile.
-      .accessibilityHidden(showWiiU)
-      .overlay {
-        if showWiiU {
-          WiiUHomeView(onGameCube: { withAnimation(Self.tabSwitch) { showWiiU = false } })
-            .transition(.opacity)
-        }
-      }
       .onAppear {
-        // Test hook (not in App Store builds): -wiiuTab YES opens the Wii U tab at launch.
         #if !APPSTORE
+        // -wiiTab YES / -wiiuTab YES open that tab at launch.
+        if UserDefaults.standard.bool(forKey: "wiiTab") { HomeRouter.shared.select(.wii, animated: false) }
         if UserDefaults.standard.bool(forKey: "wiiuTab") {
           NSLog("[WiiU] test hook: opening the Wii U tab")
-          DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { withAnimation(Self.tabSwitch) { showWiiU = true } }
+          DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { HomeRouter.shared.select(.wiiU) }
+        }
+        // -importTest <path> adds a file as Choose a Game File would; -downloadsTest <folder> uses that folder
+        // for Check Downloads for Games and checks it (the Simulator's pickers can't be driven).
+        if let path = UserDefaults.standard.string(forKey: "importTest") {
+          DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            GameImport.add([URL(fileURLWithPath: path)], from: .current)
+          }
+        }
+        if let path = UserDefaults.standard.string(forKey: "downloadsTest") {
+          DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            DownloadsFolder.useForTest(URL(fileURLWithPath: path, isDirectory: true))
+            HomeRouter.shared.send(.checkDownloads)
+          }
+        }
+        FrameDropMonitor.startIfRequested()
+        // -homeTour YES goes GameCube, Wii, Wii U and back three times, for recording the switches.
+        if UserDefaults.standard.bool(forKey: "homeTour") {
+          for (step, system) in Array(repeating: [HomeSystem.wii, .wiiU, .gameCube], count: 3).joined().enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0 + Double(step) * 2.0) { HomeRouter.shared.select(system) }
+          }
         }
         #endif
       }
-      // A Wii U game opened from another app, or moved out of the GameCube folder, shows on the Wii U tab.
-      .onReceive(NotificationCenter.default.publisher(for: WiiUImport.showTabNotification)) { _ in
-        withAnimation(Self.tabSwitch) { showWiiU = true }
+      // Games the Files app put in another system's folder, and archives put in any of them, go where they belong.
+      .task {
+        GameImport.finishInterruptedUnpack(from: .current)
+        GameImport.tidyFolders()
       }
-      .task { WiiUImport.offerToMoveStrayGames() }
       .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-        WiiUImport.offerToMoveStrayGames()
+        GameImport.tidyFolders()
       }
 #endif
   }
@@ -731,6 +746,7 @@ struct TVLibraryView: View {
   // by an older version is ignored).
   private let libraryStyle = "shelf"
   @State private var showLibraryControllers = false
+  @State private var showGameCubeSettings = false
   @State private var showFilesAppGuide = false
   @State private var showImportNANDPicker = false
   @State private var showImportSkylanderPicker = false
@@ -902,28 +918,49 @@ struct TVLibraryView: View {
     let displayGames = filteredGames(from: model.games)
 #if os(iOS) || targetEnvironment(macCatalyst)
     if usesShelf {
-      IridiaShelfView(
-        games: displayGames,
-        onPlay: { item, fresh in
-          if fresh { SaveStateService.skipResumeOnce = true } else { SaveStateService.resumeChoiceForNextBoot = true }
-          selectGame(item)
-        },
-        onImport: { showImportSoftwarePicker = true },
-        onFilesGuide: { showFilesAppGuide = true },
-        onSettings: { openLibrarySettings() },   // iOS pushes Settings; `showSettings` is tvOS only
-        onSaves: { item in if !item.gameID.isEmpty { navigateToSaveStates = GameIDRoute(id: item.gameID) } },
-        onControllers: { showLibraryControllers = true },
-        onProperties: { showPropertiesFor = $0 },
-        onDelete: { itemPendingDelete = $0 },
-        onWiiU: wiiUAction
-      )
-      .sheet(isPresented: $showLibraryControllers) {
-        NavigationStack {
-          ControllerHubView(system: .gamecube, onBack: { showLibraryControllers = false })
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("Done")) { showLibraryControllers = false } } }
+      IridiaHomeView {
+        IridiaShelfView(
+          games: displayGames.filter { !Self.isWiiShelfGame($0) },
+          onPlay: playFromShelf,
+          onImport: { showImportSoftwarePicker = true },
+          onFilesGuide: { showFilesAppGuide = true },
+          onSettings: { showGameCubeSettings = true },
+          onSaves: openSaves,
+          onControllers: { showLibraryControllers = true },
+          onProperties: { showPropertiesFor = $0 },
+          onDelete: { itemPendingDelete = $0 }
+        )
+        .sheet(isPresented: $showGameCubeSettings) {
+          NavigationStack {
+            GameCubeSettingsView(onUnlock: { showGameCubeSettings = false; showGridUnlock = true },
+                                 onControllers: { showGameCubeSettings = false; showLibraryControllers = true })
+          }
+          .preferredColorScheme(.dark)
+          .claimsController()
         }
-        .preferredColorScheme(.dark)   // gc-emu: Iridia sheets are always dark
-        .claimsController()
+        .onReceive(NotificationCenter.default.publisher(for: .iridiaOpenAllSettings)) { _ in openLibrarySettings() }
+        .sheet(isPresented: $showLibraryControllers) {
+          NavigationStack {
+            ControllerHubView(system: .gamecube, onBack: { showLibraryControllers = false })
+              .menuClose { showLibraryControllers = false }
+          }
+          .preferredColorScheme(.dark)   // Iridia sheets are always dark
+          .claimsController()
+        }
+      } wii: {
+        WiiHomeView(
+          games: displayGames.filter(Self.isWiiShelfGame),
+          onPlay: playFromShelf,
+          onImport: { showImportSoftwarePicker = true },
+          onFilesGuide: { showFilesAppGuide = true },
+          onSaves: openSaves,
+          onProperties: { showPropertiesFor = $0 },
+          onDelete: { itemPendingDelete = $0 }
+        )
+      } wiiU: {
+        #if canImport(IridiaCafeCore)
+        WiiUHomeView()
+        #endif
       }
     } else {
       libraryView_iOS(displayGames)
@@ -1320,17 +1357,38 @@ struct TVLibraryView: View {
     }
   }
 
-  /// gc-emu: switching between the GameCube and Wii U tabs.
-  static let tabSwitch = Animation.easeInOut(duration: 0.28)
+  /// gc-emu: games for the Wii section (Wii discs, WADs and Wii homebrew); everything else is GameCube's.
+  static func isWiiShelfGame(_ item: TVGameItem) -> Bool {
+    LibraryPlatformMapper.detectedCategory(for: item) != .gameCube
+  }
 
-  /// gc-emu: opens the Wii U tab (nil where the Wii U core isn't built in).
+  /// Opens the Wii U tab (nil where the Wii U core isn't built in).
   private var wiiUAction: (() -> Void)? {
     #if os(iOS) && canImport(IridiaCafeCore)
-    return { withAnimation(Self.tabSwitch) { showWiiU = true } }
+    return { HomeRouter.shared.select(.wiiU) }
     #else
     return nil
     #endif
   }
+
+  #if os(iOS)
+  private func playFromShelf(_ item: TVGameItem, fresh: Bool) {
+    if fresh { SaveStateService.skipResumeOnce = true } else { SaveStateService.resumeChoiceForNextBoot = true }
+    selectGame(item)
+  }
+
+  private func openSaves(_ item: TVGameItem) {
+    if !item.gameID.isEmpty { navigateToSaveStates = GameIDRoute(id: item.gameID) }
+  }
+
+  private func checkDownloads() {
+    GameCubeDownloads.check(.gameCube)
+    GameCubeDownloads.check(.wii)
+    #if canImport(IridiaCafeCore)
+    WiiUDownloads.check(model: WiiUModel.shared)
+    #endif
+  }
+  #endif
 
   /// gc-emu: the empty GameCube library still leads to the Wii U tab.
   @ViewBuilder
@@ -1939,8 +1997,16 @@ struct TVLibraryView: View {
 #endif
       }
       NotificationCenter.default.addObserver(forName: NSNotification.Name("DOLShowSnackbar"), object: nil, queue: .main) { note in
-        if let text = note.userInfo?["text"] as? String { snackbarText = text; withAnimation { snackbarVisible = true };
-          DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { snackbarVisible = false } }
+        if let text = note.userInfo?["text"] as? String {
+          // Long enough to read a sentence with a game's full name in it. A short note (Library refreshed)
+          // doesn't replace a longer message still showing, such as where an imported game went.
+          let seconds = note.userInfo?["seconds"] as? Double ?? 1.5
+          if snackbarVisible, snackbarUntil > Date(), seconds < snackbarSeconds { return }
+          snackbarText = text; snackbarSeconds = seconds; snackbarUntil = Date().addingTimeInterval(seconds)
+          withAnimation { snackbarVisible = true }
+          DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            if snackbarText == text { withAnimation { snackbarVisible = false } }
+          }
         }
       }
       // Rescan library when a file import completes
@@ -1961,7 +2027,7 @@ struct TVLibraryView: View {
       // gc-emu: once, the first time the app opens, say where bug reports go. Marked seen when shown, so it
       // never comes back even if the app is closed on it. Never during scripted benchmarks.
       if !UserDefaults.standard.bool(forKey: BugReport.noticeSeenKey),
-         UserDefaults.standard.double(forKey: "gcemuBench") <= 0 {
+         !GCEmuBenchmark.isRunning {
         UserDefaults.standard.set(true, forKey: BugReport.noticeSeenKey)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showBugNotice = true }
       }
@@ -2108,32 +2174,7 @@ struct TVLibraryView: View {
       .onChange(of: showImportSoftwarePicker) { _, show in
         guard show else { return }
         showImportSoftwarePicker = false
-        GameFilePicker.present { urls in
-          // A Wii U file is a game, just for the other tab: say so instead of "isn't a game file", and don't
-          // import a Wii U disc named .iso as a GameCube game.
-          let isWiiU = { (url: URL) -> Bool in
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            return WiiUFileTypes.isWiiUFile(url)
-          }
-          let supported = urls.filter { ImportableFileTypes.isImportableFile($0) }
-          let rejected = urls.filter { !ImportableFileTypes.isImportableFile($0) && !isWiiU($0) }
-          let wiiU = urls.filter(isWiiU)
-          if !wiiU.isEmpty {
-            let names = wiiU.map(\.lastPathComponent).joined(separator: ", ")
-            NotificationCenter.default.post(
-              name: NSNotification.Name("DOLShowSnackbar"), object: nil,
-              userInfo: ["text": String(format: L("%@ is a Wii U game. Add it on the Wii U tab."), names)])
-          } else if !rejected.isEmpty {
-            let names = rejected.map(\.lastPathComponent).joined(separator: ", ")
-            NotificationCenter.default.post(
-              name: NSNotification.Name("DOLShowSnackbar"), object: nil,
-              userInfo: ["text": String(format: L("%@ isn't a game file. Use ISO, RVZ, GCM, CISO, ZIP or 7Z."), names)])
-          }
-          if !supported.isEmpty {
-            ImportFileManager.shared().importFiles(at: supported as [NSURL])
-          }
-        }
+        GameFilePicker.present(types: [.data, .folder]) { urls in GameImport.add(urls, from: .current) }
       }
       .sheet(isPresented: $showFilesAppGuide) { FilesAppGuideView().claimsController() }
       .sheet(isPresented: $showImportNANDPicker) {
@@ -2197,6 +2238,8 @@ struct TVLibraryView: View {
 
   @State private var snackbarText: String = ""
   @State private var snackbarVisible: Bool = false
+  @State private var snackbarSeconds: Double = 0
+  @State private var snackbarUntil = Date.distantPast
   @State private var showOnboarding: Bool = false
   @State private var showBugNotice = false
   @State private var showBugEmailCopied = false
@@ -2219,7 +2262,12 @@ struct TVLibraryView: View {
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(Color.black.opacity(0.8))
         .clipShape(Capsule())
+        .padding(.horizontal, 20)
+        #if os(iOS)
+        .padding(.bottom, 100)  // above the home screen's tab bar
+        #else
         .padding(.bottom, 16)
+        #endif
       }
       .transition(.move(edge: .bottom).combined(with: .opacity))
     }
@@ -2436,8 +2484,17 @@ struct TVLibraryView: View {
     }
   }
 
+  /// The welcome card waits for the GameCube home screen with no game open or opening.
+  private var welcomeCanShow: Bool {
+    #if os(iOS)
+    return navigateTo == nil && !emulationRunning && !homeRouter.curtain && homeRouter.system == .gameCube
+    #else
+    return navigateTo == nil && !emulationRunning
+    #endif
+  }
+
   @ViewBuilder private var onboardingOverlay: some View {
-    if showOnboarding {
+    if showOnboarding && welcomeCanShow {
       ZStack {
         Color.black.opacity(0.5).ignoresSafeArea()
         VStack(spacing: 20) {
@@ -2571,14 +2628,45 @@ struct TVLibraryView: View {
 
   private func selectGame(_ item: TVGameItem) {
     let sources = model.sources(for: item)
+    #if os(iOS)
+    if sources.count > 1 {
+      let playable = sources.filter(model.isPlayableHere)
+      if playable.count == 1 {
+        startGame(playable[0])
+      } else if playable.isEmpty {
+        startGame(item)
+      } else {
+        askWhichFile(playable)
+      }
+      return
+    }
+    #else
     if sources.count > 1 {
       sourcePickerItems = sources
       return
     }
+    #endif
+    startGame(item)
+  }
+
+  private func startGame(_ item: TVGameItem) {
     emulationRunning = true
     teardownControllerNavigation()
     launchGame(item)
   }
+
+  #if os(iOS)
+  /// The same game in more than one file that plays: Iridia's popup, in the look of the tab it was
+  /// started from, with a button per file.
+  private func askWhichFile(_ items: [TVGameItem]) {
+    var buttons = items.map { item in
+      IridiaAlertButton((item.filePath as NSString).lastPathComponent) { startGame(item) }
+    }
+    buttons.append(.cancel())
+    IridiaAlert.show(title: L("Which File?"), message: L("This game is in more than one file. Choose the one to play."),
+                     buttons: buttons, look: .gameCube)
+  }
+  #endif
 
   private func launchGame(_ item: TVGameItem) {
     // Check for critically low storage before launching any game
@@ -3237,13 +3325,8 @@ extension TVLibraryView {
     }
     group.notify(queue: .main) {
       dropPreviewCount = pendingURLs.count
-      let files = ImportableFileTypes.filterImportURLs(pendingURLs)
-      guard !files.isEmpty else {
-        NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": L("No supported files to import")])
-        return
-      }
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": String(format: L("Importing %1$ld files…"), files.count)])
-      ImportFileManager.shared().importFiles(at: files as [NSURL])
+      guard !pendingURLs.isEmpty else { return }
+      GameImport.add(pendingURLs, from: .current)
     }
   }
 }

@@ -33,6 +33,21 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSString *gametdbID;
 @property (nonatomic, readonly) NSUInteger fileSize;
 @property (nonatomic, readonly) NSInteger platform; // DiscIO::Platform enum value
+/// gc-emu: YES for Wii discs and WAD files, and for homebrew (DOL/ELF) built for the Wii. The
+/// program decides that, the same way the core does when it boots it.
+@property (nonatomic, readonly) BOOL isWiiTitle;
+/// gc-emu: YES for an encrypted Wii disc image (ISO, WBFS, GCZ, CISO) while the player's key file isn't
+/// added. Opens the file, so ask for one game at a time.
+- (BOOL)needsWiiKey;
+/// The Wii key file decrypts this disc: the game partition's header reads back with the Wii disc magic.
+- (BOOL)wiiKeyOpensDisc;
+/// gc-emu: a Wii channel (WAD file), which Iridia doesn't play.
+@property (nonatomic, readonly) BOOL isWiiWAD;
+/// gc-emu: where the core reads the player's own Wii key file (keys.bin in its Wii storage).
++ (NSString *)wiiKeyFilePath;
+/// gc-emu: what the file is by its contents, read with the core's disc reader (every disc format, including
+/// compressed ones), WAD reader and DOL/ELF readers: 1 GameCube, 2 Wii, 0 neither.
++ (NSInteger)systemOfFileAtPath:(NSString *)path;
 
 /// User flag for Favorites (persisted via NSUserDefaults)
 @property (nonatomic, getter=isFavorite) BOOL favorite;

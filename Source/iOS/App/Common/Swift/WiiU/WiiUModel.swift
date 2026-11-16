@@ -93,7 +93,6 @@ final class WiiUModel: ObservableObject {
 
   func rescan(then done: (() -> Void)? = nil) {
     guard phase == .ready, !scanning, playing == nil else { done?(); return }
-    if unpackArchivesInFolder() { done?(); return }   // scans again when the unpack is done
     copyKeysIfPresent()
     CemuBridge.reloadKeys()
     scanning = true
@@ -156,7 +155,7 @@ final class WiiUModel: ObservableObject {
               WiiUFileTypes.titleID(ofFolder: url).map({ WiiUFileTypes.kind(ofTitleID: $0) == .game }) ?? true else { return nil }
         format = missingTicketFormat
       } else {
-        guard ["wux", "wud", "iso"].contains(url.pathExtension.lowercased()), WiiUImport.classify(url) == .wiiU else { return nil }
+        guard ["wux", "wud", "iso"].contains(url.pathExtension.lowercased()), GameDetect.isWiiU(url) else { return nil }
         format = needsKeyFormat
       }
       let t = CemuTitle()

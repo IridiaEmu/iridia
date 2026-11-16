@@ -49,6 +49,17 @@ static inline void SetBaseIfUnspecified(const Config::Info<T>& info, const T& va
   if (!Config::GetLayer(Config::LayerType::Base)->Exists(info.GetLocation()))
     Config::SetBase(info, value);
 }
+
+static bool HasTexturePack()
+{
+  const File::FSTEntry textures = File::ScanDirectoryTree(File::GetUserPath(D_HIRESTEXTURES_IDX), false);
+  for (const File::FSTEntry& entry : textures.children)
+  {
+    if (entry.isDirectory && !entry.virtualName.starts_with("."))
+      return true;
+  }
+  return false;
+}
 }
 
 @implementation DolphinCoreService
@@ -61,6 +72,13 @@ static inline void SetBaseIfUnspecified(const Config::Info<T>& info, const T& va
   if (![NSUserDefaults.standardUserDefaults boolForKey:@"iridia_gametdb_covers_removed_v1"]) {
     File::DeleteDirRecursively(File::GetUserPath(D_COVERCACHE_IDX));
     [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"iridia_gametdb_covers_removed_v1"];
+  }
+
+  // Custom textures are off by default; an install that already has a texture pack keeps them on.
+  if (HasTexturePack())
+  {
+    SetBaseIfUnspecified(Config::GFX_HIRES_TEXTURES, true);
+    SetBaseIfUnspecified(Config::GFX_CACHE_HIRES_TEXTURES, true);
   }
 
   const bool fastmem = fastmemAvailable;

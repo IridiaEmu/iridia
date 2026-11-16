@@ -1,0 +1,8 @@
+iridiabench-x4.dol: maxSpeed 2.2450 speed 1.0000 frames/s 52.18 (per emulated s 52.18, host 8.54 ms/frame) check cfa55e7f (n=12)
+iridiabench-x16.dol: maxSpeed 1.0714 speed 1.0002 frames/s 20.36 (per emulated s 20.36, host 45.84 ms/frame) check 3a2268d2 (n=12)
+gx-gxSprites.dol: maxSpeed 15.9203 speed 1.0000 check - (n=12)
+gx-neheGX-lesson06.dol: maxSpeed 16.1814 speed 1.0013 check - (n=12)
+iridiabench-wii-x4.dol: maxSpeed 1.9820 speed 0.9999 frames/s 62.64 (per emulated s 62.65, host 8.05 ms/frame) check - (n=12)
+iridiabench-wii-x16.dol: maxSpeed 0.9729 speed 0.9729 frames/s 30.00 (per emulated s 30.83, host 33.33 ms/frame) check - (n=12)
+iridiabench-wii-mem2-x16.dol: maxSpeed 0.9735 speed 0.9735 frames/s 30.00 (per emulated s 30.82, host 33.33 ms/frame) check - (n=12)
+iridiabench-wii-wpad-x16.dol: maxSpeed 0.9440 speed 0.9440 frames/s 29.64 (per emulated s 31.40, host 33.74 ms/frame) check - (n=12)

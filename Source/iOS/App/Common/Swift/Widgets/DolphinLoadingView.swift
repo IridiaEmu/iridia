@@ -56,7 +56,7 @@ struct DolphinLoadingView: View {
           }
 
           // Copyright footer (no clipping)
-          Text("© iCube Team")
+          Text("Iridia")
             .font(.footnote)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)

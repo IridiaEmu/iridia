@@ -59,7 +59,7 @@ enum TouchOverlayGroup: String, CaseIterable, Codable, Sendable {
   // GameCube
   case gcDpad, gcMainStick, gcCStick, gcFaceButtons, gcLeftShoulder, gcRightShoulder, gcStart
   // Wii Remote, upright
-  case wiiDpad, wiiAB, wiiOneTwo, wiiMinusPlusHome, wiiIRPad
+  case wiiDpad, wiiAB, wiiOneTwo, wiiMinusPlusHome, wiiIRPad, wiiShake
   // Wii Remote, sideways
   case sidewaysB, sidewaysFaceCluster, sidewaysHome
   // Nunchuk
@@ -75,6 +75,8 @@ enum TouchOverlayControlKind: Equatable, Sendable {
   case button(id: Int)
   /// A `TCButton` with `isAxis`: an analog trigger written as 1.0 / 0.0 through `setAxisValueFor(id)`.
   case axisButton(id: Int)
+  /// Several buttons held together (Shake: the Wii Remote's three shake axes).
+  case buttons(ids: [Int])
   /// A stick writing four half-axes `baseId + 1 ... baseId + 4` (`TouchOverlayInput.stickWrites`).
   case stick(baseId: Int)
   /// A D-pad writing four buttons `baseId + 0 ... baseId + 3` in Up/Down/Left/Right order.

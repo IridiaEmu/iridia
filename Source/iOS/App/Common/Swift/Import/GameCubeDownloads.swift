@@ -1,165 +1,106 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// gc-emu: "Check Downloads for Games" on the GameCube tab. Looks in the folder the player chose (DownloadsFolder)
-// for GameCube games and ZIP or 7Z files with one inside, and offers to move them to the Games folder. Wii U
-// games there are left for the Wii U tab.
+// "Check Downloads for Games" on the GameCube and Wii tabs. Looks in the folder the player chose
+// (DownloadsFolder) for that tab's games and ZIP or 7Z files with one inside, and offers to move them in.
 
 #if os(iOS)
 import Foundation
 import UIKit
 
 enum GameCubeDownloads {
-  private static let askedKey = "gcDownloadsAsked"
-  @MainActor private static var busy = false
+  enum Kind {
+    case gameCube, wii
 
-  /// GameCube game files. Disc images are checked by content: Wii games use the same formats, and this
-  /// version doesn't play them. (A .dol can't be told apart, so it's offered.)
-  private static let gameExtensions: Set<String> = ["gcm", "tgc", "gcz", "ciso", "rvz", "nkit", "wia", "dol", "iso", "bin", "img"]
+    var askedKey: String { self == .wii ? "wiiDownloadsAsked" : "gcDownloadsAsked" }
+    var look: IridiaAlert.Look { self == .wii ? .wii : .gameCube }
+    var folder: String { self == .wii ? UserFolderUtil.getWiiFolder() : UserFolderUtil.getSoftwareFolder() }
+    var system: GameSystem { self == .wii ? .wii : .gameCube }
 
-  @MainActor static func chooseFolder() {
-    DownloadsFolder.choose(look: .gameCube) { check(manual: true) }
+    /// This tab's games, by their contents. An archive is offered when its names show a disc or homebrew file
+    /// and no Wii U game (the Wii U tab offers those); it's sorted by what's inside when it's unpacked.
+    func wants(_ url: URL) -> Bool {
+      guard DownloadsFolder.mayHoldGame(url, extensions: ImportableFileTypes.softwareExtensions) else { return false }
+      switch GameDetect.kind(of: url) {
+      case .game(let found): return found == system
+      case .archive:
+        guard let names = DownloadsFolder.archiveNames(url) else { return false }
+        let systems = GameDetect.systems(inArchiveNames: names)
+        return systems.contains(system) && !names.contains { WiiUFileTypes.extensions.contains(($0 as NSString).pathExtension) }
+      default: return false
+      }
+    }
+  }
+
+  @MainActor private static var busy: Set<Kind> = []
+
+  @MainActor static func chooseFolder(_ kind: Kind = .gameCube) {
+    DownloadsFolder.choose(look: kind.look) { check(kind, manual: true) }
   }
 
   /// Looks in the folder and offers to move what's new. `manual`: the player asked, so "nothing new" is said too.
-  @MainActor static func check(manual: Bool = false) {
-    guard DownloadsFolder.isOn, !busy, !TVEmulationBridge.isRunning() else { return }
+  @MainActor static func check(_ kind: Kind = .gameCube, manual: Bool = false) {
+    guard DownloadsFolder.isOn, !busy.contains(kind), !TVEmulationBridge.isRunning() else { return }
     guard let folder = DownloadsFolder.open() else {
-      tellProblem(manual: manual)
+      tellProblem(kind, manual: manual)
       return
     }
-    busy = true
-    let software = URL(fileURLWithPath: UserFolderUtil.getSoftwareFolder())
+    busy.insert(kind)
+    let software = URL(fileURLWithPath: kind.folder)
     Task.detached(priority: .userInitiated) {
       let have = Set(WiiUFileTypes.walk(software, maxDepth: 2).map { $0.lastPathComponent.lowercased() })
-      let found = DownloadsFolder.find(in: folder, askedKey: askedKey, haveNames: have, wanted: isGameCubeGame)
+      let found = DownloadsFolder.find(in: folder, askedKey: kind.askedKey, haveNames: have, wanted: kind.wants)
       await MainActor.run {
-        busy = false
+        busy.remove(kind)
+        // A game started while the folder was read: nothing pops up over it unless the player asked.
+        guard manual || !TVEmulationBridge.isRunning() else {
+          folder.stopAccessingSecurityScopedResource()
+          return
+        }
         guard let found else {
           folder.stopAccessingSecurityScopedResource()
-          tellProblem(manual: manual)
+          tellProblem(kind, manual: manual)
           return
         }
         guard !found.isEmpty else {
           folder.stopAccessingSecurityScopedResource()
           if manual {
-            IridiaAlert.show(L("Nothing New"), String(format: L("There are no new GameCube games in %@."), DownloadsFolder.name))
+            let text = kind == .wii ? L("There are no new Wii games in %@.") : L("There are no new GameCube games in %@.")
+            IridiaAlert.show(L("Nothing New"), String(format: text, DownloadsFolder.name), look: kind.look)
           }
           return
         }
-        offer(found, from: folder, into: software)
+        offer(found, kind: kind, from: folder, into: software)
       }
     }
   }
 
-  @MainActor private static func offer(_ found: [URL], from folder: URL, into software: URL) {
+  @MainActor private static func offer(_ found: [URL], kind: Kind, from folder: URL, into software: URL) {
     let name = DownloadsFolder.name
     IridiaAlert.show(
-      String(format: L("GameCube Games in %@"), name),
+      String(format: kind == .wii ? L("Wii Games in %@") : L("GameCube Games in %@"), name),
       String(format: found.count == 1 ? L("Found %@. Add it to your shelf? It's moved out of %@.")
                                       : L("Found %@. Add them to your shelf? They're moved out of %@."),
              DownloadsFolder.shortList(found.map(\.lastPathComponent)), name),
+      look: kind.look,
       buttons: [
         IridiaAlertButton(L("Add")) {
-          DownloadsFolder.remember(found, askedKey: askedKey)
-          add(found, into: software) { folder.stopAccessingSecurityScopedResource() }
+          DownloadsFolder.remember(found, askedKey: kind.askedKey)
+          add(found, kind: kind) { folder.stopAccessingSecurityScopedResource() }
         },
         IridiaAlertButton(L("Not Now"), .cancel) {
-          DownloadsFolder.remember(found, askedKey: askedKey)
+          DownloadsFolder.remember(found, askedKey: kind.askedKey)
           folder.stopAccessingSecurityScopedResource()
         },
       ])
   }
 
-  @MainActor private static func tellProblem(manual: Bool) {
-    DownloadsFolder.tellProblem(look: .gameCube, manual: manual, chooseAgain: { chooseFolder() }, chooseFile: {
-      NotificationCenter.default.post(name: NSNotification.Name("DOLShowImportGame"), object: nil)
-    })
+  @MainActor private static func tellProblem(_ kind: Kind, manual: Bool) {
+    DownloadsFolder.tellProblem(look: kind.look, manual: manual) { chooseFolder(kind) }
   }
 
   /// Moves games in (same disk: instant, no extra space). Archives are unpacked and then removed.
-  @MainActor private static func add(_ urls: [URL], into software: URL, done: @escaping () -> Void) {
-    let task = ImportStaging.beginBackgroundTask()
-    Task.detached(priority: .userInitiated) {
-      var added = 0
-      var already: [String] = []
-      var errors: [String] = []
-      let fm = FileManager.default
-      for url in urls {
-        let name = url.lastPathComponent
-        if ImportableFileTypes.isArchiveFile(url) {
-          let result = ZipImportHelper.importPickedArchive(at: url, toFolder: software.path)
-          added += result.importedCount
-          if result.skippedExistingCount > 0 { already.append(name) }
-          if result.importedCount + result.skippedExistingCount > 0 {
-            try? fm.removeItem(at: url)
-          } else if let message = result.errorMessage {
-            errors.append("\(name): \(message)")
-          }
-          continue
-        }
-        let destination = software.appendingPathComponent(name).path
-        if fm.fileExists(atPath: destination) { already.append(name); continue }
-        do {
-          try ImportStaging.stagedMove(fromPath: url.path, toPath: destination)
-          LibraryAddedDateStore.record(path: destination)
-          added += 1
-        } catch {
-          errors.append("\(name): \(error.localizedDescription)")
-        }
-      }
-      let (added2, already2, errors2) = (added, already, errors)
-      await MainActor.run {
-        let (added, already, errors) = (added2, already2, errors2)
-        ImportStaging.endBackgroundTask(task)
-        done()
-        NotificationCenter.default.post(name: NSNotification.Name("DOLImportFileFinishedNotification"), object: nil)
-        if added > 0 {
-          let text = added == 1 ? L("Added 1 game.") : String(format: L("Added %ld games."), added)
-          NotificationCenter.default.post(name: NSNotification.Name("DOLShowSnackbar"), object: nil, userInfo: ["text": text])
-        }
-        var lines = errors.prefix(3).map { $0 }
-        if !already.isEmpty {
-          lines.append(String(format: L("Already on your shelf: %@."), DownloadsFolder.shortList(already)))
-        }
-        if !lines.isEmpty {
-          IridiaAlert.show(errors.isEmpty ? L("Import") : L("Some Files Weren't Added"), lines.joined(separator: "\n\n"))
-        }
-      }
-    }
-  }
-
-  /// A GameCube game file, or an archive with one inside. Not Wii U files.
-  nonisolated private static func isGameCubeGame(_ url: URL) -> Bool {
-    if WiiUFileTypes.isDirectory(url) { return false }
-    let ext = url.pathExtension.lowercased()
-    if gameExtensions.contains(ext) { return ext == "dol" || isGameCubeDisc(url, ext: ext) }
-    if ImportableFileTypes.isArchiveFile(url), let names = DownloadsFolder.archiveNames(url) {
-      return names.contains { name in
-        let ext = (name as NSString).pathExtension
-        return gameExtensions.contains(ext) || ext == "iso"
-      } && !names.contains { WiiUFileTypes.extensions.contains(($0 as NSString).pathExtension) }
-    }
-    return false
-  }
-
-  /// GameCube, not Wii, by the disc header: a GameCube disc has 0xC2339F3D at 0x1C. RVZ and WIA say so at
-  /// 0x48 (1 GameCube, 2 Wii), GCZ at 4 (0 GameCube, 1 Wii), and a CISO's disc starts at 0x8000.
-  nonisolated private static func isGameCubeDisc(_ url: URL, ext: String) -> Bool {
-    let magic = Data([0xC2, 0x33, 0x9F, 0x3D])
-    switch ext {
-    case "rvz", "wia":
-      guard let head = WiiUFileTypes.readHead(url, count: 0x4C) else { return false }
-      return head[0x48..<0x4C] == Data([0, 0, 0, 1])
-    case "gcz":
-      guard let head = WiiUFileTypes.readHead(url, count: 8) else { return false }
-      return head[4..<8] == Data([0, 0, 0, 0])
-    case "ciso":
-      guard let head = WiiUFileTypes.readHead(url, count: 0x8020) else { return false }
-      return head[0x801C..<0x8020] == magic
-    default:
-      guard let head = WiiUFileTypes.readHead(url, count: 0x20) else { return false }
-      return head[0x1C..<0x20] == magic
-    }
+  @MainActor private static func add(_ urls: [URL], kind: Kind, done: @escaping () -> Void) {
+    GameImport.add(urls, from: kind.system, incoming: true, done: done)
   }
 }
 #endif

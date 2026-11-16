@@ -56,6 +56,12 @@ extern std::atomic<bool> s_enabled;
 // adds plus a CAS to track the max. Safe from any thread.
 void Record(Site site, u64 ns);
 
+// Total time the CPU thread has spent waiting on the GPU thread at the sites above, counted even
+// when the metrics are off. PerformanceMetrics leaves it out of max speed, which should measure
+// emulation work only: otherwise a game that reads back the picture every frame (Mario Galaxy)
+// inherits the GPU thread's wait for the display and reads exactly 100%.
+u64 CpuThreadWaitNs();
+
 // RAII timer paired with the signpost guard via the ICUBE_SCOPED_STALL macro below. Times with the
 // monotonic clock on the calling thread and Records on destruction. Header-inline so it costs a
 // mach_absolute_time() pair around the wrapped wait. Engine-portable: steady_clock off Apple.

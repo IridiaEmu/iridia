@@ -34,6 +34,11 @@ struct TouchOverlayView: View {
   private let onDone: (() -> Void)?
   /// Drawn at the start of the edit toolbar (the editor's pad picker).
   private let toolbarAccessory: AnyView?
+  /// The running game, when the layout editor is over one: the toolbar then also sets this game's
+  /// opacity, and the controls are drawn at it while being moved.
+  private let gameID: String?
+  @State private var gameOpacity: Float = DOLConfigBridge.mainTouchPadOpacity()
+  @State private var openedOpacity: Float = DOLConfigBridge.mainTouchPadOpacity()
 
   /// - Parameter initialEditMode: opens straight into an edit mode, for
   ///   `TouchOverlayLayoutEditorView` ("Edit Layout…" / "Edit IR Area…") — it has no live
@@ -45,7 +50,7 @@ struct TouchOverlayView: View {
   /// - Parameter store: the gallery passes an empty in-memory store so it always shows defaults.
   init(padKind: TouchOverlayPadKind, deviceId: Int, irMode: Int, initialEditMode: TouchOverlayEditMode = .none,
        store: TouchOverlayLayoutStore = .shared, previewSafeArea: UIEdgeInsets? = nil,
-       onDone: (() -> Void)? = nil, toolbarAccessory: AnyView? = nil) {
+       onDone: (() -> Void)? = nil, toolbarAccessory: AnyView? = nil, gameID: String? = nil) {
     self.padKind = padKind
     self.deviceId = deviceId
     self.irMode = irMode
@@ -54,6 +59,7 @@ struct TouchOverlayView: View {
     self.previewSafeArea = previewSafeArea
     self.onDone = onDone
     self.toolbarAccessory = toolbarAccessory
+    self.gameID = gameID
   }
 
   var body: some View {
@@ -66,8 +72,13 @@ struct TouchOverlayView: View {
       let safeArea = geometry.safeArea
       let bounds = geometry.bounds
       let orientation = geometry.orientation
+      // gc-emu: a Wii Remote with no Nunchuk plugged in shows no Nunchuk controls (the editor still does).
+      let hidesNunchuk = padKind == .wiiRemote && editMode == .none && !Self.nunchukAttached()
       let layouts = TouchOverlayDefaults.layout(for: padKind, orientation: orientation, canvas: canvas, safeArea: safeArea)
-      let opacity = TouchOverlayInput.resolvedOpacity(isEditing: editMode != .none, configuredOpacity: DOLConfigBridge.mainTouchPadOpacity())
+        .filter { !hidesNunchuk || ![.nunchukStick, .nunchukC, .nunchukZ].contains($0.group) }
+      let opacity = showsGameOpacity
+        ? TouchOverlayInput.resolvedOpacity(isEditing: false, configuredOpacity: gameOpacity)
+        : TouchOverlayInput.resolvedOpacity(isEditing: editMode != .none, configuredOpacity: DOLConfigBridge.mainTouchPadOpacity())
       let variant = TouchOverlayArt.variant(for: padKind)
       // `revision` isn't read directly, but touching it here ties this body's re-evaluation to
       // every store mutation (position AND size-scale writes), matching phase 1's store contract.
@@ -91,6 +102,8 @@ struct TouchOverlayView: View {
       let otherBoxes: [CGRect] = positionedLayouts.map {
         store.resolvedBox(for: $0, padKind: padKind, orientation: orientation, in: bounds)
       }
+      let cornerClearance = previewSafeArea == nil && editMode == .none
+        ? Self.topRightClearance(otherBoxes, canvas: canvas, safeArea: safeArea) : 0
 
       ZStack {
         // Long-press-to-edit lives on a background layer BELOW every control surface, not on the
@@ -128,11 +141,26 @@ struct TouchOverlayView: View {
         }
       }
       .coordinateSpace(Self.coordinateSpace)
+      .onChange(of: cornerClearance, initial: true) { _, value in TouchOverlayCorner.shared.trailingClearance = value }
       // Pin the full-size canvas to the screen's corner explicitly rather than relying on how
       // `.ignoresSafeArea()` positions an explicitly sized frame.
       .frame(width: canvas.width, height: canvas.height)
       .offset(x: -geometry.hostOrigin.x, y: -geometry.hostOrigin.y)
     }
+  }
+
+  /// Whether the Wii Remote on the touchscreen has the Nunchuk selected (Dolphin's extension 1).
+  /// How far in from the safe area's trailing edge a top-right button has to sit to clear the controls there.
+  private static func topRightClearance(_ boxes: [CGRect], canvas: CGSize, safeArea: UIEdgeInsets) -> CGFloat {
+    let band = safeArea.top + TouchOverlayCorner.buttonBottom
+    let blockers = boxes.filter { $0.minY < band && $0.midX > canvas.width / 2 }
+    guard let minX = blockers.map(\.minX).min() else { return 0 }
+    return canvas.width - safeArea.right - minX + 8
+  }
+
+  private static func nunchukAttached() -> Bool {
+    let slot = ControllerManager.shared.touchscreenSlot(system: .wii) ?? 0
+    return DOLWiimoteBridge.selectedExtension(forWiimote: slot) == 1
   }
 
   private static func isIRSurfaceLayout(_ layout: TouchOverlayGroupLayout) -> Bool {
@@ -235,6 +263,8 @@ struct TouchOverlayView: View {
   /// the bottom edge every default hangs from. It used to sit top right, which in landscape (no top
   /// inset) was under the game screen's 80 pt reveal strip, so Done revealed the top bar instead. The
   /// editor now covers that strip and the bar, and this keeps it clear of the controls too.
+  private var showsGameOpacity: Bool { gameID != nil && editMode == .layout }
+
   private func editToolbar(safeArea: UIEdgeInsets) -> some View {
     VStack {
       HStack {
@@ -252,18 +282,22 @@ struct TouchOverlayView: View {
             case .layout, .none: store.reset(padKind: padKind)
             }
           } label: {
-            Label("Reset", systemImage: "arrow.counterclockwise")
+            Label(L("Reset"), systemImage: "arrow.counterclockwise")
           }
           .buttonStyle(.bordered)
 
           Button {
+            // Saving an unchanged value would pin this game, and the Opacity setting would stop applying to it.
+            if showsGameOpacity, let gameID, abs(gameOpacity - openedOpacity) > 0.005 {
+              TouchOverlayGameOpacity.set(gameOpacity, gameID: gameID)
+            }
             if let onDone {
               onDone()
             } else {
               editMode = .none
             }
           } label: {
-            Label("Done", systemImage: "checkmark")
+            Label(L("Done"), systemImage: "checkmark")
           }
           .buttonStyle(.borderedProminent)
         }
@@ -271,6 +305,27 @@ struct TouchOverlayView: View {
         .background(.ultraThinMaterial, in: Capsule())
         .padding()
         Spacer()
+      }
+      if showsGameOpacity {
+        VStack(spacing: 4) {
+          HStack(spacing: 10) {
+            Image(systemName: "circle.lefthalf.filled")
+              .accessibilityHidden(true)
+            Slider(value: $gameOpacity, in: 0.2...1)
+              .frame(maxWidth: 220)
+              .accessibilityLabel(L("Opacity"))
+          }
+          Text(L("Layout and opacity are saved for this game."))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .onAppear {
+          gameOpacity = DOLConfigBridge.mainTouchPadOpacity()
+          openedOpacity = gameOpacity
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
       }
       Spacer()
     }
@@ -306,6 +361,20 @@ struct TouchOverlayCanvas: Equatable {
 private extension UIEdgeInsets {
   init(_ insets: EdgeInsets) {
     self.init(top: insets.top, left: insets.leading, bottom: insets.bottom, right: insets.trailing)
+  }
+}
+
+/// A game's own on-screen controls opacity, kept in its game profile (applied when it boots) and
+/// applied to the run in progress.
+@MainActor
+enum TouchOverlayGameOpacity {
+  static func set(_ opacity: Float, gameID: String) {
+    let profiles = GameProfiles.shared
+    var profile = profiles.hasSavedProfile(for: gameID) ? (profiles.profile(for: gameID) ?? GameProfile()) : GameProfile()
+    profile.touchOpacity = opacity
+    profiles.setProfile(profile, for: gameID)
+    DOLConfigBridge.setCurrentRunMainTouchPadOpacity(opacity)
+    TouchOverlayLayoutStore.shared.redraw()
   }
 }
 #endif

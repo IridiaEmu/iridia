@@ -405,6 +405,7 @@ add_library(core
   IOS/MIOS.cpp
   IOS/MIOS.h
   IOS/Network/ICMP.h
+  IOS/Network/IridiaOffline.h
   IOS/Network/ICMPLin.cpp
   IOS/Network/IP/Top.cpp
   IOS/Network/IP/Top.h

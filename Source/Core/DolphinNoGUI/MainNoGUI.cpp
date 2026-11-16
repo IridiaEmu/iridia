@@ -4,8 +4,11 @@
 #include "DolphinNoGUI/Platform.h"
 
 #include <OptionParser.h>
+#include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -15,12 +18,15 @@
 #include <windows.h>
 #endif
 
+#include "Common/FileUtil.h"
+#include "Common/IOFile.h"
 #include "Common/ScopeGuard.h"
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/Core.h"
 #include "Core/DolphinAnalytics.h"
 #include "Core/Host.h"
+#include "Core/HW/Memmap.h"
 #include "Core/System.h"
 
 #include "UICommon/CommandLineParse.h"
@@ -28,6 +34,7 @@
 #include "UICommon/DiscordPresence.h"
 #endif
 #include "UICommon/UICommon.h"
+#include "VideoCommon/PerformanceMetrics.h"
 
 static std::unique_ptr<Platform> s_platform;
 
@@ -313,7 +320,68 @@ int main(const int argc, char* argv[])
   Discord::UpdateDiscordPresence();
 #endif
 
+  // gc-emu: Mac test runs. IRIDIA_NOGUI_STATS=1 prints one stats line a second (seconds since boot,
+  // fps, vps, speed, maxSpeed); IRIDIA_NOGUI_SECONDS=<n> quits after n seconds;
+  // IRIDIA_NOGUI_COUNTER=<hex address> adds that emulated u32 (a test program's frame counter),
+  // IRIDIA_NOGUI_CHECK=<hex address> another one (the program's result checksum).
+  // IRIDIA_NOGUI_SHOT=<file>: when that file appears, a screenshot named after its contents is saved
+  // and the file removed (for looking at a headless run).
+  std::thread stats_thread;
+  Common::Flag stats_running(true);
+  const char* stats_env = std::getenv("IRIDIA_NOGUI_STATS");
+  const char* seconds_env = std::getenv("IRIDIA_NOGUI_SECONDS");
+  if ((stats_env && *stats_env == '1') || seconds_env)
+  {
+    const int limit = seconds_env ? std::atoi(seconds_env) : 0;
+    const bool print = stats_env && *stats_env == '1';
+    const char* counter_env = std::getenv("IRIDIA_NOGUI_COUNTER");
+    const u32 counter = counter_env ? static_cast<u32>(std::strtoul(counter_env, nullptr, 16)) : 0;
+    const char* check_env = std::getenv("IRIDIA_NOGUI_CHECK");
+    const u32 check = check_env ? static_cast<u32>(std::strtoul(check_env, nullptr, 16)) : 0;
+    const char* shot_env = std::getenv("IRIDIA_NOGUI_SHOT");
+    const std::string shot_file = shot_env ? shot_env : "";
+    stats_thread = std::thread([&stats_running, limit, print, counter, check, shot_file] {
+      for (int t = 1; stats_running.IsSet(); ++t)
+      {
+        for (int i = 0; i < 10 && stats_running.IsSet(); ++i)
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (!stats_running.IsSet())
+          break;
+        if (print)
+        {
+          PerformanceMetrics& m = Core::System::GetInstance().GetPerfMetrics();
+          m.UpdateCounterStats();
+          const u32 count =
+              counter ? Core::System::GetInstance().GetMemory().Read_U32(counter & 0x1FFFFFFF) : 0;
+          const u32 check_value =
+              check ? Core::System::GetInstance().GetMemory().Read_U32(check & 0x1FFFFFFF) : 0;
+          std::fprintf(stdout,
+                       "IRIDIA_STATS t=%d fps=%.2f vps=%.2f speed=%.4f max=%.4f count=%u check=%08x\n",
+                       t, m.GetFPS(), m.GetVPS(), m.GetSpeed(), m.GetMaxSpeed(), count, check_value);
+          std::fflush(stdout);
+        }
+        if (!shot_file.empty() && File::Exists(shot_file))
+        {
+          std::string name;
+          File::ReadFileToString(shot_file, name);
+          File::Delete(shot_file);
+          while (!name.empty() && (name.back() == '\n' || name.back() == ' '))
+            name.pop_back();
+          Core::SaveScreenShot(name.empty() ? "shot" : name);
+        }
+        if (limit > 0 && t >= limit)
+        {
+          s_platform->Stop();  // a Wii shutdown request waits for the game to answer the power button
+          break;
+        }
+      }
+    });
+  }
+
   s_platform->MainLoop();
+  stats_running.Clear();
+  if (stats_thread.joinable())
+    stats_thread.join();
   Core::Stop(Core::System::GetInstance());
 
   Core::Shutdown(Core::System::GetInstance());

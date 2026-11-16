@@ -13,7 +13,7 @@ enum FilesAppNames {
 
   static var gamesFolder: String { UserFolderUtil.gamesFolderName }
 
-  /// "Files → On My iPhone → <App> → Games" (says iPad on iPad).
+  /// "Files → On My iPhone → <App> → GameCube" (says iPad on iPad).
   static var gamesPath: String {
     let device = UIDevice.current.userInterfaceIdiom == .pad ? L("On My iPad") : L("On My iPhone")
     return "Files → \(device) → \(appFolder) → \(gamesFolder)"
@@ -45,7 +45,7 @@ struct FilesAppGuideView: View {
     NavigationStack {
       ScrollView {
         VStack(alignment: .leading, spacing: 22) {
-          Text(String(format: L("Move a game into %@'s Games folder with Apple's Files app. It's the easiest way to add big games, or several at once."), FilesAppNames.appFolder))
+          Text(String(format: L("Move a game into %1$@'s %2$@ folder with Apple's Files app. It's the easiest way to add big games, or several at once."), FilesAppNames.appFolder, FilesAppNames.gamesFolder))
             .font(.system(size: 16))
             .foregroundStyle(IridiaGlass.soft)
             .fixedSize(horizontal: false, vertical: true)
@@ -114,17 +114,12 @@ struct FilesAppGuideView: View {
       }
       .iridiaScreen()
       .navigationTitle(L("Add Games with Files"))
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button(L("Done")) { dismiss() }
-        }
-      }
+      .menuClose { dismiss() }
     }
     .preferredColorScheme(.dark)
   }
 
-  /// Opens Files directly in this app's Games folder.
+  /// Opens Files directly in this app's GameCube folder.
   private static var gamesFolderURLPath: String {
     URL(fileURLWithPath: UserFolderUtil.getSoftwareFolder(), isDirectory: true).path
       .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""

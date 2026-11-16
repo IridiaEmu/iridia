@@ -13,8 +13,8 @@ import UniformTypeIdentifiers
 enum DownloadsFolder {
   private static let bookmarkKey = "downloadsFolder"
   private static let nameKey = "downloadsFolderName"
-  /// The "can't open" message is shown once per launch, not every time a tab opens.
-  @MainActor private static var toldProblem = false
+  /// Iridia asks for the folder again by itself only once; after that only when the player checks.
+  private static let askedAgainKey = "downloadsFolderAskedAgain"
 
   static var isOn: Bool { UserDefaults.standard.data(forKey: bookmarkKey) != nil }
   static var name: String { UserDefaults.standard.string(forKey: nameKey) ?? L("Downloads") }
@@ -42,13 +42,17 @@ enum DownloadsFolder {
       ])
   }
 
+  #if !APPSTORE
+  @MainActor static func useForTest(_ folder: URL) { _ = save(folder) }
+  #endif
+
   @MainActor private static func save(_ folder: URL) -> Bool {
     let scoped = folder.startAccessingSecurityScopedResource()
     defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
     guard let data = try? folder.bookmarkData() else { return false }
     UserDefaults.standard.set(data, forKey: bookmarkKey)
     UserDefaults.standard.set(folder.lastPathComponent, forKey: nameKey)
-    toldProblem = false
+    UserDefaults.standard.removeObject(forKey: askedAgainKey)
     return true
   }
 
@@ -61,24 +65,33 @@ enum DownloadsFolder {
   static func open() -> URL? {
     guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
     var stale = false
-    guard let folder = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale),
-          folder.startAccessingSecurityScopedResource() else { return nil }
+    let folder: URL
+    do {
+      folder = try URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale)
+    } catch {
+      NSLog("[Downloads] bookmark doesn't resolve: %@", "\(error)")
+      return nil
+    }
+    // A folder inside Iridia's own Documents needs no extra permission, so starting access returns false there.
+    if !folder.startAccessingSecurityScopedResource(), !FileManager.default.isReadableFile(atPath: folder.path) {
+      NSLog("[Downloads] no access to %@ (stale %d)", folder.path, stale ? 1 : 0)
+      return nil
+    }
     if stale, let fresh = try? folder.bookmarkData() { UserDefaults.standard.set(fresh, forKey: bookmarkKey) }
     return folder
   }
 
-  /// Access to the folder is gone (moved, renamed, or iOS dropped the permission): say so, with both ways forward.
-  @MainActor static func tellProblem(look: IridiaAlert.Look, manual: Bool, chooseAgain: @escaping () -> Void,
-                                     chooseFile: @escaping () -> Void) {
-    guard manual || !toldProblem else { return }
-    toldProblem = true
+  /// iOS no longer lets Iridia into the folder (it was moved or renamed, or the permission ran out). Nothing is
+  /// wrong with the games, so this just asks for the folder again: once by itself, and whenever the player checks.
+  @MainActor static func tellProblem(look: IridiaAlert.Look, manual: Bool, chooseAgain: @escaping () -> Void) {
+    guard manual || !UserDefaults.standard.bool(forKey: askedAgainKey) else { return }
+    UserDefaults.standard.set(true, forKey: askedAgainKey)
     IridiaAlert.show(
-      String(format: L("Iridia Can't Open %@"), name),
-      L("Choose the folder again, or add games with Choose a Game File."),
+      String(format: L("Choose %@ Again"), name),
+      String(format: L("To keep checking %@ for games, Iridia needs you to pick the folder once more."), name),
       look: look,
       buttons: [
         IridiaAlertButton(L("Choose Folder"), action: chooseAgain),
-        IridiaAlertButton(L("Choose a Game File"), action: chooseFile),
         IridiaAlertButton(L("Not Now"), .cancel),
       ])
   }
@@ -102,6 +115,17 @@ enum DownloadsFolder {
   /// Name and size: a new download with the same name is asked about again.
   private static func key(_ url: URL) -> String {
     "\(url.lastPathComponent)|\((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)"
+  }
+
+  /// Whether a file is worth opening to see what it is: its name says game, archive or (for Wii U) keys file,
+  /// and it's on this device. Nothing else is ever opened, and a file iCloud hasn't downloaded is left alone, so
+  /// a check never starts a download. Folders count only when `folders` (Wii U game folders).
+  static func mayHoldGame(_ url: URL, extensions: Set<String>, folders: Bool = false) -> Bool {
+    if WiiUFileTypes.isDirectory(url) { return folders }
+    let ext = url.pathExtension.lowercased()
+    guard extensions.contains(ext) || ImportableFileTypes.isArchiveFile(url) else { return false }
+    let status = (try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]))?.ubiquitousItemDownloadingStatus
+    return status == nil || status == .current
   }
 
   /// Names of the archive's files, lowercased; nil when it can't be read.

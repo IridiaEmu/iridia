@@ -10,12 +10,20 @@
 //   - a small switch-dispatched bytecode VM (like game script engines),
 //   - memory traffic: strided array updates, a linked-list walk, block copies.
 // BENCH_SCALE (1, 2, 4) multiplies the per-frame work. START exits.
+// The same source builds for the Wii (PLATFORM=wii), so GameCube and Wii mode run the identical
+// workload. BENCH_MEM2=1 (Wii only) puts the memory kernel's data in the Wii's extra 64 MB (MEM2).
+// BENCH_WPAD=1 (Wii only) also reads Wii Remote 1 (buttons, pointer, motion) every frame, like a game.
+// BENCH_FREERUN=1 skips the vsync wait, so frames run back to back: with the emulator's speed limit off,
+// host time per frame is the pure cost of the work, comparable between GameCube and Wii mode.
 
 #include <gccore.h>
 #include <malloc.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(HW_RVL) && BENCH_WPAD
+#include <wiiuse/wpad.h>
+#endif
 
 #ifndef BENCH_SCALE
 #define BENCH_SCALE 1
@@ -27,6 +35,10 @@ static GXRModeObj* mode;
 static void* xfb;
 static vu8 ready_for_copy;
 static volatile u32 g_sink;  // keeps every kernel's result observable
+// Finished frames, for test runners that read it from memory (address in the .map file).
+volatile u32 iridia_bench_frames;
+// Every kernel's combined result at frame 300: a timing-free check that the CPU emulation is exact.
+volatile u32 iridia_bench_check;
 
 // ---------------------------------------------------------------- math kernel
 static void math_kernel(f32 t, Mtx out[16])
@@ -111,14 +123,32 @@ static void vm_kernel(void)
 // --------------------------------------------------------------- memory kernel
 typedef struct Node { struct Node* next; u32 value; u32 pad[2]; } Node;
 
+#if defined(HW_RVL) && BENCH_MEM2
+static u32* table;
+static Node* nodes;
+static u8 *src, *dst;
+#else
+static u32 table[16384];
+static Node nodes[4096];
+static u8 src[16384] ATTRIBUTE_ALIGN(32), dst[16384] ATTRIBUTE_ALIGN(32);
+#endif
+
 static void memory_kernel(u32 frame)
 {
-  static u32 table[16384];
-  static Node nodes[4096];
-  static u8 src[16384] ATTRIBUTE_ALIGN(32), dst[16384] ATTRIBUTE_ALIGN(32);
   static int init;
   if (!init)
   {
+#if defined(HW_RVL) && BENCH_MEM2
+    // Carve the buffers out of the MEM2 arena (cached, 0x9xxxxxxx).
+    u8* p = (u8*)(((u32)SYS_GetArena2Lo() + 31) & ~31u);
+    table = (u32*)p; p += 16384 * sizeof(u32);
+    nodes = (Node*)p; p += 4096 * sizeof(Node);
+    src = p; p += 16384;
+    dst = p; p += 16384;
+    SYS_SetArena2Lo(p);
+    memset(table, 0, 16384 * sizeof(u32));
+    memset(src, 0, 16384);
+#endif
     // Shuffled singly linked list, so the walk is cache-unfriendly like real game data.
     u32 order[4096];
     for (u32 i = 0; i < 4096; i++) order[i] = i;
@@ -148,7 +178,7 @@ static void memory_kernel(u32 frame)
     }
     Node* n = &nodes[frame & 4095];
     for (int i = 0; i < 4096; i++) { acc += n->value; n = n->next; }
-    memcpy(dst, src, sizeof(src));
+    memcpy(dst, src, 16384);
     src[frame & 16383] = (u8)acc;
     acc ^= dst[(frame * 7) & 16383];
   }
@@ -192,6 +222,10 @@ int main(void)
 {
   VIDEO_Init();
   PAD_Init();
+#if defined(HW_RVL) && BENCH_WPAD
+  WPAD_Init();
+  WPAD_SetDataFormat(WPAD_CHAN_0, WPAD_FMT_BTNS_ACC_IR);
+#endif
   mode = VIDEO_GetPreferredMode(NULL);
   xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(mode));
   VIDEO_Configure(mode);
@@ -244,11 +278,22 @@ int main(void)
     GX_SetViewport(0, 0, mode->fbWidth, mode->efbHeight, 0, 1);
     GX_InvVtxCache();
     draw(view, objs);
+#if !BENCH_FREERUN
     VIDEO_WaitVSync();
+#endif
     PAD_ScanPads();
     if (PAD_ButtonsDown(0) & PAD_BUTTON_START)
       break;
+#if defined(HW_RVL) && BENCH_WPAD
+    WPAD_ScanPads();
+    if (WPAD_ButtonsDown(WPAD_CHAN_0) & WPAD_BUTTON_HOME)
+      break;
+    g_sink ^= (u32)WPAD_Data(WPAD_CHAN_0)->ir.x;
+#endif
     frame++;
+    iridia_bench_frames = frame;
+    if (frame == 300)
+      iridia_bench_check = g_sink;
   }
   return 0;
 }

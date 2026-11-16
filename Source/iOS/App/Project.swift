@@ -422,7 +422,7 @@ let iCube = Target.target(
             "INFOPLIST_KEY_GCSupportsGameMode": "YES",
             "INFOPLIST_KEY_LSApplicationCategoryType": "public.app-category.entertainment",
             "INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace": "YES",
-            "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "iCube uses your local network to discover DSU controllers, to share your library with nearby devices, and to hand a game off to another device. Transfers between devices are not encrypted.",
+            "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Iridia uses your local network to discover DSU controllers, to share your library with nearby devices, and to hand a game off to another device. Transfers between devices are not encrypted.",
             "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Used to save gameplay clips you record with Instant Replay.",
             "INFOPLIST_KEY_NSSupportsLiveActivities": "YES",
             "INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates": "YES",
@@ -441,8 +441,8 @@ let iCube = Target.target(
             // the quote-include search path. $(inherited) is load-bearing: it keeps
             // Common.xcconfig's Core/** + Library paths (target base outranks the xcconfig).
             "USER_HEADER_SEARCH_PATHS": ["$(inherited)", "$(SRCROOT)/Common/**", "$(SRCROOT)/DolphiniOS/**"],
-            "MARKETING_VERSION": "1.1.5",
-            "CURRENT_PROJECT_VERSION": "17",
+            "MARKETING_VERSION": "1.2.0",
+            "CURRENT_PROJECT_VERSION": "20",
             // Literal name (not $(TARGET_NAME)): Tuist resolves PRODUCT_NAME at generate time;
             // scheme-specific home-screen labels stay on DOL_APP_DISPLAY_NAME in preset xcconfigs.
             "PRODUCT_NAME": "iCube",
@@ -544,7 +544,7 @@ let iCubeTests = Target.target(
     infoPlist: .default,
     sources: ["DolphiniOSTests/**/*.swift"],
     // A folder reference (not a glob) keeps `Skins/<name>.deltaskin/` intact inside the test bundle.
-    resources: [.folderReference(path: "DolphiniOSTests/Fixtures/Skins")],
+    resources: [.folderReference(path: "DolphiniOSTests/Fixtures/Skins"), .folderReference(path: "DolphiniOSTests/Fixtures/Games")],
     dependencies: [
         .target(name: "iCube"),
         // `.target(name: "iCube")` alone doesn't make a package the app links importable here —
@@ -616,8 +616,8 @@ func extensionTarget(
                 "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
                 "TARGETED_DEVICE_FAMILY": .string(deviceFamily),
                 "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks"],
-                "MARKETING_VERSION": "1.1.5",
-                "CURRENT_PROJECT_VERSION": "17",
+                "MARKETING_VERSION": "1.2.0",
+                "CURRENT_PROJECT_VERSION": "20",
                 // DEVIATION from brief: without this, Tuist does NOT merge the partial
                 // Info.plist with generated CFBundleIdentifier/CFBundleExecutable/etc:
                 // it copies the .file() plist as-is (INFOPLIST_FILE alone, no

@@ -44,6 +44,16 @@ const NSTimeInterval DOLMenuLongPressDuration = 2.0;
 }
 
 - (BOOL)canBecomeFirstResponder { return YES; }
+
+#if !TARGET_OS_TV
+// GCEventViewController asks for a keyboard while it is first responder, so a menu opened during play
+// brought up the software keyboard. An empty input view keeps it hidden; hardware keys still arrive.
+- (UIView*)inputView {
+  static UIView* none;
+  if (!none) none = [[UIView alloc] initWithFrame:CGRectZero];
+  return none;
+}
+#endif
 - (void)viewDidLoad {
   [super viewDidLoad];
   NSLog(@"[INPUT] EmuEventVC viewDidLoad (unconditional)");

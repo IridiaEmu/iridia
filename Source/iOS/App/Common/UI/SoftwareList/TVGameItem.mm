@@ -9,8 +9,34 @@
 #import "UICommon/GameFile.h"
 #import "DiscIO/Enums.h"
 #import "Common/FileUtil.h"
+#import "Common/IOFile.h"
+#import "Core/Boot/DolReader.h"
+#import "Core/Boot/ElfReader.h"
+#import "DiscIO/Volume.h"
 
 static UIImage *IridiaGeneratedCover(NSString *title);
+
+/// gc-emu: Wii discs, WADs, and homebrew built for the Wii. A DOL or ELF says which console it is
+/// for (Dolphin reads the same thing to pick GameCube or Wii mode when it boots it).
+static BOOL IsWiiGameFile(const UICommon::GameFile& game) {
+    switch (game.GetPlatform()) {
+    case DiscIO::Platform::WiiDisc:
+    case DiscIO::Platform::WiiWAD:
+        return YES;
+    case DiscIO::Platform::ELFOrDOL: {
+        const std::string& path = game.GetFilePath();
+        const bool is_elf = path.size() >= 4 && strcasecmp(path.c_str() + path.size() - 4, ".elf") == 0;
+        if (is_elf) {
+            const ElfReader reader(path);
+            return reader.IsValid() && reader.IsWii();
+        }
+        const DolReader reader(path);
+        return reader.IsValid() && reader.IsWii();
+    }
+    default:
+        return NO;
+    }
+}
 
 @implementation TVGameItem {
     GameFilePtrWrapper *_wrapper;
@@ -30,6 +56,7 @@ static UIImage *IridiaGeneratedCover(NSString *title);
     NSString *_gametdbID;
     NSUInteger _fileSize;
     NSInteger _platform;
+    BOOL _isWiiTitle;
     BOOL _demoItem;
     BOOL _hasCoverArt;
 }
@@ -162,6 +189,7 @@ static UIImage *IridiaGeneratedCover(NSString *title);
 
         _fileSize = (NSUInteger)game.GetFileSize();
         _platform = (NSInteger)game.GetPlatform();
+        _isWiiTitle = IsWiiGameFile(game);
 
         // Debug logging for file size
 #ifdef DEBUG
@@ -189,6 +217,72 @@ static UIImage *IridiaGeneratedCover(NSString *title);
 - (NSString *)gametdbID { return _gametdbID; }
 - (NSUInteger)fileSize { return _fileSize; }
 - (NSInteger)platform { return _platform; }
+- (BOOL)isWiiTitle { return _isWiiTitle; }
+
+- (BOOL)needsWiiKey {
+    if (_platform != (NSInteger)DiscIO::Platform::WiiDisc || _demoItem)
+        return NO;
+    const std::unique_ptr<DiscIO::Volume> volume = DiscIO::CreateVolume(FoundationToCppString(_filePath));
+    return volume && volume->IsMissingWiiKey();
+}
+- (BOOL)wiiKeyOpensDisc {
+    if (_platform != (NSInteger)DiscIO::Platform::WiiDisc || _demoItem)
+        return YES;
+    const std::unique_ptr<DiscIO::Volume> volume = DiscIO::CreateVolume(FoundationToCppString(_filePath));
+    if (!volume || volume->IsMissingWiiKey())
+        return NO;
+    if (!volume->HasWiiEncryption())
+        return YES;
+    // Any 1 KB file counts as a key; only the game partition's own header decrypting shows it is this disc's.
+    const std::optional<u32> magic = volume->ReadSwapped<u32>(0x18, volume->GetGamePartition());
+    return magic == 0x5D1C9EA3;
+}
+- (BOOL)isWiiWAD { return _platform == (NSInteger)DiscIO::Platform::WiiWAD; }
++ (NSString *)wiiKeyFilePath {
+    return [CppToFoundationString(File::GetUserPath(D_WIIROOT_IDX)) stringByAppendingPathComponent:@"keys.bin"];
+}
++ (NSInteger)systemOfFileAtPath:(NSString *)path {
+    const std::string p = FoundationToCppString(path);
+    u8 head[9] = {};
+    {
+        File::IOFile file(p, "rb");
+        if (!file || !file.ReadBytes(head, sizeof(head)))
+            return 0;
+    }
+    if (memcmp(head, "\x7f" "ELF", 4) == 0) {
+        // A Wii U program (RPX/RPL) is an ELF too, marked with the CAFE ABI.
+        if (head[7] == 0xCA && head[8] == 0xFE)
+            return 0;
+        const ElfReader reader(p);
+        return reader.IsValid() ? (reader.IsWii() ? 2 : 1) : 0;
+    }
+    if (const std::unique_ptr<DiscIO::Volume> volume = DiscIO::CreateVolume(p)) {
+        switch (volume->GetVolumeType()) {
+        case DiscIO::Platform::GameCubeDisc: return 1;
+        case DiscIO::Platform::WiiDisc:
+        case DiscIO::Platform::WiiWAD: return 2;
+        default: return 0;
+        }
+    }
+    // DolReader reads the whole file and takes any header, so first check that it looks like a program: a small
+    // file with an entry point in main memory and some code.
+    if (File::GetSize(p) > 64 * 1024 * 1024)
+        return 0;
+    u8 dol[0xE4] = {};
+    {
+        File::IOFile file(p, "rb");
+        if (!file || !file.ReadBytes(dol, sizeof(dol)))
+            return 0;
+    }
+    const auto word = [&](size_t at) { return u32(dol[at]) << 24 | u32(dol[at + 1]) << 16 | u32(dol[at + 2]) << 8 | dol[at + 3]; };
+    bool hasCode = false;
+    for (size_t i = 0; i < 7; ++i)
+        hasCode = hasCode || word(0x90 + i * 4) != 0;
+    if (!hasCode || (word(0xE0) & 0xFE000000) != 0x80000000)
+        return 0;
+    const DolReader reader(p);
+    return reader.IsValid() ? (reader.IsWii() ? 2 : 1) : 0;
+}
 - (BOOL)isDemoItem { return _demoItem; }
 - (BOOL)hasCoverArt { return _hasCoverArt; }
 
@@ -376,6 +470,7 @@ static UIImage *DOLDemoCoverImage(NSString *title, NSString *platformLabel, CGFl
     _title = [title copy];
     _gameID = [gameID copy];
     _platform = platform;
+    _isWiiTitle = (platform == 2 || platform == 3);
     _makerLong = [maker copy];
     _countryName = [countryName copy];
     _fileSize = fileSize;

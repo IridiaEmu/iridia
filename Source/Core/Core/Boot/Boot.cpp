@@ -534,6 +534,14 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
       if (!volume)
         return false;
 
+      // gc-emu: an encrypted Wii image with no key would boot into garbage and hang; stop cleanly.
+      // The app checks this first and tells the player (EmulationCoordinator).
+      if (volume->IsMissingWiiKey())
+      {
+        ERROR_LOG_FMT(BOOT, "This Wii image is encrypted and no key is available (no keys.bin).");
+        return false;
+      }
+
       if (!EmulatedBS2(system, guard, system.IsWii(), *volume, riivolution_patches))
         return false;
 
@@ -611,6 +619,12 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
 
     bool operator()(const DiscIO::VolumeWAD& wad) const
     {
+      // gc-emu: as for discs, no key means no install; stop cleanly (the app tells the player).
+      if (wad.IsMissingWiiKey())
+      {
+        ERROR_LOG_FMT(BOOT, "This WAD is encrypted and no key is available (no keys.bin).");
+        return false;
+      }
       SetDefaultDisc(system.GetDVDInterface());
       if (!Boot_WiiWAD(system, wad))
         return false;

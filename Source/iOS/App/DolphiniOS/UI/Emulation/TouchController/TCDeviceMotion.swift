@@ -573,6 +573,16 @@ import simd
   }
 
   /// Trigger Wiimote shake events
+  /// gc-emu: the on-screen Shake button. Holds the Wii Remote's shake for a moment (the core shakes it
+  /// back and forth while held), on the slot the touch controls drive. Works with motion off.
+  @objc func shakeButtonPressed() {
+    let slot = port
+    for id in 132...134 { TCManagerInterface.setButtonStateFor(id, controller: slot, state: true) }   // wiiShakeX/Y/Z
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+      for id in 132...134 { TCManagerInterface.setButtonStateFor(id, controller: slot, state: false) }
+    }
+  }
+
   private func triggerWiimoteShake() {
     let shakeDuration: Float = 0.1
 

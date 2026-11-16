@@ -176,7 +176,7 @@ final class CloudSyncCoordinator: ObservableObject {
 
     private func prepare() async {
         guard let root = DolphinPaths.userDirectoryURL() else {
-            unavailableReason = .unknown("Could not locate iCube's User directory.")
+            unavailableReason = .unknown("Couldn't find Iridia's data folder.")
             return
         }
         scanner = UserDataScanner(rootDirectory: root)

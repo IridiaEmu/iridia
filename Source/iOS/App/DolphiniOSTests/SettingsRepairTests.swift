@@ -393,6 +393,33 @@ final class SettingsRepairTests: XCTestCase {
     XCTAssertEqual(SettingsRepair.baseKeysToDelete(DOLConfigBridge.baseLayerSnapshot(), fastmemAvailable: fastmem), [])
   }
 
+  /// Custom textures start off, and stay on for an install that already has a texture pack.
+  func testCustomTexturesStartOnOnlyWithATexturePack() throws {
+    let keys = ["Graphics.Settings.HiresTextures", "Graphics.Settings.CacheHiresTextures"]
+    let textures = URL(fileURLWithPath: UserFolderUtil.getUserFolder()).appendingPathComponent("Load/Textures", isDirectory: true)
+    let pack = textures.appendingPathComponent("IridiaTexturePackTest", isDirectory: true)
+    let fastmem = FastmemManager.shared().fastmemAvailable
+    let hadPack = ((try? FileManager.default.contentsOfDirectory(atPath: textures.path)) ?? []).contains { !$0.hasPrefix(".") }
+    defer {
+      try? FileManager.default.removeItem(at: pack)
+      DOLConfigBridge.deleteBaseLayerKeys(keys)
+      DolphinCoreService.seedLaunchDefaults(fastmemAvailable: fastmem)
+    }
+
+    DOLConfigBridge.deleteBaseLayerKeys(keys)
+    DolphinCoreService.seedLaunchDefaults(fastmemAvailable: fastmem)
+    if !hadPack {
+      XCTAssertFalse(DOLConfigBridge.gfxHiresTextures())
+      XCTAssertFalse(DOLConfigBridge.gfxCacheHiresTextures())
+    }
+
+    try FileManager.default.createDirectory(at: pack, withIntermediateDirectories: true)
+    DOLConfigBridge.deleteBaseLayerKeys(keys)
+    DolphinCoreService.seedLaunchDefaults(fastmemAvailable: fastmem)
+    XCTAssertTrue(DOLConfigBridge.gfxHiresTextures())
+    XCTAssertTrue(DOLConfigBridge.gfxCacheHiresTextures())
+  }
+
   /// The read-back the repair trusts instead of Config::Save: a Base value, once saved, is in the
   /// on-disk snapshot under the same key.
   func testTheSavedSnapshotReadsBackTheFiles() {

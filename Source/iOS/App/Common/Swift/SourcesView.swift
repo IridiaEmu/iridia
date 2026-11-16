@@ -124,7 +124,7 @@ private struct AddWebDAVSourceView: View {
             .autocorrectionDisabled(true)
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
-          TextField("Start Path (optional) (`Software` for other iCube instances)", text: $startPath)
+          TextField("Start Path (optional) (`Software` for other Iridia devices)", text: $startPath)
             .autocorrectionDisabled(true)
             .textInputAutocapitalization(.never)
             .keyboardType(.URL)
@@ -323,7 +323,7 @@ private struct EditWebDAVSourceView: View {
         Section("Details") {
           TextField("Name", text: $name)
           TextField("URL (e.g., http://192.168.1.29:8080)", text: $url)
-          TextField("Start Path (optional) (`Software` for other iCube instances)", text: $startPath)
+          TextField("Start Path (optional) (`Software` for other Iridia devices)", text: $startPath)
         }
         Section("Authentication") {
           TextField("Username (optional)", text: $username)

@@ -27,6 +27,12 @@ static std::vector<std::string_view> AsViews(const std::vector<std::string>& pat
   return std::vector<std::string_view>(paths.begin(), paths.end());
 }
 
+/// gc-emu: the Files-visible folders the library scans: Games, and Wii (Wii games).
+static std::vector<std::string> LocalGameRoots() {
+  return {FoundationToCppString([UserFolderUtil getSoftwareFolder]),
+          FoundationToCppString([UserFolderUtil getWiiFolder])};
+}
+
 static dispatch_queue_t GameFileCacheQueue() {
   static dispatch_once_t onceToken;
   static dispatch_queue_t queue;
@@ -64,24 +70,11 @@ static void PurgeAppleDoubleSidecars(NSString* softwareFolder) {
     NSLog(@"[GameFileCache] Removed %lu AppleDouble/.DS_Store sidecar(s) from the Software folder", (unsigned long)removed);
 }
 
-/// Extract orphaned archives in the Software folder before scanning so web uploads and
-/// stale `.7z`/`.zip` files are imported through the same pipeline as the document picker.
-static void ProcessOrphanedArchivesBeforeRescan(void) {
-  NSString* softwareFolder = [UserFolderUtil getSoftwareFolder];
-  PurgeAppleDoubleSidecars(softwareFolder);
-  DOLArchiveBatchImportResult* batch = [DOLZipImportHelper processOrphanedArchivesInFolder:softwareFolder];
-  if (batch.archivesProcessed > 0 || batch.failedArchives > 0) {
-    NSLog(@"[ArchiveImport] Recovered %ld archive(s), imported %ld game(s), skipped %ld existing, %ld failed",
-          (long)batch.archivesProcessed, (long)batch.gamesImported, (long)batch.gamesSkipped, (long)batch.failedArchives);
-    NSString* snackbar = [DOLZipImportHelper snackbarTextForBatchImportResult:batch];
-    if (snackbar.length > 0) {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"DOLShowSnackbar"
-                                                            object:nil
-                                                          userInfo:@{@"text": snackbar}];
-      });
-    }
-  }
+/// Archives in the game folders aren't unpacked here: GameImport.tidyFolders does that, and sends each game
+/// inside to its own tab (a Wii U game must never be unpacked into the GameCube folder).
+static void PurgeSidecarsBeforeRescan(void) {
+  PurgeAppleDoubleSidecars([UserFolderUtil getSoftwareFolder]);
+  PurgeAppleDoubleSidecars([UserFolderUtil getWiiFolder]);
 }
 
 @interface GameFileCacheManager () {
@@ -202,9 +195,8 @@ static void ProcessOrphanedArchivesBeforeRescan(void) {
 
 - (void)updateCacheWithShouldUpdateMetadata:(bool)updateMetadata {
   dispatch_async(GameFileCacheQueue(), ^{
-    ProcessOrphanedArchivesBeforeRescan();
-    NSString* softwareFolder = [UserFolderUtil getSoftwareFolder];
-    std::vector<std::string> scanPaths{ FoundationToCppString(softwareFolder) };
+    PurgeSidecarsBeforeRescan();
+    std::vector<std::string> scanPaths = LocalGameRoots();
     bool cacheUpdated = self->_cache->Update(UICommon::FindAllGamePaths(AsViews(scanPaths), true));
     if (updateMetadata) {
       cacheUpdated |= self->_cache->UpdateAdditionalMetadata();
@@ -218,11 +210,10 @@ static void ProcessOrphanedArchivesBeforeRescan(void) {
 
 - (void)rescan {
   dispatch_async(GameFileCacheQueue(), ^{
-    ProcessOrphanedArchivesBeforeRescan();
-    NSString* softwareFolder = [UserFolderUtil getSoftwareFolder];
+    PurgeSidecarsBeforeRescan();
     // Only scan local folders during rescan - don't preserve old remote URLs
     // Fresh remote URLs should come from WebDAV sources via updateWithExtraPaths
-    std::vector<std::string> localRoots{ FoundationToCppString(softwareFolder) };
+    std::vector<std::string> localRoots = LocalGameRoots();
     std::vector<std::string> all = UICommon::FindAllGamePaths(AsViews(localRoots), true);
     printf("DEBUG CACHE MGR: rescan() - only using %lu local paths (not preserving old remote URLs)\n", (unsigned long)all.size());
     bool updated = self->_cache->Update(all);
@@ -235,12 +226,11 @@ static void ProcessOrphanedArchivesBeforeRescan(void) {
 
 - (void)rescanAndFetchMetadataWithCompletionHandler:(nullable void (^)())completion_handler {
   dispatch_async(GameFileCacheQueue(), ^{
-    ProcessOrphanedArchivesBeforeRescan();
-    NSString* softwareFolder = [UserFolderUtil getSoftwareFolder];
+    PurgeSidecarsBeforeRescan();
 
     // Only scan local folders - don't preserve old remote URLs during refresh
     // Fresh remote URLs should come from WebDAV sources via updateWithExtraPaths
-    std::vector<std::string> localRoots{ FoundationToCppString(softwareFolder) };
+    std::vector<std::string> localRoots = LocalGameRoots();
     std::vector<std::string> all = UICommon::FindAllGamePaths(AsViews(localRoots), true);
 
     printf("DEBUG CACHE MGR: rescanAndFetchMetadata() - only using %lu local paths (not preserving old remote URLs)\n", (unsigned long)all.size());
@@ -289,8 +279,7 @@ static void ProcessOrphanedArchivesBeforeRescan(void) {
                                       operation:@"library.metadata_fetch"
                                            tags:@{@"source": @"local_remote"}
                                            work:^{
-    ProcessOrphanedArchivesBeforeRescan();
-    NSString* softwareFolder = [UserFolderUtil getSoftwareFolder];
+    PurgeSidecarsBeforeRescan();
 
     // During refresh: preserve existing remote URLs and only add/update local files
     // This provides better UX - remote files stay visible until WebDAV updates arrive
@@ -309,7 +298,7 @@ static void ProcessOrphanedArchivesBeforeRescan(void) {
     });
 
     // Scan local folders
-    std::vector<std::string> localRoots{ FoundationToCppString(softwareFolder) };
+    std::vector<std::string> localRoots = LocalGameRoots();
     std::vector<std::string> all = UICommon::FindAllGamePaths(AsViews(localRoots), true);
 
     // Preserve existing remote URLs during refresh for better UX
@@ -388,11 +377,10 @@ static void ProcessOrphanedArchivesBeforeRescan(void) {
 
   // All of this runs on the cache queue: it mutates _cache, and the cache queue is its only writer.
   dispatch_async(GameFileCacheQueue(), ^{
-    ProcessOrphanedArchivesBeforeRescan();
-    NSString* softwareFolder = [UserFolderUtil getSoftwareFolder];
+    PurgeSidecarsBeforeRescan();
 
     // Expand only local folders via FindAllGamePaths
-    std::vector<std::string> localRoots{ FoundationToCppString(softwareFolder) };
+    std::vector<std::string> localRoots = LocalGameRoots();
     std::vector<std::string> all = UICommon::FindAllGamePaths(AsViews(localRoots), true);
     printf("DEBUG CACHE MGR: Found %lu local paths\n", (unsigned long)all.size());
 

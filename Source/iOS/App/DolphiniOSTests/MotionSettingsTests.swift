@@ -23,11 +23,13 @@ final class MotionSettingsTests: XCTestCase {
     XCTAssertFalse(MotionSettings.useYawForHorizontal(in: store))
     XCTAssertFalse(MotionSettings.invertRoll(in: store))
     XCTAssertFalse(MotionSettings.invertPitch(in: store))
-    XCTAssertTrue(MotionSettings.enhancedShakeDetection(in: store))
+    // gc-emu: shake and tilt the phone are off until the player turns them on (Wii Settings).
+    XCTAssertFalse(MotionSettings.enhancedShakeDetection(in: store))
     XCTAssertTrue(MotionSettings.full6DOF(in: store))
-    XCTAssertTrue(MotionSettings.wiimoteIMU(in: store))
+    XCTAssertFalse(MotionSettings.wiimoteIMU(in: store))
     XCTAssertFalse(MotionSettings.nunchukIMU(in: store))
-    XCTAssertEqual(MotionSettings.irPointerGain(in: store), 1.0)
+    XCTAssertEqual(MotionSettings.irPointerGain(in: store), 1.25)
+    XCTAssertEqual(MotionSettings.gyroPointerSensitivity(in: store), 1.25)
   }
 
   func testRecommendedSetsMotionOnAndLeavesThePointerAlone() {
@@ -81,11 +83,10 @@ final class MotionSettingsTests: XCTestCase {
     XCTAssertEqual(MotionSettings.Key.irPointerGain, "touch_overlay_ir_pointer_gain")
   }
 
-  /// Decision 4: a multiplier on TCDeviceMotion's constants, 1.0 by default so nothing changes.
-  func testGyroPointerSensitivityDefaultsToOne() {
-    XCTAssertEqual(MotionSettings.gyroPointerSensitivity(in: store), 1.0, "unregistered reads as 1")
+  /// A multiplier on TCDeviceMotion's constants; 1.25 by default, a little faster than the original 1.0.
+  func testGyroPointerSensitivityDefault() {
     MotionSettings.registerDefaults(in: store)
-    XCTAssertEqual(MotionSettings.gyroPointerSensitivity(in: store), 1.0)
+    XCTAssertEqual(MotionSettings.gyroPointerSensitivity(in: store), 1.25)
     store.set(-2.0, forKey: MotionSettings.Key.gyroPointerSensitivity)
     XCTAssertEqual(MotionSettings.gyroPointerSensitivity(in: store), 1.0, "a broken value reads as 1")
     XCTAssertEqual(MotionSettings.Key.gyroPointerSensitivity, "motion_gyro_pointer_sensitivity")

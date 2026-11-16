@@ -120,7 +120,7 @@ public enum SaveStateService {
     UserDefaults.standard.bool(forKey: resumeDefaultsKey) && !isBenchmarkRun
   }
 
-  static var isBenchmarkRun: Bool { UserDefaults.standard.double(forKey: "gcemuBench") > 0 }
+  static var isBenchmarkRun: Bool { GCEmuBenchmark.isRunning }
 
   /// gc-emu: write the running game's resume state now. Used when the app goes to the background,
   /// because iOS may end a backgrounded app (or the user swipes it away) without +stop ever running.

@@ -169,24 +169,21 @@ constexpr std::array<u8, 512> ROOT_PUBLIC_KEY_DEV = {
      0xF8, 0x79, 0x8A, 0x42, 0xB1, 0xAA, 0xA0, 0x83, 0x20, 0x65, 0x9A, 0xC7, 0x39, 0x5A, 0xB4,
      0xF3, 0x29}};
 
-constexpr u32 DEFAULT_DEVICE_ID = 0x0403AC68;
-constexpr u32 DEFAULT_KEY_ID = 0x6AAB8C59;
+// gc-emu: no Nintendo keys in Iridia's source or app. The emulated console has its own made-up
+// identity: a device ID, key ID and ECC private key generated for Iridia (random, not from any Wii),
+// and an empty signature over it. Nothing offline checks that signature. A player's own keys.bin
+// replaces all of it. The common keys and the SD key stay zero unless keys.bin supplies them.
+constexpr u32 DEFAULT_DEVICE_ID = 0x04B1D1A0;
+constexpr u32 DEFAULT_KEY_ID = 0x1D1A0001;
 
 constexpr std::array<u8, 30> DEFAULT_PRIVATE_KEY = {{
-    0x00, 0xAB, 0xEE, 0xC1, 0xDD, 0xB4, 0xA6, 0x16, 0x6B, 0x70, 0xFD, 0x7E, 0x56, 0x67, 0x70,
-    0x57, 0x55, 0x27, 0x38, 0xA3, 0x26, 0xC5, 0x46, 0x16, 0xF7, 0x62, 0xC9, 0xED, 0x73, 0xF2,
+    0x00, 0x40, 0x06, 0x83, 0xC5, 0x6E, 0x57, 0x28, 0xFA, 0x57, 0xF5, 0x85, 0x52, 0x09, 0xA6,
+    0x79, 0x36, 0x95, 0xB8, 0x89, 0x30, 0x77, 0x86, 0x2E, 0xEC, 0x54, 0xC0, 0x7B, 0xB2, 0x08,
 }};
 
-// clang-format off
-constexpr Common::ec::Signature DEFAULT_SIGNATURE = {{
-    // R
-    0x00, 0xD8, 0x81, 0x63, 0xB2, 0x00, 0x6B, 0x0B, 0x54, 0x82, 0x88, 0x63, 0x81, 0x1C, 0x00, 0x71,
-    0x12, 0xED, 0xB7, 0xFD, 0x21, 0xAB, 0x0E, 0x50, 0x0E, 0x1F, 0xBF, 0x78, 0xAD, 0x37,
-    // S
-    0x00, 0x71, 0x8D, 0x82, 0x41, 0xEE, 0x45, 0x11, 0xC7, 0x3B, 0xAC, 0x08, 0xB6, 0x83, 0xDC, 0x05,
-    0xB8, 0xA8, 0x90, 0x1F, 0xA8, 0x2A, 0x0E, 0x4E, 0x76, 0xEF, 0x44, 0x72, 0x99, 0xF8,
-}};
-// clang-format on
+constexpr Common::ec::Signature DEFAULT_SIGNATURE = {};
+
+constexpr std::array<u8, 16> NO_KEY = {};
 
 const std::map<std::pair<IOSC::ObjectType, IOSC::ObjectSubType>, size_t> s_type_to_size_map = {{
     {{IOSC::TYPE_SECRET_KEY, IOSC::ObjectSubType::AES128}, 16},
@@ -576,11 +573,7 @@ void IOSC::LoadDefaultEntries()
   switch (m_console_type)
   {
   case ConsoleType::Retail:
-    m_key_entries[HANDLE_COMMON_KEY] = {TYPE_SECRET_KEY,
-                                        ObjectSubType::AES128,
-                                        {{0xeb, 0xe4, 0x2a, 0x22, 0x5e, 0x85, 0x93, 0xe4, 0x48,
-                                          0xd9, 0xc5, 0x45, 0x73, 0x81, 0xaa, 0xf7}},
-                                        3};
+    m_key_entries[HANDLE_COMMON_KEY] = {TYPE_SECRET_KEY, ObjectSubType::AES128, {NO_KEY.begin(), NO_KEY.end()}, 3};
     m_root_key_entry = {TYPE_PUBLIC_KEY, ObjectSubType::RSA4096,
                         std::vector<u8>(ROOT_PUBLIC_KEY.begin(), ROOT_PUBLIC_KEY.end()),
                         Common::swap32(0x00010001), 0};
@@ -590,11 +583,7 @@ void IOSC::LoadDefaultEntries()
     m_ca_id = 1;
     break;
   case ConsoleType::RVT:
-    m_key_entries[HANDLE_COMMON_KEY] = {TYPE_SECRET_KEY,
-                                        ObjectSubType::AES128,
-                                        {{0xa1, 0x60, 0x4a, 0x6a, 0x71, 0x23, 0xb5, 0x29, 0xae,
-                                          0x8b, 0xec, 0x32, 0xc8, 0x16, 0xfc, 0xaa}},
-                                        3};
+    m_key_entries[HANDLE_COMMON_KEY] = {TYPE_SECRET_KEY, ObjectSubType::AES128, {NO_KEY.begin(), NO_KEY.end()}, 3};
     m_root_key_entry = {TYPE_PUBLIC_KEY, ObjectSubType::RSA4096,
                         std::vector<u8>(ROOT_PUBLIC_KEY_DEV.begin(), ROOT_PUBLIC_KEY_DEV.end()),
                         Common::swap32(0x00010001), 0};
@@ -606,22 +595,14 @@ void IOSC::LoadDefaultEntries()
   m_key_entries[HANDLE_PRNG_KEY] = {TYPE_SECRET_KEY, ObjectSubType::AES128,
                                     std::vector<u8>(AES128_KEY_SIZE), 3};
 
-  m_key_entries[HANDLE_SD_KEY] = {TYPE_SECRET_KEY,
-                                  ObjectSubType::AES128,
-                                  {{0xab, 0x01, 0xb9, 0xd8, 0xe1, 0x62, 0x2b, 0x08, 0xaf, 0xba,
-                                    0xd8, 0x4d, 0xbf, 0xc2, 0xa5, 0x5d}},
-                                  3};
+  m_key_entries[HANDLE_SD_KEY] = {TYPE_SECRET_KEY, ObjectSubType::AES128, {NO_KEY.begin(), NO_KEY.end()}, 3};
 
   m_key_entries[HANDLE_BOOT2_VERSION] = {TYPE_DATA, ObjectSubType::Version, {}, 3};
   m_key_entries[HANDLE_UNKNOWN_8] = {TYPE_DATA, ObjectSubType::Version, {}, 3};
   m_key_entries[HANDLE_UNKNOWN_9] = {TYPE_DATA, ObjectSubType::Version, {}, 3};
   m_key_entries[HANDLE_FS_VERSION] = {TYPE_DATA, ObjectSubType::Version, {}, 3};
 
-  m_key_entries[HANDLE_NEW_COMMON_KEY] = {TYPE_SECRET_KEY,
-                                          ObjectSubType::AES128,
-                                          {{0x63, 0xb8, 0x2b, 0xb4, 0xf4, 0x61, 0x4e, 0x2e, 0x13,
-                                            0xf2, 0xfe, 0xfb, 0xba, 0x4c, 0x9b, 0x7e}},
-                                          3};
+  m_key_entries[HANDLE_NEW_COMMON_KEY] = {TYPE_SECRET_KEY, ObjectSubType::AES128, {NO_KEY.begin(), NO_KEY.end()}, 3};
 }
 
 void IOSC::LoadEntries()
@@ -650,6 +631,21 @@ void IOSC::LoadEntries()
   m_key_entries[HANDLE_FS_MAC].data = {dump.nand_hmac.begin(), dump.nand_hmac.end()};
   m_key_entries[HANDLE_PRNG_KEY].data = {dump.backup_key.begin(), dump.backup_key.end()};
   m_key_entries[HANDLE_BOOT2_VERSION].misc_data = dump.counters[0].boot2version;
+  // gc-emu: the player's own console dump also carries its common key (retail consoles).
+  if (m_console_type == ConsoleType::Retail &&
+      std::ranges::any_of(dump.common_key, [](u8 b) { return b != 0; }))
+  {
+    m_key_entries[HANDLE_COMMON_KEY].data = {dump.common_key.begin(), dump.common_key.end()};
+  }
+}
+
+bool IOSC::HasCommonKey(ConsoleType console_type, u8 index)
+{
+  if (index >= COMMON_KEY_HANDLES.size())
+    return false;
+  const IOSC iosc{console_type};
+  const KeyEntry* entry = iosc.FindEntry(COMMON_KEY_HANDLES[index]);
+  return entry && std::ranges::any_of(entry->data, [](u8 b) { return b != 0; });
 }
 
 IOSC::KeyEntry::KeyEntry() = default;

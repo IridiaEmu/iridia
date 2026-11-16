@@ -15,6 +15,9 @@ struct ControllerHubView: View {
 
   @State private var viewModel: ControllerHubViewModel
   @Environment(\.dismiss) private var dismiss
+  #if os(iOS)
+  @Environment(\.menuLook) private var menuLook
+  #endif
 
   /// - Parameters:
   ///   - onBack: B (iOS) / Menu (tvOS) at the hub's root. nil pops or dismisses the hub. A host
@@ -44,6 +47,10 @@ struct ControllerHubView: View {
       DispatchQueue.main.async { viewModel.consumeFocusRequest() }
     }
     .navigationTitle(L("Controllers"))
+    .alert(viewModel.notice ?? "", isPresented: Binding(
+      get: { viewModel.notice != nil }, set: { if !$0 { viewModel.notice = nil } })) {
+      Button(L("OK"), role: .cancel) {}
+    }
     // A pushed player screen covers this one: stop on disappear, reload on the way back.
     .onAppear { viewModel.start() }
     .onDisappear { viewModel.stop() }
@@ -51,7 +58,7 @@ struct ControllerHubView: View {
     // gc-emu: Iridia look in every host (library sheet, pause menu, Settings): the list already
     // draws the indigo stage; keep the navigation bar see-through and dark over it.
     .toolbarBackground(.hidden, for: .navigationBar)
-    .toolbarColorScheme(.dark, for: .navigationBar)
+    .toolbarColorScheme(menuLook == .iridia ? .dark : nil, for: .navigationBar)
     // Attached to the hub, not a row: nothing waits on a lazily built row (see above).
     .fullScreenCover(isPresented: $viewModel.isLayoutEditorPresented) {
       TouchOverlayLayoutEditorView(padKind: TouchOverlayLayoutEditorView.lastPadKind(), overGame: false) {

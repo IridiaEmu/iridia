@@ -73,8 +73,7 @@ final class TouchOverlayDefaultLayoutTests: XCTestCase {
     }
   }
 
-  /// Pad kinds whose defaults are computed per screen (the sideways remote is still xib-derived).
-  private static let computedKinds: [TouchOverlayPadKind] = [.gameCube, .wiiRemote, .wiiClassic]
+  private static let computedKinds: [TouchOverlayPadKind] = [.gameCube, .wiiRemote, .wiiRemoteSideways, .wiiClassic]
 
   func testComputedLayoutGroupsDoNotOverlap() {
     for c in cases(Self.computedKinds) {
@@ -137,7 +136,7 @@ final class TouchOverlayDefaultLayoutTests: XCTestCase {
   func testWiiRemoteHasEveryButton() {
     let ids = Set(cases([.wiiRemote])[0].layouts.flatMap(\.controls).map(\.id))
     XCTAssertEqual(ids, ["wii.dpad", "nunchuk.stick", "wii.a", "wii.b", "wii.one", "wii.two", "wii.minus", "wii.plus",
-                         "wii.home", "nunchuk.c", "nunchuk.z", "wii.ir"])
+                         "wii.home", "nunchuk.c", "nunchuk.z", "wii.ir", "wii.shake"])
   }
 
   func testClassicHasEveryButton() {

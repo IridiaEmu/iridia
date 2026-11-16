@@ -61,6 +61,9 @@ public:
 
   virtual bool HasWiiHashes() const { return false; }
   virtual bool HasWiiEncryption() const { return false; }
+  // gc-emu: an encrypted Wii image (ISO, WBFS, ...) whose key isn't available. Iridia has no built-in
+  // keys, so these only play with the player's own keys.bin; RVZ/WIA keep the data decrypted.
+  virtual bool IsMissingWiiKey() const { return false; }
   virtual std::vector<Partition> GetPartitions() const { return {}; }
   virtual Partition GetGamePartition() const { return PARTITION_NONE; }
   virtual std::optional<u32> GetPartitionType(const Partition& partition) const

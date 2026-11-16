@@ -18,6 +18,7 @@
 #include "Core/IOS/Network/KD/NWC24Config.h"
 #include "Core/IOS/Network/KD/NWC24DL.h"
 #include "Core/IOS/Network/KD/NetKDTime.h"
+#include "Core/IOS/Network/IridiaOffline.h"
 
 namespace IOS::HLE
 {
@@ -50,9 +51,13 @@ private:
     s32 return_value;
   };
 
+  IPCReply ReplyOffline(const IOCtlRequest& request);
+
   template <typename Method, typename Request>
   std::optional<IPCReply> LaunchAsyncTask(Method method, const Request& request)
   {
+    if constexpr (WII_ONLINE_OFF)
+      return ReplyOffline(request);
     m_work_queue.EmplaceItem(AsyncTask{request, std::bind(method, this, request)});
     return std::nullopt;
   }

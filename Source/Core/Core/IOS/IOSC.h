@@ -167,6 +167,10 @@ public:
   static constexpr std::array<DefaultHandle, 2> COMMON_KEY_HANDLES = {HANDLE_COMMON_KEY,
                                                                       HANDLE_NEW_COMMON_KEY};
 
+  // gc-emu: whether the common key for a ticket's common_key_index is available. Iridia has no
+  // built-in keys, so only when the player supplied their own keys.bin.
+  static bool HasCommonKey(ConsoleType console_type, u8 index);
+
   enum ObjectType : u8
   {
     TYPE_SECRET_KEY = 0,

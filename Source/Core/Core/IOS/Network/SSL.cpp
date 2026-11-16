@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/IOS/Network/SSL.h"
+#include "Core/IOS/Network/IridiaOffline.h"
 
 #include <array>
 #include <cstring>
@@ -229,7 +230,7 @@ std::optional<IPCReply> NetSSLDevice::IOCtlV(const IOCtlVRequest& request)
 
   // I don't trust SSL to be deterministic, and this is never going to sync
   // as such (as opposed to forwarding IPC results or whatever), so -
-  if (Core::WantsDeterminism())
+  if (Core::WantsDeterminism() || WII_ONLINE_OFF)
     return IPCReply(IPC_EACCES);
 
   auto& system = Core::System::GetInstance();

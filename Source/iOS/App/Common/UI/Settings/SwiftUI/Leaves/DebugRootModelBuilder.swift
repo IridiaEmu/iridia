@@ -46,8 +46,7 @@ enum DebugRootModelBuilder {
     ]
     #if GCEMU_NO_JIT
     // gc-emu: App Store build. No JIT, debugger, TXM or StikDebug rows; the emulator never generates code.
-    items.append(status("jit-status", L("CPU Emulation"), L("This build never generates native code. Games run on the Cached Interpreter."),
-                        badge: L("No JIT")))
+    items.append(status("jit-status", L("CPU Emulation"), L("This build never generates native code. Games run on the Cached Interpreter.")))
     #else
     items.append(status("jit-status", L("JIT"), L("Whether the emulator can generate native code on this device right now."),
                         badge: h.jitAcquired ? L("Acquired") : L("Not Acquired")))

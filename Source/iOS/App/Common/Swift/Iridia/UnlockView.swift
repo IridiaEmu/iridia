@@ -20,7 +20,10 @@ struct UnlockView: View {
   @ObservedObject private var store = IridiaUnlock.store
   @State private var message: String?
 
-  private var priceText: String { store.product?.displayPrice ?? "$2.99" }
+  private var buyText: String {
+    guard let price = store.product?.displayPrice else { return L("Unlock Full Version") }
+    return String(format: L("Unlock for %@"), price)
+  }
 
   var body: some View {
     ZStack {
@@ -71,7 +74,7 @@ struct UnlockView: View {
             } label: {
               HStack(spacing: 8) {
                 if store.isBusy { ProgressView().tint(Color(red: 0.07, green: 0.04, blue: 0.20)) }
-                Text(String(format: L("Unlock for %@"), priceText))
+                Text(buyText)
               }
               .font(.system(size: 18, weight: .bold))
               .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))

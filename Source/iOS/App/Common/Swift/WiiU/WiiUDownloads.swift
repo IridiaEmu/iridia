@@ -37,6 +37,11 @@ enum WiiUDownloads {
       let found = DownloadsFolder.find(in: folder, askedKey: askedKey, haveNames: have, wanted: isWiiUGame)
       await MainActor.run {
         busy = false
+        // A game started while the folder was read: nothing pops up over it unless the player asked.
+        guard manual || model.playing == nil else {
+          folder.stopAccessingSecurityScopedResource()
+          return
+        }
         guard let found else {
           folder.stopAccessingSecurityScopedResource()
           tellProblem(model: model, manual: manual)
@@ -74,32 +79,28 @@ enum WiiUDownloads {
   }
 
   @MainActor private static func tellProblem(model: WiiUModel, manual: Bool) {
-    DownloadsFolder.tellProblem(look: .wiiU, manual: manual, chooseAgain: { chooseFolder(model: model) },
-                                chooseFile: { model.chooseGameFiles() })
+    DownloadsFolder.tellProblem(look: .wiiU, manual: manual) { chooseFolder(model: model) }
   }
 
-  nonisolated private static func isWiiUGame(_ url: URL) -> Bool {
+  /// Wii U files by name: .iso can be a Wii U disc, and a .txt can be keys.txt.
+  private static let fileExtensions = WiiUFileTypes.extensions.union(["iso", "txt"])
+
+  nonisolated static func isWiiUGame(_ url: URL) -> Bool {
+    guard DownloadsFolder.mayHoldGame(url, extensions: fileExtensions, folders: true) else { return false }
     if WiiUFileTypes.isMissingTicket(url) { return false }
-    switch WiiUImport.classify(url) {
-    case .wiiU, .keys: return true
-    case .archive:
-      // Reads only the archive's list of names: a ZIP or 7Z of anything else isn't offered.
-      return DownloadsFolder.archiveNames(url)?.contains { name in
-        WiiUFileTypes.extensions.contains((name as NSString).pathExtension)
-          || name.hasSuffix("title.tmd") || name.hasSuffix("meta/meta.xml")
-      } ?? false
+    switch GameDetect.kind(of: url) {
+    case .game(.wiiU), .wiiUKeys: return true
+    // Only the archive's list of names is read here; what's inside is sorted when it's unpacked.
+    case .archive: return DownloadsFolder.archiveNames(url).map { GameDetect.systems(inArchiveNames: $0).contains(.wiiU) } ?? false
     default: return false
     }
   }
 }
 
 extension WiiUModel {
-  /// Moves games found by the Downloads check into the Wii U folder (same disk: instant, no extra space).
+  /// Moves games found by the Downloads check in (same disk: instant, no extra space).
   func addFromFolder(_ urls: [URL], done: @escaping () -> Void) {
-    let sorted = WiiUImport.sort(urls)
-    var notes: [String] = []
-    if !sorted.noTicket.isEmpty { notes.append(Self.noTicketNote(sorted.noTicket)) }
-    copyIn(sorted, move: true, notes: notes, done: done)
+    GameImport.add(urls, from: .wiiU, incoming: true, done: done)
   }
 }
 #endif

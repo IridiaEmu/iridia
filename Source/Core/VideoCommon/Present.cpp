@@ -907,7 +907,14 @@ void Presenter::Present(PresentInfo* present_info)
 {
   m_present_count++;
 
-  if (g_gfx->IsHeadless() || (!m_onscreen_ui && !m_xfb_entry))
+  // gc-emu: headless still submits the frame's GPU work; on Metal nothing else did, and the
+  // upload buffers grew until the test runner ran out of memory.
+  if (g_gfx->IsHeadless())
+  {
+    g_gfx->Flush();
+    return;
+  }
+  if (!m_onscreen_ui && !m_xfb_entry)
     return;
 
   if (!g_gfx->SupportsUtilityDrawing())

@@ -71,7 +71,7 @@ static bool MsgAlert(const char* caption, const char* text, bool question, Commo
   const bool isGCIPLAlert = !question && foundationText != nil &&
       [foundationText rangeOfString:@"GC IPL"].location != NSNotFound;
   if (isGCIPLAlert) {
-    foundationText = DOLCoreLocalizedString(@"The GameCube BIOS (IPL) isn't installed. It's required to boot the GameCube menu. You can play games without it by turning off \"Load GameCube Main Menu\" in Settings → Config → GameCube. Learn More explains how to install a GameCube BIOS dump.");
+    foundationText = DOLCoreLocalizedString(@"The GameCube BIOS (IPL) isn't installed. It's required to boot the GameCube menu. You can play games without it by turning off \"Load GameCube Main Menu\" in Settings → Config → GameCube.");
   }
   
   UIWindowScene* mainScene = [MainSceneCoordinator shared].mainScene;
@@ -101,19 +101,8 @@ static bool MsgAlert(const char* caption, const char* text, bool question, Commo
       [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"No") role:IridiaAlertRoleCancel
         action:^{ finish(false); }]];
     } else {
-      // iCube: offer a Learn More link to the GameCube BIOS help page on the IPL-missing panic.
-      // Routed through the in-app wiki (DOLHelpBridge) rather than Safari: this alert fires on
-      // tvOS too (no browser to open), and the guide is bundled offline, so this action is
-      // always actionable instead of silently failing without network/on tvOS.
-      if (isGCIPLAlert) {
-        [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"Learn More") role:IridiaAlertRoleNormal
-          action:^{
-          finish(true);
-          [DOLHelpBridge presentBIOSGuide];
-        }]];
-      }
       [buttons addObject:[[IridiaAlertButton alloc] initWithTitle:DOLCoreLocalizedString(@"OK")
-        role:isGCIPLAlert ? IridiaAlertRoleCancel : IridiaAlertRoleNormal action:^{ finish(true); }]];
+        role:IridiaAlertRoleNormal action:^{ finish(true); }]];
     }
 
     [IridiaAlert showWithTitle:foundationCaption message:foundationText buttons:buttons];

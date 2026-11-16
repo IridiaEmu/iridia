@@ -219,6 +219,15 @@ final class ControllerHubModelBuilderTests: XCTestCase {
     XCTAssertEqual(chosen?.1, .gameCube)
   }
 
+  func test_playsAs_tapSkipsAPortAnotherDeviceHolds_holdStillListsIt() {
+    let model = make(state(system: .wiiAndGameCube, bound: ["wii-1": Self.touch, "gc-1": "MFi/0/Gamepad"]))
+    let item = model.item(id: "wii-1-plays-as")
+    guard case .cycle(let options, _)? = item?.role else { return XCTFail("cycle") }
+    XCTAssertEqual(options.map(\.0), ["Wii Remote", "Wii Remote + Nunchuk", "Wii Remote + Classic Controller", "Sideways Wii Remote"])
+    guard case .options(_, let all, _)? = item?.effectiveLongPress else { return XCTFail("long press") }
+    XCTAssertEqual(all.map(\.0).last, "GameCube Controller")
+  }
+
   func test_pendingChoices_areShownAtOnce_whileTheGroupStaysPut() {
     var pending = PendingHubChanges()
     pending.playsAs["wii-1"] = .gameCube
@@ -255,7 +264,7 @@ final class ControllerHubModelBuilderTests: XCTestCase {
     hub.pointerIsThisGameOnly = true
     let model = make(hub, actions(setPointerMode: { mode = $0 }, setMotionPointer: { motion = ($0.id, $1) }))
     guard case .cycle(let options, let selection)? = model.item(id: "wii-1-pointer")?.role else { return XCTFail("cycle") }
-    XCTAssertEqual(options.map(\.0), ["Touch – Follow", "Touch – Drag", "Gyro"])
+    XCTAssertEqual(options.map(\.0), ["Follow your finger", "Drag on the screen", "Point the phone"])
     XCTAssertEqual(model.item(id: "wii-1-pointer")?.badge, "This game", "a per-game override shows on the cycle row")
     selection.wrappedValue = AnyHashable(PointerMode.touchDrag)
     XCTAssertEqual(mode, .touchDrag)

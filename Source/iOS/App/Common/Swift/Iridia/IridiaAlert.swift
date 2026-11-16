@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // gc-emu: Iridia's own popup, used in place of the system alert. It's drawn like the "Welcome to Iridia" card:
-// the turning cube, a title, the message and rounded buttons on a card over a dimmed screen. Two looks: the
-// GameCube side's dark glass, and the Wii U tab's white and blue. Each popup gets its own window above
+// the turning cube, a title, the message and rounded buttons on a card over a dimmed screen. Three looks: the
+// GameCube side's dark glass, the Wii tab's grey and white, and the Wii U tab's white and blue. Each popup gets its own window above
 // everything else, so Swift, SwiftUI and Objective-C code can all show one; more than one waits its turn.
 
 import SwiftUI
@@ -37,7 +37,10 @@ import UIKit
 }
 
 @objc(IridiaAlert) final class IridiaAlert: NSObject {
-  @objc enum Look: Int { case gameCube, wiiU }
+  @objc enum Look: Int { case gameCube, wiiU, wii }
+
+  /// Used instead of .gameCube while the Wii tab is showing, so shared and in-game popups match it.
+  nonisolated(unsafe) static var tabLook: Look = .gameCube
 
   /// The optional text box: what it shows when empty and the text it starts with. What the player typed is in
   /// `text` when a button runs.
@@ -65,7 +68,8 @@ import UIKit
 
   static func show(title: String, message: String?, buttons: [IridiaAlertButton], look: Look, field: Field?) {
     let pending = Pending(title: title, message: message?.isEmpty == true ? nil : message,
-                          buttons: buttons.isEmpty ? [.ok()] : buttons, look: look, field: field)
+                          buttons: buttons.isEmpty ? [.ok()] : buttons, look: look == .gameCube ? tabLook : look,
+                          field: field)
     DispatchQueue.main.async {
       MainActor.assumeIsolated {
         queue.append(pending)
@@ -102,6 +106,13 @@ import UIKit
     w.backgroundColor = .clear
     w.makeKeyAndVisible()
     window = w
+    #if !APPSTORE
+    // -alertPick "Copy,Yes": a test run presses the first button with one of these titles after 3 s.
+    let picks = (UserDefaults.standard.string(forKey: "alertPick") ?? "").split(separator: ",").map(String.init)
+    if let button = next.buttons.first(where: { picks.contains($0.title) }) {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3) { if window === w { finish(button) } }
+    }
+    #endif
   }
 
   @MainActor private static func finish(_ button: IridiaAlertButton) {
@@ -126,9 +137,10 @@ private struct IridiaAlertView: View {
   @State private var typed = ""
   @FocusState private var typing: Bool
 
-  private var isWiiU: Bool { look == .wiiU }
-  private var ink: Color { isWiiU ? Self.wiiUInk : Color(red: 0.93, green: 0.91, blue: 1.0) }
-  private var soft: Color { isWiiU ? Self.wiiUSoft : Color(red: 0.76, green: 0.73, blue: 0.96) }
+  private var isWiiU: Bool { look != .gameCube }
+  private var ink: Color { Self.ink(look) }
+  private var soft: Color { Self.soft(look) }
+  private var accent: Color { Self.accent(look) }
 
   /// Main choices first, in order; Cancel and the like at the bottom.
   private var ordered: [IridiaAlertButton] { buttons.filter { $0.role != .cancel } + buttons.filter { $0.role == .cancel } }
@@ -171,7 +183,7 @@ private struct IridiaAlertView: View {
           .submitLabel(.done)
           .foregroundStyle(ink)
           .padding(.horizontal, 12).padding(.vertical, 10)
-          .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(isWiiU ? Self.wiiUBlue.opacity(0.08) : Color.white.opacity(0.12)))
+          .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(isWiiU ? accent.opacity(0.08) : Color.white.opacity(0.12)))
       }
       VStack(spacing: 10) {
         ForEach(Array(ordered.enumerated()), id: \.offset) { _, button in
@@ -182,14 +194,7 @@ private struct IridiaAlertView: View {
     }
     .padding(22)
     .frame(maxWidth: 380)
-    .background(cardBackground)
-    .overlay(
-      RoundedRectangle(cornerRadius: 24, style: .continuous)
-        .strokeBorder(isWiiU ? AnyShapeStyle(Self.wiiURim)
-                             : AnyShapeStyle(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.08)],
-                                                            startPoint: .top, endPoint: .bottom)), lineWidth: 1)
-    )
-    .environment(\.colorScheme, isWiiU ? .light : .dark)
+    .modifier(IridiaCard(look: look))
     .padding(.horizontal, 24)
     .accessibilityElement(children: .contain)
     .accessibilityAddTraits(.isModal)
@@ -203,21 +208,6 @@ private struct IridiaAlertView: View {
       .multilineTextAlignment(.center)
       .fixedSize(horizontal: false, vertical: true)
       .padding(.horizontal, 4)
-  }
-
-  @ViewBuilder private var cardBackground: some View {
-    let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
-    if isWiiU {
-      shape.fill(LinearGradient(colors: [.white, Self.wiiUCardBottom], startPoint: .top, endPoint: .bottom))
-        .shadow(color: Self.wiiUShadow, radius: 20, x: 0, y: 10)
-    } else {
-      // The shelf's indigo glass.
-      shape.fill(.ultraThinMaterial)
-        .overlay(shape.fill(LinearGradient(colors: [Color(red: 0.20, green: 0.15, blue: 0.48).opacity(0.85),
-                                                    Color(red: 0.08, green: 0.05, blue: 0.20).opacity(0.92)],
-                                           startPoint: .top, endPoint: .bottom)))
-        .shadow(color: Color(red: 0.49, green: 0.42, blue: 0.94).opacity(0.30), radius: 26, x: 0, y: 12)
-    }
   }
 
   private func buttonView(_ button: IridiaAlertButton) -> some View {
@@ -238,13 +228,199 @@ private struct IridiaAlertView: View {
     .buttonStyle(PopupButtonStyle(kind: kind, look: look))
   }
 
+  fileprivate static func ink(_ look: IridiaAlert.Look) -> Color {
+    look == .wii ? wiiInk : look == .wiiU ? wiiUInk : Color(red: 0.93, green: 0.91, blue: 1.0)
+  }
+  fileprivate static func soft(_ look: IridiaAlert.Look) -> Color {
+    look == .wii ? wiiSoft : look == .wiiU ? wiiUSoft : Color(red: 0.76, green: 0.73, blue: 0.96)
+  }
+
   // The Wii U tab's colors (WiiUTheme, light), kept here so the GameCube-only build has them too.
   fileprivate static let wiiUBlue = Color(red: 0.0, green: 0.47, blue: 0.90)
   private static let wiiUInk = Color(red: 0.08, green: 0.15, blue: 0.26)
   private static let wiiUSoft = Color(red: 0.30, green: 0.40, blue: 0.52)
-  private static let wiiUCardBottom = Color(red: 0.94, green: 0.96, blue: 0.99)
-  private static let wiiURim = Color(red: 0.0, green: 0.47, blue: 0.90).opacity(0.22)
-  private static let wiiUShadow = Color(red: 0.10, green: 0.30, blue: 0.55).opacity(0.25)
+  fileprivate static let wiiUCardBottom = Color(red: 0.94, green: 0.96, blue: 0.99)
+  // The Wii tab's (WiiTheme, light): grey and white.
+  fileprivate static let wiiGrey = Color(red: 0.40, green: 0.42, blue: 0.46)
+  private static let wiiInk = Color(red: 0.13, green: 0.14, blue: 0.16)
+  private static let wiiSoft = Color(red: 0.36, green: 0.38, blue: 0.41)
+  fileprivate static let wiiCardBottom = Color(red: 0.945, green: 0.948, blue: 0.955)
+  fileprivate static let wiiShadow = Color(red: 0.20, green: 0.22, blue: 0.26).opacity(0.22)
+  fileprivate static func accent(_ look: IridiaAlert.Look) -> Color { look == .wii ? wiiGrey : wiiUBlue }
+  fileprivate static let wiiUShadow = Color(red: 0.10, green: 0.30, blue: 0.55).opacity(0.25)
+}
+
+/// The card itself: the shelf's indigo glass on the GameCube side, white on the Wii and Wii U tabs.
+private struct IridiaCard: ViewModifier {
+  let look: IridiaAlert.Look
+
+  func body(content: Content) -> some View {
+    let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+    let light = look != .gameCube
+    content
+      .background(background(shape))
+      .overlay(shape.strokeBorder(light ? AnyShapeStyle(IridiaAlertView.accent(look).opacity(0.22))
+                                        : AnyShapeStyle(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.08)],
+                                                                       startPoint: .top, endPoint: .bottom)), lineWidth: 1))
+      .environment(\.colorScheme, light ? .light : .dark)
+  }
+
+  @ViewBuilder private func background(_ shape: RoundedRectangle) -> some View {
+    if look != .gameCube {
+      shape.fill(LinearGradient(colors: [.white, look == .wii ? IridiaAlertView.wiiCardBottom : IridiaAlertView.wiiUCardBottom],
+                                startPoint: .top, endPoint: .bottom))
+        .shadow(color: look == .wii ? IridiaAlertView.wiiShadow : IridiaAlertView.wiiUShadow, radius: 20, x: 0, y: 10)
+    } else {
+      shape.fill(.ultraThinMaterial)
+        .overlay(shape.fill(LinearGradient(colors: [Color(red: 0.20, green: 0.15, blue: 0.48).opacity(0.85),
+                                                    Color(red: 0.08, green: 0.05, blue: 0.20).opacity(0.92)],
+                                           startPoint: .top, endPoint: .bottom)))
+        .shadow(color: Color(red: 0.49, green: 0.42, blue: 0.94).opacity(0.30), radius: 26, x: 0, y: 12)
+    }
+  }
+}
+
+// MARK: - Unpacking progress
+
+/// A small card at the bottom of the screen while an archive unpacks: its name, how far it has got, about how
+/// long is left, and Cancel. It doesn't block the screen behind it.
+@MainActor final class UnpackCard: ObservableObject {
+  static let shared = UnpackCard()
+
+  @Published fileprivate var name = ""
+  @Published fileprivate var fraction = 0.0
+  @Published fileprivate var secondsLeft: Double?
+  @Published fileprivate var cancelling = false
+  fileprivate var look: IridiaAlert.Look = .gameCube
+  /// Where the card is on screen; touches anywhere else go to the screen underneath.
+  fileprivate var cardFrame: CGRect = .zero
+  private var progress: UnpackProgress?
+  private var started = Date()
+  private var timer: Timer?
+  private var window: UIWindow?
+
+  /// Safe to call from any thread.
+  nonisolated static func begin(_ name: String, progress: UnpackProgress, look: IridiaAlert.Look) {
+    DispatchQueue.main.async { MainActor.assumeIsolated { shared.show(name, progress, look) } }
+  }
+
+  nonisolated static func end() {
+    DispatchQueue.main.async { MainActor.assumeIsolated { shared.hide() } }
+  }
+
+  private func show(_ name: String, _ progress: UnpackProgress, _ look: IridiaAlert.Look) {
+    self.name = name
+    self.progress = progress
+    self.look = look == .gameCube ? IridiaAlert.tabLook : look
+    fraction = 0
+    secondsLeft = nil
+    cancelling = false
+    started = Date()
+    timer?.invalidate()
+    timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { _ in
+      MainActor.assumeIsolated { UnpackCard.shared.update() }
+    }
+    guard window == nil else { return }
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first else { return }
+    let host = UIHostingController(rootView: UnpackCardView(card: self))
+    host.view.backgroundColor = .clear
+    let w = PassThroughWindow(windowScene: scene)
+    w.windowLevel = .alert
+    w.rootViewController = host
+    w.backgroundColor = .clear
+    w.isHidden = false
+    window = w
+  }
+
+  private func hide() {
+    cardFrame = .zero
+    timer?.invalidate()
+    timer = nil
+    progress = nil
+    window?.isHidden = true
+    window = nil
+  }
+
+  private func update() {
+    guard let progress else { return }
+    fraction = progress.fraction
+    let elapsed = Date().timeIntervalSince(started)
+    secondsLeft = elapsed > 3 && fraction > 0.01 ? elapsed / fraction * (1 - fraction) : nil
+  }
+
+  fileprivate func cancel() {
+    cancelling = true
+    progress?.cancel()
+  }
+}
+
+/// Touches outside the card reach the screen underneath.
+private final class PassThroughWindow: UIWindow {
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    guard MainActor.assumeIsolated({ UnpackCard.shared.cardFrame.contains(point) }) else { return nil }
+    return super.hitTest(point, with: event)
+  }
+}
+
+private struct UnpackCardView: View {
+  @ObservedObject var card: UnpackCard
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+  var body: some View {
+    GeometryReader { geo in
+      content(ShelfScale.value(geo.size, regular: horizontalSizeClass == .regular))
+    }
+  }
+
+  /// `u` is the shelf's iPad scale, so the card clears the tab bar, which grows with it.
+  private func content(_ u: CGFloat) -> some View {
+    VStack {
+      Spacer()
+      HStack(spacing: 14) {
+        VStack(alignment: .leading, spacing: 6) {
+          Text(card.cancelling ? L("Cancelling...") : String(format: L("Unpacking %@"), card.name))
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(IridiaAlertView.ink(card.look))
+            .lineLimit(1)
+            .truncationMode(.middle)
+          ProgressView(value: card.fraction)
+            .tint(card.look == .gameCube ? Color(red: 0.70, green: 0.64, blue: 1.0) : IridiaAlertView.accent(card.look))
+          Text(detail)
+            .font(.caption)
+            .foregroundStyle(IridiaAlertView.soft(card.look))
+            .monospacedDigit()
+        }
+        Button(L("Cancel")) { card.cancel() }
+          .font(.subheadline.weight(.semibold))
+          .buttonStyle(PopupButtonStyle(kind: .plain, look: card.look))
+          .fixedSize()
+          .disabled(card.cancelling)
+          .accessibilityIdentifier("UnpackCancel")
+      }
+      .padding(16)
+      .frame(maxWidth: 420 * u)
+      .modifier(IridiaCard(look: card.look))
+      .background(GeometryReader { g in
+        Color.clear
+          .onAppear { card.cardFrame = g.frame(in: .global) }
+          .onChange(of: g.frame(in: .global)) { _, frame in card.cardFrame = frame }
+      })
+      .padding(.horizontal, 16)
+      .padding(.bottom, 96 * u)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("UnpackCard")
+  }
+
+  private var detail: String {
+    let percent = "\(Int((card.fraction * 100).rounded(.down)))%"
+    guard let left = card.secondsLeft else { return percent }
+    let time = left < 60 ? L("less than a minute left")
+      : String(format: L("about %d min left"), Int((left / 60).rounded(.up)))
+    return "\(percent), \(time)"
+  }
 }
 
 /// The popup's buttons, drawn like the shelf's: the main one filled (lavender glass on the GameCube side, the
@@ -268,12 +444,13 @@ private struct PopupButtonStyle: ButtonStyle {
       .contentShape(shape)
   }
 
-  private var wiiU: Bool { look == .wiiU }
+  private var wiiU: Bool { look != .gameCube }
+  private var accent: Color { IridiaAlertView.accent(look) }
 
   private var text: Color {
     switch kind {
     case .main: return wiiU ? .white : Color(red: 0.07, green: 0.04, blue: 0.20)
-    case .plain: return wiiU ? IridiaAlertView.wiiUBlue : Color(red: 0.93, green: 0.91, blue: 1.0)
+    case .plain: return wiiU ? accent : Color(red: 0.93, green: 0.91, blue: 1.0)
     case .destructive: return .white
     }
   }
@@ -285,10 +462,14 @@ private struct PopupButtonStyle: ButtonStyle {
     switch (kind, wiiU) {
     case (.main, false):
       return gradient([Color(red: 0.84, green: 0.80, blue: 1.0), Color(red: 0.61, green: 0.55, blue: 1.0), Color(red: 0.43, green: 0.36, blue: 0.90)])
+    case (.main, true) where look == .wii:
+      return gradient([Color(red: 0.58, green: 0.60, blue: 0.63), Color(red: 0.40, green: 0.42, blue: 0.46)])
     case (.main, true):
       return gradient([Color(red: 0.24, green: 0.64, blue: 1.0), Color(red: 0.0, green: 0.47, blue: 0.90)])
     case (.plain, false):
       return gradient([.white.opacity(0.20), .white.opacity(0.06)])
+    case (.plain, true) where look == .wii:
+      return gradient([.white, Color(red: 0.95, green: 0.953, blue: 0.96)])
     case (.plain, true):
       return gradient([.white, Color(red: 0.93, green: 0.96, blue: 1.0)])
     case (.destructive, _):
@@ -297,14 +478,14 @@ private struct PopupButtonStyle: ButtonStyle {
   }
 
   private var rim: AnyShapeStyle {
-    if wiiU, kind == .plain { return AnyShapeStyle(IridiaAlertView.wiiUBlue.opacity(0.28)) }
+    if wiiU, kind == .plain { return AnyShapeStyle(accent.opacity(0.28)) }
     return AnyShapeStyle(LinearGradient(colors: [.white.opacity(kind == .plain ? 0.45 : 0.80), .white.opacity(0.08)],
                                         startPoint: .top, endPoint: .bottom))
   }
 
   private var glow: Color {
     switch kind {
-    case .main: return wiiU ? Color(red: 0.0, green: 0.47, blue: 0.90).opacity(0.35) : Color(red: 0.49, green: 0.42, blue: 0.94).opacity(0.5)
+    case .main: return wiiU ? accent.opacity(0.35) : Color(red: 0.49, green: 0.42, blue: 0.94).opacity(0.5)
     case .plain: return .clear
     case .destructive: return Color(red: 0.82, green: 0.20, blue: 0.27).opacity(0.35)
     }

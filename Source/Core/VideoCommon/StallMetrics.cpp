@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Core.h"
 #include "VideoCommon/PerformanceMetrics.h"
 
 #ifdef __APPLE__
@@ -37,6 +38,7 @@ struct Accum
 
 constexpr std::size_t kNumSites = static_cast<std::size_t>(Site::COUNT);
 std::array<Accum, kNumSites> s_accum;
+std::atomic<u64> s_cpu_thread_wait_ns{0};
 
 // --- Published window (cold path, read by FormatReport) ---------------------------------------
 struct SiteSnapshot
@@ -140,6 +142,9 @@ bool ReadThreadExtended(thread_act_t port, int* cpu_usage_pct, int* run_state)
 
 void Record(Site site, u64 ns)
 {
+  if (site != Site::ThreadSleep && Core::IsCPUThread())
+    s_cpu_thread_wait_ns.fetch_add(ns, std::memory_order_relaxed);
+
   if (!s_enabled.load(std::memory_order_relaxed))
     return;
 
@@ -152,6 +157,11 @@ void Record(Site site, u64 ns)
   while (ns > prev && !a.max_ns.compare_exchange_weak(prev, ns, std::memory_order_relaxed))
   {
   }
+}
+
+u64 CpuThreadWaitNs()
+{
+  return s_cpu_thread_wait_ns.load(std::memory_order_relaxed);
 }
 
 void RegisterThread([[maybe_unused]] const char* role)

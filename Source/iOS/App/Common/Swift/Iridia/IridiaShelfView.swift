@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// gc-emu: Iridia's library home, direction A "Glass Shelf". Games stand as thick glass cases on a
-// dark indigo stage; the centred one is large and lit, its neighbours turn away in 3D. Below it:
-// the title, when it was last played, Continue / Title Screen, and a liquid-glass tab bar.
-// Everything the screen does (launch, import, settings, save states, controllers) is handed to
-// the host (TVLibraryView), which already owns those flows.
+// The GameCube and Wii shelves: glass cases in a 3D carousel, the centred game's details below. The header and
+// tab bar belong to IridiaHomeView.
 
 #if os(iOS)
 import GameController
@@ -72,45 +69,47 @@ enum ShelfScale {
 }
 
 struct IridiaShelfView: View {
+  var system: HomeSystem = .gameCube
   let games: [TVGameItem]
-  /// Launch. `fresh` = start at the title screen (skip the resume point).
+  /// `fresh` starts at the title screen instead of the resume point.
   let onPlay: (TVGameItem, _ fresh: Bool) -> Void
   let onImport: () -> Void
-  /// The step-by-step guide for adding games with the Files app.
   let onFilesGuide: () -> Void
   let onSettings: () -> Void
   let onSaves: (TVGameItem) -> Void
   let onControllers: () -> Void
   let onProperties: (TVGameItem) -> Void
   let onDelete: (TVGameItem) -> Void
-  /// Opens the Wii U tab (nil where the Wii U core isn't built in).
-  var onWiiU: (() -> Void)? = nil
+  var onHelp: (() -> Void)? = nil
+  var onUnlock: (() -> Void)? = nil
+  var downloads: GameCubeDownloads.Kind = .gameCube
 
+  @ObservedObject private var router = HomeRouter.shared
   @State private var centred: String?
-  /// Set while a Downloads folder is chosen (DownloadsFolder); here so the + menu updates.
-  @AppStorage("downloadsFolderName") private var downloadsName: String?
-  /// Choosing a cover from Photos: the game it's for, the picked photo, and a redraw counter.
   @State private var coverTarget: TVGameItem?
   @State private var coverPick: PhotosPickerItem?
   @State private var coverVersion = 0
-  @State private var showHelpHook = false   // -iridiaOpen help (test hook)
+  @State private var showHelpHook = false
   @State private var controllerScope = UUID()
   @ObservedObject private var store = IridiaUnlock.store
   @State private var showUnlock = false
+  @State private var centredNeedsKey = false
+  @State private var controlsVersion = 0
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   private var isLandscapePhone: Bool { verticalSizeClass == .compact }
-  /// The screen's size, for `u`.
   @State private var screen = CGSize.zero
-  /// iPad: the iPhone layout drawn larger to fill the screen (ShelfScale). 1 on iPhone.
   private var u: CGFloat { isLandscapePhone ? 1 : ShelfScale.value(screen, regular: horizontalSizeClass == .regular) }
-  /// Cases grow with the rest on iPad, shrink in iPhone landscape.
   private var caseScale: CGFloat { isLandscapePhone ? 0.78 : u }
+  private var isWii: Bool { system == .wii }
+  private var isActive: Bool { router.system == system }
+  private var style: ShelfStyle { isWii ? .wii : .gameCube }
 
-  /// Every launch from the shelf goes through here.
   private func play(_ item: TVGameItem, fresh: Bool) {
-    onPlay(item, fresh)
+    // The key file prompt opens over the shelf, so it isn't faded out first.
+    if isWii && centredNeedsKey && item.filePath == current?.filePath { onPlay(item, fresh); return }
+    router.launch { onPlay(item, fresh) }
   }
 
   private var ordered: [TVGameItem] {
@@ -128,12 +127,9 @@ struct IridiaShelfView: View {
 
   var body: some View {
     ZStack {
-      IridiaGlass.stage
       if isLandscapePhone {
-        // iPhone landscape: header across the top (so the title never truncates), then the shelf
-        // on the left and the selected game and actions on the right.
         VStack(spacing: 0) {
-          header
+          Color.clear.frame(height: HomeMetrics.headerHeight(u))
           HStack(spacing: 0) {
             VStack(spacing: 0) {
               Spacer(minLength: 0)
@@ -144,22 +140,21 @@ struct IridiaShelfView: View {
               Spacer(minLength: 0)
               details
               Spacer(minLength: 8)
-              tabBar
+              Color.clear.frame(height: HomeMetrics.tabBarHeight(u))
             }
-            .frame(width: 380)
+            .frame(width: HomeMetrics.landscapeColumn)
           }
         }
       } else {
         VStack(spacing: 0) {
-          header
+          Color.clear.frame(height: HomeMetrics.headerHeight(u))
           shelfCaption
           shelfOrEmpty
             .frame(height: 300 * caseScale + 40)
           details
             .frame(maxWidth: 480 * u)
           Spacer(minLength: 12)
-          tabBar
-            .frame(maxWidth: 480 * u)
+          Color.clear.frame(height: HomeMetrics.tabBarHeight(u))
         }
       }
     }
@@ -167,59 +162,116 @@ struct IridiaShelfView: View {
     .onGeometryChange(for: CGSize.self) { $0.size } action: { screen = $0 }
     .onAppear {
       if centred == nil { centred = ordered.first?.filePath }
+      checkKey()
       installControllerNavigation()
-      // Test hook for UI checks on device: -gcemuOpenSettings YES opens Settings at launch.
-      if UserDefaults.standard.bool(forKey: "gcemuOpenSettings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onSettings() } }
-      // Test hook: -iridiaPowerMode batterySaver|balanced|maxPerformance applies that mode, as Settings does.
-      if let raw = UserDefaults.standard.string(forKey: "iridiaPowerMode"), let mode = PowerMode(rawValue: raw) {
-        IridiaPresets.apply(mode: mode)
-        NSLog("[Presets] test hook applied %@", raw)
-      }
-      // -iridiaOpen saves|controllers|properties|filesguide opens that screen (the first three for the centred game).
-      if let screen = UserDefaults.standard.string(forKey: "iridiaOpen") {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-          if screen == "filesguide" { onFilesGuide(); return }
-          if screen == "help" { showHelpHook = true; return }
-          guard let item = current else { return }
-          switch screen {
-          case "saves": onSaves(item)
-          case "controllers": onControllers()
-          case "properties": onProperties(item)
-          default: break
-          }
-        }
-      }
+      if system == .gameCube { runTestHooks() }
     }
-    .onChange(of: games.count) { _, _ in installControllerNavigation() }
+    .onChange(of: centred) { _, _ in checkKey() }
+    .onChange(of: games.count) { _, _ in
+      if centred == nil || !games.contains(where: { $0.filePath == centred }) { centred = ordered.first?.filePath }
+      checkKey()
+      installControllerNavigation()
+    }
+    .onChange(of: isActive) { _, active in if active { installControllerNavigation() } }
+    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("IridiaWiiKeyAdded"))) { _ in
+      Self.needsKey.removeAll()
+      checkKey()
+    }
     .onReceive(NotificationCenter.default.publisher(for: .GCControllerDidConnect)) { _ in installControllerNavigation() }
-    .controllerScope(controllerScope)
+    .controllerScope(controllerScope, active: isActive)
+    .onHomeAction(system, perform: handle)
+    .sheet(isPresented: $showHelpHook) { NavigationStack { IridiaHelpView() } }
     .fullScreenCover(isPresented: $showUnlock) {
       UnlockView(context: .browsing, onUnlocked: { showUnlock = false }, onDismiss: { showUnlock = false })
     }
   }
 
+  private func handle(_ action: HomeAction) {
+    switch action {
+    case .chooseFile: onImport()
+    case .filesGuide: onFilesGuide()
+    case .checkDownloads: GameCubeDownloads.check(downloads, manual: true)
+    case .chooseDownloads: GameCubeDownloads.chooseFolder(downloads)
+    case .stopDownloads: DownloadsFolder.stop()
+    case .settings: onSettings()
+    case .help: if let onHelp { onHelp() } else { showHelpHook = true }
+    case .saves:
+      if let item = current {
+        onSaves(item)
+      } else {
+        IridiaAlert.show(L("No Games Yet"), L("Saves appear here after you add a game and play it."), look: isWii ? .wii : .gameCube)
+      }
+    case .controllers: onControllers()
+    case .unlock: if let onUnlock { onUnlock() } else { showUnlock = true }
+    }
+  }
+
+  // Opening a disc to ask is slow, and this runs on every scroll step.
+  private static var needsKey: [String: Bool] = [:]
+
+  private func checkKey() {
+    guard isWii, let item = current else { centredNeedsKey = false; return }
+    if let known = Self.needsKey[item.filePath] { centredNeedsKey = known; return }
+    let answer = item.needsWiiKey()
+    Self.needsKey[item.filePath] = answer
+    centredNeedsKey = answer
+  }
+
+  private func runTestHooks() {
+    #if !APPSTORE
+    if UserDefaults.standard.bool(forKey: "gcemuOpenSettings") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onSettings() } }
+    if let raw = UserDefaults.standard.string(forKey: "iridiaPowerMode"), let mode = PowerMode(rawValue: raw) {
+      IridiaPresets.apply(mode: mode)
+      NSLog("[Presets] test hook applied %@", raw)
+    }
+    if UserDefaults.standard.bool(forKey: "iridiaAutoplay"), let item = current {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { onPlay(item, true) }
+      // -iridiaAutopause / -iridiaEditLayout: the pause menu or Edit Layout, a few seconds into the game.
+      if UserDefaults.standard.bool(forKey: "iridiaAutopause") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 9) { NotificationCenter.default.post(name: Notification.Name("DOLShowPauseMenu"), object: nil) }
+      }
+      if UserDefaults.standard.bool(forKey: "iridiaEditLayout") {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 9) { NotificationCenter.default.post(name: .DOLEditTouchLayout, object: nil) }
+      }
+    }
+    if let screen = UserDefaults.standard.string(forKey: "iridiaOpen") {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        if screen == "filesguide" { onFilesGuide(); return }
+        if screen == "help" { showHelpHook = true; return }
+        guard let item = current else { return }
+        switch screen {
+        case "saves": onSaves(item)
+        case "controllers": onControllers()
+        case "properties": onProperties(item)
+        default: break
+        }
+      }
+    }
+    #endif
+  }
+
   private var shelfCaption: some View {
-    Text(String(format: games.count == 1 ? L("Your shelf · %d game") : L("Your shelf · %d games"), games.count).uppercased())
+    let format = isWii
+      ? (games.count == 1 ? L("Your Wii shelf · %d game") : L("Your Wii shelf · %d games"))
+      : (games.count == 1 ? L("Your shelf · %d game") : L("Your shelf · %d games"))
+    return Text(String(format: format, games.count).uppercased())
       .font(.system(size: 13 * u, weight: .medium))
       .tracking(1.5 * u)
-      .foregroundStyle(IridiaGlass.dim)
+      .foregroundStyle(style.dim)
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.horizontal, 20 * u)
       .padding(.top, 14 * u)
   }
 
-  // MARK: Controller navigation
-
-  /// Left/right (d-pad or stick) move along the shelf, A plays (Continue), Y starts at the title
-  /// screen, B returns to the first game. Self-gated on this screen's controller scope, so a sheet
-  /// or the game on top takes the controller over.
+  /// Left/right move along the shelf, A plays, Y starts at the title screen, B goes back to the first game.
+  /// The handler slots are shared by every shelf, so the shelf that becomes active installs them again.
   private func installControllerNavigation() {
+    guard isActive else { return }
     let scope = controllerScope
     var lastMove = Date.distantPast
     for controller in GCController.controllers() {
       guard let pad = controller.extendedGamepad else { continue }
       pad.valueChangedHandler = { gamepad, element in
-        // Never while a game runs: the core reads the controller itself.
         guard ControllerFocusCoordinator.isActiveScope(scope), !TVEmulationBridge.isRunning() else { return }
         func step(_ delta: Int) {
           guard Date().timeIntervalSince(lastMove) > 0.22 else { return }
@@ -252,94 +304,15 @@ struct IridiaShelfView: View {
     withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = list[next].filePath }
   }
 
-  // MARK: Header
-
-  private var header: some View {
-    HStack(spacing: 8 * u) {
-      IridiaCube.mark
-        .resizable()
-        .scaledToFit()
-        .frame(width: 40 * u, height: 40 * u)
-        .accessibilityHidden(true)
-      Text("Iridia")
-        .font(.system(size: 24 * u, weight: .semibold))
-        .foregroundStyle(IridiaGlass.ink)
-        .lineLimit(1)
-        .layoutPriority(1)
-      Spacer()
-      if !IridiaUnlock.isUnlocked {
-        Button { showUnlock = true } label: {
-          Text(L("Unlock"))
-            .font(.system(size: 14 * u, weight: .bold))
-            .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
-            .lineLimit(1)
-            .fixedSize()                 // never squeeze or wrap ("Unlo / ck")
-            .padding(.horizontal, 14 * u)
-            .frame(height: 36 * u)
-            .glassSurface(radius: 18 * u, prominent: true)
-        }
-        .buttonStyle(SpringPressStyle())
-      }
-      // Two ways in: pick a file now, or learn the Files app route (better for big games).
-      Menu {
-        Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
-        Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
-        downloadsMenuItems
-      } label: {
-        Image(systemName: "plus")
-          .font(.system(size: 17 * u, weight: .semibold))
-          .foregroundStyle(.white)
-          .frame(width: 44 * u, height: 44 * u)
-          .glassSurface(radius: 22 * u)
-      }
-      .accessibilityLabel(L("Add a game"))
-      glassIconButton("slider.horizontal.3", label: L("Settings"), action: onSettings)
-    }
-    .padding(.horizontal, 20 * u)
-    .padding(.top, 8 * u)
-  }
-
-  private func glassIconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      Image(systemName: symbol)
-        .font(.system(size: 17 * u, weight: .semibold))
-        .foregroundStyle(.white)
-        .frame(width: 44 * u, height: 44 * u)
-        .glassSurface(radius: 22 * u)
-    }
-    .buttonStyle(SpringPressStyle())
-    .accessibilityLabel(label)
-  }
-
-  /// "Check Downloads for Games" until a folder is chosen, then "Check Downloads Now" and "Stop Checking".
-  @ViewBuilder private var downloadsMenuItems: some View {
-    if let name = downloadsName {
-      Button { GameCubeDownloads.check(manual: true) } label: {
-        Label(String(format: L("Check %@ Now"), name), systemImage: "arrow.down.circle")
-      }
-      Button { DownloadsFolder.stop() } label: {
-        Label(String(format: L("Stop Checking %@"), name), systemImage: "xmark.circle")
-      }
-    } else {
-      Button { GameCubeDownloads.chooseFolder() } label: {
-        Label(L("Check Downloads for Games"), systemImage: "arrow.down.circle")
-      }
-    }
-  }
-
-  // MARK: Shelf (3D carousel)
-
   @ViewBuilder
   private var shelfOrEmpty: some View {
     if ordered.isEmpty { emptySlot } else { shelf }
   }
 
-  /// No games yet: one empty glass case in the middle of the shelf. Tapping it adds a game.
   private var emptySlot: some View {
     Menu {
       Button(action: onImport) { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
       Button(action: onFilesGuide) { Label(L("Add with the Files App"), systemImage: "folder") }
-      downloadsMenuItems
     } label: {
       VStack(spacing: 12 * u) {
         Image(systemName: "plus")
@@ -347,16 +320,25 @@ struct IridiaShelfView: View {
         Text(L("Add a game"))
           .font(.system(size: 15 * u, weight: .semibold))
       }
-      .foregroundStyle(IridiaGlass.soft)
+      .foregroundStyle(style.emptyIcon)
       .frame(width: 214 * caseScale, height: 300 * caseScale)
       .background(
         RoundedRectangle(cornerRadius: 22 * u, style: .continuous)
-          .strokeBorder(.white.opacity(0.28), style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
+          .strokeBorder(style.emptyRim, style: StrokeStyle(lineWidth: 1.5, dash: [7, 6]))
       )
-      .glassSurface(radius: 22 * u)
+      .shelfSurface(style, radius: 22 * u)
     }
     .accessibilityLabel(L("Add a game"))
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  @ViewBuilder private func gameCase(_ item: TVGameItem) -> some View {
+    if isWii {
+      WiiGameCase(item: item, isCentred: item.filePath == current?.filePath, coverVersion: coverVersion)
+        .frame(width: 214, height: 300)
+    } else {
+      GlassCase(item: item, isCentred: item.filePath == current?.filePath, coverVersion: coverVersion)
+    }
   }
 
   private var shelf: some View {
@@ -365,7 +347,7 @@ struct IridiaShelfView: View {
     ScrollView(.horizontal, showsIndicators: false) {
       LazyHStack(spacing: 18 * u) {
         ForEach(ordered, id: \.filePath) { item in
-          GlassCase(item: item, isCentred: item.filePath == current?.filePath, coverVersion: coverVersion)
+          gameCase(item)
             .scaleEffect(caseScale)
             .frame(width: 214 * caseScale, height: 300 * caseScale)
             .scrollTransition(.interactive, axis: .horizontal) { view, phase in
@@ -398,15 +380,13 @@ struct IridiaShelfView: View {
     }
     .scrollTargetBehavior(.viewAligned)
     .scrollPosition(id: $centred, anchor: .center)
-    // Half the leftover width on each side, so the first and last case can sit in the centre too.
     .safeAreaPadding(.horizontal, max(16, (geo.size.width - 214 * caseScale) / 2))
-    // Rotation changes the width but not the scroll offset, which left the centred case
-    // off-centre and stuck at a tilt until the next swipe. Re-centre it after every resize.
+    // Rotation changes the width but not the scroll offset, which leaves the centred case tilted off-centre.
     .onChange(of: geo.size) { _, _ in
       guard let id = current?.filePath else { return }
       DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
     }
-    .sensoryFeedback(.selection, trigger: centred) { _, _ in IridiaHaptics.enabled }
+    .sensoryFeedback(.selection, trigger: centred) { _, _ in IridiaHaptics.enabled && isActive }
     .photosPicker(isPresented: Binding(get: { coverTarget != nil }, set: { if !$0 { coverTarget = nil } }),
                   selection: $coverPick, matching: .images)
     .onChange(of: coverPick) { _, pick in
@@ -418,83 +398,116 @@ struct IridiaShelfView: View {
       }
     }
     .onReceive(NotificationCenter.default.publisher(for: IridiaCovers.changed)) { _ in coverVersion &+= 1 }
-    .sheet(isPresented: $showHelpHook) { NavigationStack { IridiaHelpView() } }
     }
     }
     .frame(height: 300 * caseScale + 24)
   }
-
-  // MARK: Details + actions
 
   private var details: some View {
     VStack(spacing: 6 * u) {
       if games.isEmpty {
         Text(L("Your shelf is empty"))
           .font(.system(size: 26 * u, weight: .bold))
-          .foregroundStyle(.white)
-        Text(L("Add a GameCube game to start playing."))
+          .foregroundStyle(style.title)
+        Text(isWii ? L("Add a Wii game to start playing.") : L("Add a GameCube game to start playing."))
           .font(.system(size: 14 * u))
-          .foregroundStyle(IridiaGlass.soft)
+          .foregroundStyle(style.soft)
           .multilineTextAlignment(.center)
         HStack(spacing: 12 * u) {
           Button(action: onImport) {
             Label(L("Choose a Game File"), systemImage: "doc.badge.plus")
               .font(.system(size: 16 * u, weight: .bold))
-              .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+              .foregroundStyle(style.onProminent)
               .lineLimit(1)
               .minimumScaleFactor(0.8)
               .frame(maxWidth: .infinity, minHeight: 58 * u)
-              .glassSurface(radius: 29 * u, prominent: true)
+              .shelfSurface(style, radius: 29 * u, prominent: true)
           }
           .buttonStyle(SpringPressStyle())
           Button(action: onFilesGuide) {
             Text(L("Files App"))
               .font(.system(size: 15 * u, weight: .semibold))
-              .foregroundStyle(.white)
+              .foregroundStyle(style.secondary)
               .frame(width: 134 * u, height: 58 * u)
-              .glassSurface(radius: 29 * u)
+              .shelfSurface(style, radius: 29 * u)
           }
           .buttonStyle(SpringPressStyle())
         }
         .padding(.horizontal, 20 * u)
         .padding(.top, 14 * u)
       } else if let item = current {
-        Text(item.title.isEmpty ? L("Unknown Game") : item.title)
+        Text(isWii ? WiiGameCase.displayTitle(item) : (item.title.isEmpty ? L("Unknown Game") : item.title))
           .font(.system(size: 26 * u, weight: .bold))
-          .foregroundStyle(.white)
+          .foregroundStyle(style.title)
           .lineLimit(2)
           .multilineTextAlignment(.center)
           .minimumScaleFactor(0.7)
-        Text(subtitle(for: item))
-          .font(.system(size: 14 * u))
-          .foregroundStyle(IridiaGlass.soft)
+        if centredNeedsKey || (isWii && item.isWiiWAD) {
+          Label(centredNeedsKey ? L("Needs your key file") : L("WAD files aren't supported"), systemImage: "exclamationmark.circle")
+            .font(.system(size: 14 * u, weight: .medium))
+            .foregroundStyle(WiiTheme.warning)
+            .multilineTextAlignment(.center)
+        } else {
+          Text(subtitle(for: item))
+            .font(.system(size: 14 * u))
+            .foregroundStyle(style.soft)
+        }
         HStack(spacing: 12 * u) {
           let resumable = Self.hasResumePoint(item)
           Button { play(item, fresh: false) } label: {
             Label(resumable ? L("Continue") : L("Play"), systemImage: "play.fill")
               .font(.system(size: 18 * u, weight: .bold))
-              .foregroundStyle(Color(red: 0.07, green: 0.04, blue: 0.20))
+              .foregroundStyle(style.onProminent)
               .frame(maxWidth: .infinity, minHeight: 58 * u)
-              .glassSurface(radius: 29 * u, prominent: true)
+              .shelfSurface(style, radius: 29 * u, prominent: true)
           }
           .buttonStyle(SpringPressStyle())
           if resumable {
             Button { play(item, fresh: true) } label: {
               Text(L("Title Screen"))
                 .font(.system(size: 15 * u, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(style.secondary)
                 .frame(width: 134 * u, height: 58 * u)
-                .glassSurface(radius: 29 * u)
+                .shelfSurface(style, radius: 29 * u)
             }
             .buttonStyle(SpringPressStyle())
           }
         }
         .padding(.horizontal, 20 * u)
         .padding(.top, 14 * u)
+        if isWii { controlsPicker(for: item).padding(.top, 8 * u) }
       }
     }
     .padding(.top, 8 * u)
     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: current?.filePath)
+  }
+
+  private func controlsPicker(for item: TVGameItem) -> some View {
+    let _ = controlsVersion
+    let choice = WiiControls.choice(for: item.gameID)
+    return Menu {
+      Picker(L("Controls"), selection: Binding(
+        get: { WiiControls.choice(for: item.gameID) },
+        set: { WiiControls.remember($0, for: item.gameID); controlsVersion &+= 1 })) {
+        ForEach(WiiControls.options, id: \.self) { option in
+          Label(option.title, systemImage: WiiControls.symbol(option)).tag(option)
+        }
+      }
+    } label: {
+      HStack(spacing: 8 * u) {
+        Image(systemName: WiiControls.symbol(choice))
+        Text(String(format: L("Controls: %@"), choice.title))
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+        Image(systemName: "chevron.up.chevron.down").font(.system(size: 11 * u, weight: .semibold))
+      }
+      .font(.system(size: 14 * u, weight: .semibold))
+      .foregroundStyle(style.secondary)
+      .padding(.horizontal, 16 * u)
+      .frame(minHeight: 44 * u)
+      .shelfSurface(style, radius: 22 * u)
+    }
+    .accessibilityLabel(String(format: L("Controls: %@"), choice.title))
   }
 
   private func subtitle(for item: TVGameItem) -> String {
@@ -515,41 +528,33 @@ struct IridiaShelfView: View {
     let path = (UserFolderUtil.getUserFolder() as NSString).appendingPathComponent("StateSaves/\(item.gameID).auto")
     return SaveStateService.resumeEnabled && FileManager.default.fileExists(atPath: path)
   }
+}
 
-  // MARK: Tab bar
+struct ShelfStyle {
+  let title: Color
+  let soft: Color
+  let dim: Color
+  let onProminent: Color
+  let secondary: Color
+  let emptyIcon: Color
+  let emptyRim: Color
+  let isWii: Bool
 
-  private var tabBar: some View {
-    HStack(spacing: 6 * u) {
-      // GameCube and Wii U side by side, the same as in the Wii U tab's bar.
-      tab(L("GameCube"), symbol: "cube", selected: true) {}
-      if let onWiiU { tab(L("Wii U"), symbol: "square.stack", selected: false, action: onWiiU) }
-      tab(L("Saves"), symbol: "square.stack.3d.up", selected: false) { if let item = current { onSaves(item) } }
-      tab(L("Controllers"), symbol: "gamecontroller", selected: false, action: onControllers)
+  static let gameCube = ShelfStyle(title: .white, soft: IridiaGlass.soft, dim: IridiaGlass.dim,
+                                   onProminent: Color(red: 0.07, green: 0.04, blue: 0.20), secondary: .white,
+                                   emptyIcon: IridiaGlass.soft, emptyRim: .white.opacity(0.28), isWii: false)
+  static let wii = ShelfStyle(title: WiiTheme.ink, soft: WiiTheme.soft, dim: WiiTheme.dim,
+                              onProminent: WiiTheme.onAccent, secondary: WiiTheme.accent,
+                              emptyIcon: WiiTheme.accent, emptyRim: WiiTheme.accent.opacity(0.35), isWii: true)
+}
+
+extension View {
+  @ViewBuilder func shelfSurface(_ style: ShelfStyle, radius: CGFloat, prominent: Bool = false) -> some View {
+    if style.isWii {
+      wiiSurface(radius: radius, prominent: prominent)
+    } else {
+      glassSurface(radius: radius, prominent: prominent)
     }
-    .padding(8 * u)
-    .glassSurface(radius: 35 * u)
-    .padding(.horizontal, 20 * u)
-    .padding(.bottom, 8 * u)
-  }
-
-  private func tab(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      VStack(spacing: 3 * u) {
-        Image(systemName: symbol).font(.system(size: 19 * u, weight: .semibold))
-        Text(title).font(.system(size: 11 * u, weight: .semibold))
-      }
-      .foregroundStyle(selected ? .white : IridiaGlass.soft)
-      .frame(maxWidth: .infinity, minHeight: 54 * u)
-      .background {
-        if selected {
-          RoundedRectangle(cornerRadius: 27 * u, style: .continuous)
-            .fill(Color(red: 0.67, green: 0.59, blue: 1.0).opacity(0.28))
-            .overlay(RoundedRectangle(cornerRadius: 27 * u, style: .continuous).strokeBorder(.white.opacity(0.3), lineWidth: 1))
-        }
-      }
-    }
-    .buttonStyle(SpringPressStyle())
-    .accessibilityAddTraits(selected ? .isSelected : [])
   }
 }
 

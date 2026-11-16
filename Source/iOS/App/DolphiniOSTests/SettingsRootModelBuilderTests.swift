@@ -8,7 +8,7 @@ import XCTest
 final class SettingsRootModelBuilderTests: XCTestCase {
   func test_sections_inSpecOrder() {
     let sections = SettingsRootModelBuilder.sections(isIOS: true, achievements: true)
-    XCTAssertEqual(sections.map(\.id), ["general", "graphics", "audio", "consoles", "controllers", "performance", "about"])   // gc-emu: Sync & Network held back from v1
+    XCTAssertEqual(sections.map(\.id), ["full-version", "support", "general", "graphics", "audio", "consoles", "controllers", "performance", "about"])   // gc-emu: Sync & Network held back from v1; Full Version and Support since 1.1
   }
 
   func test_everyEntry_hasDescriptionAndUniqueID() {
@@ -30,7 +30,8 @@ final class SettingsRootModelBuilderTests: XCTestCase {
     XCTAssertEqual(model.sections.map(\.id), sections.map(\.id))
     XCTAssertEqual(model.allItems.map(\.id), sections.flatMap(\.entries).map(\.id))
     for item in model.allItems {
-      XCTAssertTrue(item.showsChevron, item.id)
+      // Report a Bug opens the report sheet in place, so it has no chevron.
+      XCTAssertEqual(item.showsChevron, item.id != BugReportEntry.id, item.id)
       guard case .action = item.role else { XCTFail("\(item.id) should be an .action row"); continue }
     }
   }

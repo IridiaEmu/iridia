@@ -47,7 +47,7 @@ final class FreePlaySession: ObservableObject {
   var isActive: Bool { ticker != nil }
 
   func begin() {
-    let benchmarking = UserDefaults.standard.double(forKey: "gcemuBench") > 0
+    let benchmarking = GCEmuBenchmark.isRunning
     GCEmuStatsOverlay.forced = !IridiaUnlock.isUnlocked   // free play always shows FPS · speed
     guard !IridiaUnlock.isUnlocked, !benchmarking, ticker == nil else { return }
     timer = FreePlayTimer(limit: Self.limitOverride ?? FreePlayTimer.defaultLimit)

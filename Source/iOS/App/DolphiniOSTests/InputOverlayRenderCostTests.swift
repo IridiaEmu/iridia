@@ -211,7 +211,7 @@ final class MotionSettingsCacheTests: XCTestCase {
   func testSnapshotFollowsAWriteImmediately() {
     let cache = MotionSettingsCache(store: store)
     XCTAssertFalse(cache.snapshot.invertRoll)
-    XCTAssertEqual(cache.snapshot.gyroPointerSensitivity, 1)
+    XCTAssertEqual(cache.snapshot.gyroPointerSensitivity, 1.25)
 
     MotionSettings.setInvertRoll(true, in: store)
     MotionSettings.setGyroPointerSensitivity(0.5, in: store)

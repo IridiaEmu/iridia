@@ -41,7 +41,7 @@ class MainDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
       // view time to mount its DOLLaunchGameByGameID observer, same delay as shortcuts.
       if let context = connectionOptions.urlContexts.first {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-          self?.handleOpenedURL(context.url)
+          self?.handleOpenedURL(context.url, inPlace: Self.openedInPlace(context))
         }
       }
       #if !os(tvOS)
@@ -65,12 +65,21 @@ class MainDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
 
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
     for context in URLContexts {
-      handleOpenedURL(context.url)
+      handleOpenedURL(context.url, inPlace: Self.openedInPlace(context))
     }
   }
 
   /// One entry point for URLs opened warm (`openURLContexts`) and cold (`willConnectTo`).
-  private func handleOpenedURL(_ url: URL) {
+  /// The player's own file opened from Files, rather than a copy iOS made for Iridia.
+  private static func openedInPlace(_ context: UIOpenURLContext) -> Bool {
+    #if os(iOS)
+    return context.options.openInPlace
+    #else
+    return false
+    #endif
+  }
+
+  private func handleOpenedURL(_ url: URL, inPlace: Bool) {
     #if os(iOS)
     if SkinLibrary.isSkinArchive(url) {
       importSkin(from: url)
@@ -78,7 +87,7 @@ class MainDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     // gc-emu: a game file from another app goes to the GameCube or Wii U import.
     if url.isFileURL {
-      IncomingFiles.open(url)
+      IncomingFiles.open(url, inPlace: inPlace)
       return
     }
     #endif

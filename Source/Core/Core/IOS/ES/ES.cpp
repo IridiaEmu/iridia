@@ -23,6 +23,7 @@
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/Memmap.h"
+#include "Core/Host.h"
 #include "Core/IOS/ES/Formats.h"
 #include "Core/IOS/FS/FileSystem.h"
 #include "Core/IOS/FS/FileSystemProxy.h"
@@ -420,17 +421,21 @@ bool ESDevice::LaunchPPCTitle(u64 title_id)
 
   if (!tmd.IsValid() || !ticket.IsValid())
   {
+    // gc-emu: Iridia includes no Wii system software. Say so plainly and stop the game, instead of
+    // leaving it hung. Anything the game saved is already in the Wii save storage and stays there.
+    ERROR_LOG_FMT(IOS_ES, "Title {:016x} is not installed; stopping", title_id);
     if (title_id == Titles::SYSTEM_MENU)
     {
-      PanicAlertFmtT("Could not launch the Wii Menu because it is missing from the NAND.\n"
-                     "The emulated software will likely hang now.");
+      CriticalAlertFmtT("This game wants to go to the Wii Menu. Iridia doesn't include the Wii Menu, "
+                        "so the game stops here. Progress the game saved is kept.");
     }
     else
     {
-      PanicAlertFmtT("Could not launch title {0:016x} because it is missing from the NAND.\n"
-                     "The emulated software will likely hang now.",
-                     title_id);
+      CriticalAlertFmtT("This game wants to open another Wii title ({0:016x}) that Iridia doesn't "
+                        "include, so the game stops here. Progress the game saved is kept.",
+                        title_id);
     }
+    Host_Message(HostMessageID::WMUserStop);
     return false;
   }
 

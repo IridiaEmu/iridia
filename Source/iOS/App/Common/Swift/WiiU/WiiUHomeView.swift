@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// gc-emu: the Wii U tab. Opened from the GameCube shelf's tab bar (or the empty GameCube library); covers it
-// until the player taps GameCube in this tab bar. The same layout as the GameCube shelf (IridiaShelfView):
-// header with Unlock and an add menu ("Choose a Game File" or the Files app guide), the shelf with the
-// centred game large, the selected game with Play, and the tab bar. The Wii U tab keeps its own white and
-// blue look (WiiUTheme): games are white cases with a blue spine. Settings, Help and Unlock Full Version are
-// all reachable without a game.
+// The Wii U shelf: white cases with a blue spine, the centred game's details below. The header and tab bar
+// belong to IridiaHomeView.
 
 #if os(iOS) && canImport(IridiaCafeCore)
 import IridiaCafeCore
@@ -13,11 +9,7 @@ import IridiaStore
 import SwiftUI
 
 struct WiiUHomeView: View {
-  /// Set while a Downloads folder is chosen (DownloadsFolder); here so the + menu updates.
-  @AppStorage("downloadsFolderName") private var downloadsName: String?
-  /// Back to the GameCube library.
-  let onGameCube: () -> Void
-
+  @ObservedObject private var router = HomeRouter.shared
   @ObservedObject private var model = WiiUModel.shared
   @ObservedObject private var store = IridiaUnlock.store
   @State private var centred: String?
@@ -25,10 +17,11 @@ struct WiiUHomeView: View {
   @State private var gameSettings: WiiUGame?
   @State private var pendingDelete: WiiUGame?
   @State private var showUnlock = false
+  @State private var controllerScope = UUID()
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-  enum Sheet: String, Identifiable { case settings, help, filesGuide; var id: String { rawValue } }
+  enum Sheet: String, Identifiable { case settings, help, filesGuide, controllers; var id: String { rawValue } }
 
   private var isLandscapePhone: Bool { verticalSizeClass == .compact }
   /// The screen's size, for `u`.
@@ -50,11 +43,9 @@ struct WiiUHomeView: View {
 
   var body: some View {
     ZStack {
-      WiiUTheme.stage
       if isLandscapePhone {
-        // iPhone landscape: header across the top, the shelf on the left, the selected game and actions on the right.
         VStack(spacing: 0) {
-          header
+          Color.clear.frame(height: HomeMetrics.headerHeight(u))
           HStack(spacing: 0) {
             VStack(spacing: 0) {
               Spacer(minLength: 0)
@@ -65,22 +56,21 @@ struct WiiUHomeView: View {
               Spacer(minLength: 0)
               details
               Spacer(minLength: 8)
-              tabBar
+              Color.clear.frame(height: HomeMetrics.tabBarHeight(u))
             }
-            .frame(width: 380)
+            .frame(width: HomeMetrics.landscapeColumn)
           }
         }
       } else {
         VStack(spacing: 0) {
-          header
+          Color.clear.frame(height: HomeMetrics.headerHeight(u))
           shelfCaption
           shelfOrEmpty
             .frame(height: 300 * caseScale + 40)
           details
             .frame(maxWidth: 480 * u)
           Spacer(minLength: 12)
-          tabBar
-            .frame(maxWidth: 480 * u)
+          Color.clear.frame(height: HomeMetrics.tabBarHeight(u))
         }
       }
       if model.importing { importingOverlay }
@@ -89,8 +79,6 @@ struct WiiUHomeView: View {
     .onAppear {
       model.start()
       model.rescan()
-      // Look in the player's Downloads folder (if they turned that on) once the shelf has settled.
-      DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { WiiUDownloads.check(model: model) }
       // Test hooks (not in App Store builds): -wiiuOpen settings|help|unlock|filesguide|import opens that screen;
       // -wiiuAutoplay <name part>[,<name part>...] starts those games one after another (the next one when the
       // previous ends).
@@ -104,6 +92,7 @@ struct WiiUHomeView: View {
           switch screen {
           case "settings": sheet = .settings
           case "help": sheet = .help
+          case "controllers": sheet = .controllers
           case "filesguide": sheet = .filesGuide
           case "import": model.chooseGameFiles()
           case "unlock": showUnlock = true
@@ -118,20 +107,27 @@ struct WiiUHomeView: View {
       autoplayNext()
     }
     .onChange(of: model.playing) { _, playing in
-      if playing == nil { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { autoplayNext() } }
+      router.homeCovered = playing != nil
+      if playing == nil {
+        router.lift()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { autoplayNext() }
+      }
     }
-    .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-      WiiUDownloads.check(model: model)
+    .onChange(of: router.system) { _, system in
+      if system == .wiiU { model.rescan() }
     }
-    .claimsController()
+    .controllerScope(controllerScope, active: router.system == .wiiU)
+    .onHomeAction(.wiiU, perform: handle)
     .sheet(item: $sheet) { which in
       switch which {
       case .settings:
-        NavigationStack { WiiUSettingsView(onUnlock: { sheet = nil; showUnlock = true }) }.claimsController()
+        NavigationStack { WiiUSettingsView(onUnlock: { sheet = nil; showUnlock = true }, onControllers: { sheet = .controllers }) }.environment(\.menuLook, .wiiU).claimsController()
       case .help:
-        NavigationStack { WiiUHelpView() }.claimsController()
+        NavigationStack { WiiUHelpView() }.environment(\.menuLook, .wiiU).claimsController()
       case .filesGuide:
-        NavigationStack { WiiUFilesGuideView() }.claimsController()
+        NavigationStack { WiiUFilesGuideView() }.environment(\.menuLook, .wiiU).claimsController()
+      case .controllers:
+        NavigationStack { WiiUControllersView().menuClose { sheet = nil } }.environment(\.menuLook, .wiiU).claimsController()
       }
     }
     .fullScreenCover(isPresented: $showUnlock) {
@@ -142,10 +138,12 @@ struct WiiUHomeView: View {
                  message: { WiiUModel.noTicketNote([$0.name]) })
     .sheet(item: $model.keyNeeded) { game in
       NavigationStack { WiiUDiscKeyView(game: game) }
+        .environment(\.menuLook, .wiiU)
         .claimsController()
     }
     .sheet(item: $gameSettings) { game in
       NavigationStack { WiiUGameSettingsView(game: game) }
+        .environment(\.menuLook, .wiiU)
         .claimsController()
     }
     .iridiaAlert(item: $pendingDelete, look: .wiiU, title: { _ in L("Delete Game?") }, message: { game in
@@ -176,16 +174,22 @@ struct WiiUHomeView: View {
     #endif
   }
 
-  /// "Check Downloads for Games" until a folder is chosen, then "Check Downloads Now".
-  @ViewBuilder private var downloadsMenuItem: some View {
-    if downloadsName != nil {
-      Button { WiiUDownloads.check(model: model, manual: true) } label: {
-        Label(String(format: L("Check %@ Now"), WiiUDownloads.folderName), systemImage: "arrow.down.circle")
-      }
-    } else {
-      Button { WiiUDownloads.chooseFolder(model: model) } label: {
-        Label(L("Check Downloads for Games"), systemImage: "arrow.down.circle")
-      }
+  private func play(_ game: WiiUGame) {
+    router.launch { model.play(game) }
+  }
+
+  private func handle(_ action: HomeAction) {
+    switch action {
+    case .chooseFile: model.chooseGameFiles()
+    case .filesGuide: sheet = .filesGuide
+    case .checkDownloads: WiiUDownloads.check(model: model, manual: true)
+    case .chooseDownloads: WiiUDownloads.chooseFolder(model: model)
+    case .stopDownloads: DownloadsFolder.stop()
+    case .settings: sheet = .settings
+    case .help: sheet = .help
+    case .controllers: sheet = .controllers
+    case .unlock: showUnlock = true
+    case .saves: break
     }
   }
 
@@ -200,53 +204,6 @@ struct WiiUHomeView: View {
       try? FileManager.default.removeItem(atPath: path)
     }
     model.rescan()
-  }
-
-  // MARK: Header
-
-  private var header: some View {
-    HStack(spacing: 8 * u) {
-      WiiUMark(size: 38 * u)
-        .accessibilityHidden(true)
-      Text(L("Wii U (Experimental)"))
-        .font(.system(size: 22 * u, weight: .semibold))
-        .foregroundStyle(WiiUTheme.ink)
-        .lineLimit(1)
-        .minimumScaleFactor(0.6)
-        .layoutPriority(1)
-      Spacer()
-      if !IridiaUnlock.isUnlocked {
-        Button { showUnlock = true } label: {
-          Text(L("Unlock"))
-            .font(.system(size: 14 * u, weight: .bold))
-            .foregroundStyle(WiiUTheme.onAccent)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 14 * u)
-            .frame(height: 36 * u)
-            .wiiUSurface(radius: 18 * u, prominent: true)
-        }
-        .buttonStyle(SpringPressStyle())
-        .accessibilityLabel(L("Unlock Full Version"))
-      }
-      if WiiUModel.canRunGames {
-        // The same two ways in as the GameCube shelf: pick a file now, or the Files app guide.
-        Menu {
-          Button { model.chooseGameFiles() } label: { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
-          Button { sheet = .filesGuide } label: { Label(L("Add with the Files App"), systemImage: "folder") }
-          downloadsMenuItem
-        } label: {
-          Image(systemName: "plus")
-            .font(.system(size: 17 * u, weight: .semibold))
-            .foregroundStyle(WiiUTheme.accent)
-            .frame(width: 44 * u, height: 44 * u)
-            .wiiUSurface(radius: 22 * u)
-        }
-        .accessibilityLabel(L("Add a game"))
-      }
-    }
-    .padding(.horizontal, 20 * u)
-    .padding(.top, 8 * u)
   }
 
   /// The same height and place as the GameCube shelf's caption, so the two tabs line up when they cross-fade;
@@ -287,7 +244,6 @@ struct WiiUHomeView: View {
       Menu {
         Button { model.chooseGameFiles() } label: { Label(L("Choose a Game File"), systemImage: "doc.badge.plus") }
         Button { sheet = .filesGuide } label: { Label(L("Add with the Files App"), systemImage: "folder") }
-        downloadsMenuItem
       } label: {
         emptyCase(symbol: "plus", text: L("Add a game"))
       }
@@ -332,11 +288,11 @@ struct WiiUHomeView: View {
                 .opacity(1 - abs(phase.value) * 0.35)
             }
             .onTapGesture {
-              if item.id == current?.id { model.play(item) }
+              if item.id == current?.id { play(item) }
               else { withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { centred = item.id } }
             }
             .contextMenu {
-              Button { model.play(item) } label: { Label(L("Play"), systemImage: "play.fill") }
+              Button { play(item) } label: { Label(L("Play"), systemImage: "play.fill") }
               Button { gameSettings = item } label: { Label(L("Game settings"), systemImage: "slider.horizontal.3") }
               Button(role: .destructive) { pendingDelete = item } label: { Label(L("Delete"), systemImage: "trash") }
             }
@@ -375,7 +331,7 @@ struct WiiUHomeView: View {
           .font(.system(size: 14 * u))
           .foregroundStyle(WiiUTheme.soft)
         HStack(spacing: 12 * u) {
-          Button { model.play(item) } label: {
+          Button { play(item) } label: {
             Label(L("Play"), systemImage: "play.fill")
               .font(.system(size: 18 * u, weight: .bold))
               .foregroundStyle(WiiUTheme.onAccent)
@@ -485,38 +441,8 @@ struct WiiUHomeView: View {
       .padding(40 * u)
     }
   }
-
-  // MARK: Tab bar
-
-  private var tabBar: some View {
-    HStack(spacing: 6 * u) {
-      tab(L("GameCube"), symbol: "cube", selected: false, action: onGameCube)
-      tab(L("Wii U"), symbol: "square.stack", selected: true) {}
-      tab(L("Settings"), symbol: "gearshape", selected: false) { sheet = .settings }
-      tab(L("Help"), symbol: "questionmark.circle", selected: false) { sheet = .help }
-    }
-    .padding(8 * u)
-    .wiiUSurface(radius: 35 * u)
-    .padding(.horizontal, 20 * u)
-    .padding(.bottom, 8 * u)
-  }
-
-  private func tab(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      VStack(spacing: 3 * u) {
-        Image(systemName: symbol).font(.system(size: 19 * u, weight: .semibold))
-        Text(title).font(.system(size: 11 * u, weight: .semibold))
-      }
-      .foregroundStyle(selected ? WiiUTheme.onAccent : WiiUTheme.soft)
-      .frame(maxWidth: .infinity, minHeight: 54 * u)
-      .background {
-        if selected { Capsule().fill(WiiUTheme.accent) }
-      }
-    }
-    .buttonStyle(SpringPressStyle())
-    .accessibilityAddTraits(selected ? .isSelected : [])
-  }
 }
+
 /// A game on the Wii U shelf: a white case with the title on its face and a blue spine.
 struct WiiUGameCase: View {
   let item: WiiUGame

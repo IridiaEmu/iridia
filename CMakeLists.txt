@@ -738,7 +738,9 @@ if(ENABLE_CUBEB)
   add_definitions(-DHAVE_CUBEB)
 endif()
 
-if(NOT ANDROID AND NOT IOS)
+# gc-emu: GCEMU_NO_LIBUSB matches the iOS build (no libusb) on the Mac test runner.
+option(GCEMU_NO_LIBUSB "Build without libusb, like the iOS build (Mac test runner)" OFF)
+if(NOT ANDROID AND NOT IOS AND NOT GCEMU_NO_LIBUSB)
   dolphin_find_optional_system_library(LibUSB Externals/libusb)
   add_definitions(-D__LIBUSB__)
 endif()

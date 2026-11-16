@@ -3689,7 +3689,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Deleted" = "Deleted";
 "games." = "games.";
 ". Restart the game." = ". Restart the game.";
-"%1$@ wants to control iCube over Wi-Fi. It can change settings, start games and load save states. Only allow devices you recognise." = "%1$@ wants to control iCube over Wi-Fi. It can change settings, start games and load save states. Only allow devices you recognise.";
 "%1$ld ms" = "%1$ld ms";
 "%1$ld results" = "%1$ld results";
 "%@ (edited)" = "%@ (edited)";
@@ -3703,12 +3702,10 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "000000" = "000000";
 "3‑Band EQ" = "3‑Band EQ";
 "A game is already running." = "A game is already running.";
-"A previous attempt to authorize the JIT region never finished, so iCube is declining to retry on its own. This re-arms it for the next time you open a game with a debugger attached." = "A previous attempt to authorize the JIT region never finished, so iCube is declining to retry on its own. This re-arms it for the next time you open a game with a debugger attached.";
 "A remote source is reachable but returning errors. Retrying…" = "A remote source is reachable but returning errors. Retrying…";
 "API Validation Layer" = "API Validation Layer";
 "Faster texture decoding. Takes effect the next time you start a game." = "Faster texture decoding. Takes effect the next time you start a game.";
 "AVAudioEngine is in development and not recommended for general usage yet. Are you sure?" = "AVAudioEngine is in development and not recommended for general usage yet. Are you sure?";
-"About iCube" = "About iCube";
 "Accurate CPU Cache (slower)" = "Accurate CPU Cache (slower)";
 "Accurately emulates EFB format/precision changes.\n\nFixes color and post-process issues in many games. Disabling can help speed but may cause wrong colors or missing effects.\n\niOS note: accuracy vs a modest CPU/GPU saving; the breakage usually isn't worth it. Default ON.\n\nIf unsure, leave this enabled." = "Accurately emulates EFB format/precision changes.\n\nFixes color and post-process issues in many games. Disabling can help speed but may cause wrong colors or missing effects.\n\niOS note: accuracy vs a modest CPU/GPU saving; the breakage usually isn't worth it. Default ON.\n\nIf unsure, leave this enabled.";
 "Acquired" = "Acquired";
@@ -3851,7 +3848,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Controller Battery: %d%% (%@)" = "Controller Battery: %d%% (%@)";
 "Controller Layout" = "Controller Layout";
 "Controls the emulated Wii's idle dimming only. No effect on this device's battery or performance." = "Controls the emulated Wii's idle dimming only. No effect on this device's battery or performance.";
-"Controls the rendering resolution.\n\nA high resolution greatly improves visual quality, but also greatly increases GPU load and can cause issues in certain games. Generally speaking, the lower the internal resolution, the better performance will be.\n\niOS note: this is a GPU cost. iCube is usually CPU-bound (the jitless interpreter), so raising resolution often costs little until the GPU becomes the limit; lower it first if a GPU-heavy scene drops frames.\n\nIf unsure, select Native (1x)." = "Controls the rendering resolution.\n\nA high resolution greatly improves visual quality, but also greatly increases GPU load and can cause issues in certain games. Generally speaking, the lower the internal resolution, the better performance will be.\n\niOS note: this is a GPU cost. iCube is usually CPU-bound (the jitless interpreter), so raising resolution often costs little until the GPU becomes the limit; lower it first if a GPU-heavy scene drops frames.\n\nIf unsure, select Native (1x).";
 "Copied" = "Copied";
 "Copies any game without asking." = "Copies any game without asking.";
 "Keeps effects sharp at higher resolutions." = "Keeps effects sharp at higher resolutions.";
@@ -3883,7 +3879,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Date Added" = "Date Added";
 "Deadzone" = "Deadzone";
 "Debugger" = "Debugger";
-"Decodes textures on the GPU instead of the CPU. Moves work off the bottleneck thread, so it can help CPU-bound titles that stream many textures. iCube already ships a NEON CPU decoder (Config ▸ Advanced) as the default fast path." = "Decodes textures on the GPU instead of the CPU. Moves work off the bottleneck thread, so it can help CPU-bound titles that stream many textures. iCube already ships a NEON CPU decoder (Config ▸ Advanced) as the default fast path.";
 "Defer EFB Copies" = "Defer EFB Copies";
 "Delay / Echo" = "Delay / Echo";
 "Can speed things up, but may show out-of-date graphics." = "Can speed things up, but may show out-of-date graphics.";
@@ -3928,9 +3923,7 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Downsample" = "Downsample";
 "Draws the timing stats as live graphs instead of numbers." = "Draws the timing stats as live graphs instead of numbers.";
 "Drop %1$ld files to import" = "Drop %1$ld files to import";
-"Drop GameCube and Wii files onto iCube from a computer or phone on the same Wi-Fi. Open the address in a browser, or in Finder choose Go › Connect to Server and enter the same address as Guest." = "Drop GameCube and Wii files onto iCube from a computer or phone on the same Wi-Fi. Open the address in a browser, or in Finder choose Go › Connect to Server and enter the same address as Guest.";
 "Drop files to import" = "Drop files to import";
-"Dynamically scales internal resolution between Min and Max to hold the Target FPS. Useful when scenes are GPU-bound; has no benefit when the CPU is the limit (the usual case on iCube)." = "Dynamically scales internal resolution between Min and Max to hold the Target FPS. Useful when scenes are GPU-bound; has no benefit when the CPU is the limit (the usual case on iCube).";
 "Early XFB Output" = "Early XFB Output";
 "Edit Layout" = "Edit Layout";
 "Edit Layout…" = "Edit Layout…";
@@ -3953,7 +3946,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Enable Dual Core (speedup)" = "Enable Dual Core (speedup)";
 "Enable EFB Access" = "Enable EFB Access";
 "Enable Integration" = "Enable Integration";
-"Enable JIT via StikDebug" = "Enable JIT via StikDebug";
 "Enable MSAA (above None) first to use supersampling." = "Enable MSAA (above None) first to use supersampling.";
 "Enable ReplayKit Instant Replay" = "Enable ReplayKit Instant Replay";
 "Enable Shader" = "Enable Shader";
@@ -3964,7 +3956,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Enables HDR output on supported displays for wider dynamic range and color.\n\niOS note: display feature; negligible performance cost. Only useful on HDR-capable screens." = "Enables HDR output on supported displays for wider dynamic range and color.\n\niOS note: display feature; negligible performance cost. Only useful on HDR-capable screens.";
 "Enables community-created graphics mods for supported games." = "Enables community-created graphics mods for supported games.";
 "Enables fan-revived WiiConnect24 online channels through WiiLink." = "Enables fan-revived WiiConnect24 online channels through WiiLink.";
-"Enables fast-math optimizations in iCube's Metal shaders.\n\nRelaxes IEEE precision for speed; can cause subtle lighting differences or rare shader bugs.\n\niOS note: GPU-side optimization; helps only when GPU-bound and won't move the CPU bottleneck. Default ON.\n\nIf unsure, leave this enabled." = "Enables fast-math optimizations in iCube's Metal shaders.\n\nRelaxes IEEE precision for speed; can cause subtle lighting differences or rare shader bugs.\n\niOS note: GPU-side optimization; helps only when GPU-bound and won't move the CPU bottleneck. Default ON.\n\nIf unsure, leave this enabled.";
 "Encore Mode" = "Encore Mode";
 "Engine Optimizations" = "Engine Optimizations";
 "Enter the 6-digit code shown on the other device." = "Enter the 6-digit code shown on the other device.";
@@ -3989,7 +3980,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Fast Texture Sampling" = "Fast Texture Sampling";
 "Fast memory-access path for the CPU emulator. A large speedup where supported; disabled if the device can't provide it." = "Fast memory-access path for the CPU emulator. A large speedup where supported; disabled if the device can't provide it.";
 "Fast-Forward CTR Idle Loops" = "Fast-Forward CTR Idle Loops";
-"Fast-forwards counter-based idle loops instead of emulating every iteration. Can recover CPU headroom; may slightly affect timing-sensitive games. iCube tuning knob." = "Fast-forwards counter-based idle loops instead of emulating every iteration. Can recover CPU headroom; may slightly affect timing-sensitive games. iCube tuning knob.";
 "Fastmem" = "Fastmem";
 "Favorite" = "Favorite";
 "Favorites" = "Favorites";
@@ -4049,7 +4039,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "HDR Output" = "HDR Output";
 "Hand Off" = "Hand Off";
 "Hand this game to a nearby device" = "Hand this game to a nearby device";
-"Hands iCube's bundled JIT script to StikDebug and enables JIT for this app. StikDebug will relaunch iCube; reopen a game afterward to run with JIT." = "Hands iCube's bundled JIT script to StikDebug and enables JIT for this app. StikDebug will relaunch iCube; reopen a game afterward to run with JIT.";
 "Hardcore Mode" = "Hardcore Mode";
 "Help content isn't available right now." = "Help content isn't available right now.";
 "Hide Toolbar" = "Hide Toolbar";
@@ -4057,12 +4046,10 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "The highest resolution Auto Resolution will go up to." = "The highest resolution Auto Resolution will go up to.";
 "Honest Benchmarking" = "Honest Benchmarking";
 "Horizontal Movement" = "Horizontal Movement";
-"How iCube delivers bounding-box values. Latched serves a 1-frame-stale snapshot with no CPU stall (faster). Force Sync blocks for exact same-frame values — try it if a game's bbox-driven effects (some 2D/UI culling) look wrong." = "How iCube delivers bounding-box values. Latched serves a 1-frame-stale snapshot with no CPU stall (faster). Force Sync blocks for exact same-frame values — try it if a game's bbox-driven effects (some 2D/UI culling) look wrong.";
 "How many seconds of gameplay each instant-replay clip captures." = "How many seconds of gameplay each instant-replay clip captures.";
 "How much detail the log captures (1 = errors only, 5 = everything)." = "How much detail the log captures (1 = errors only, 5 = everything).";
 "How the picture is scaled to fit the screen. Sharp Bilinear and Area Sampling can look cleaner." = "How the picture is scaled to fit the screen. Sharp Bilinear and Area Sampling can look cleaner.";
 "Leave on NEON SIMD, the fastest. Takes effect the next time you start a game." = "Leave on NEON SIMD, the fastest. Takes effect the next time you start a game.";
-"Ignores small movements to reduce jitter." = "Ignores small movements to reduce jitter.";
 "Immediate XFB" = "Immediate XFB";
 "Import BootMii NAND Backup" = "Import BootMii NAND Backup";
 "Import BootMii NAND Backup…" = "Import BootMii NAND Backup…";
@@ -4081,8 +4068,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Instant Replay is disabled" = "Instant Replay is disabled";
 "Interface & Sharing" = "Interface & Sharing";
 "Interlaced Field Decimation" = "Interlaced Field Decimation";
-"JIT Error" = "JIT Error";
-"JIT Setup Guide" = "JIT Setup Guide";
 "Keep Both" = "Keep Both";
 "Keep Both, Everywhere" = "Keep Both, Everywhere";
 "Keep This Device Everywhere" = "Keep This Device Everywhere";
@@ -4102,7 +4087,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Faster, slightly less precise GPU maths. Can cause small visual differences." = "Faster, slightly less precise GPU maths. Can cause small visual differences.";
 "Lets PAL games output 60 Hz (EuRGB60) when supported." = "Lets PAL games output 60 Hz (EuRGB60) when supported.";
 "Lets a game start with another region's settings. Can cause problems, so only use it if a game needs it." = "Lets a game start with another region's settings. Can cause problems, so only use it if a game needs it.";
-"Lets iCube auto-tune the emulated CPU/VI clock to trade accuracy for speed when frames run long. Experimental iCube option. Applies on next game launch." = "Lets iCube auto-tune the emulated CPU/VI clock to trade accuracy for speed when frames run long. Experimental iCube option. Applies on next game launch.";
 "Needed by some effects, but slow. Most games run fine, and faster, with it off." = "Needed by some effects, but slow. Most games run fine, and faster, with it off.";
 "Prepares drawing work on a separate thread. Usually faster." = "Prepares drawing work on a separate thread. Usually faster.";
 "Lets titles modify the virtual SD card. Off keeps it read-only." = "Lets titles modify the virtual SD card. Off keeps it read-only.";
@@ -4129,7 +4113,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Logging" = "Logging";
 "Logs every controller/touch input event. Noisy; for input troubleshooting only." = "Logs every controller/touch input event. Noisy; for input troubleshooting only.";
 "Looking at what this device is sharing…" = "Looking at what this device is sharing…";
-"Looking for other devices running iCube on this network…" = "Looking for other devices running iCube on this network…";
 "Low Storage Warning" = "Low Storage Warning";
 "The lowest resolution Auto Resolution will drop to. 1x is the original GameCube picture." = "The lowest resolution Auto Resolution will drop to. 1x is the original GameCube picture.";
 "Changes the game's frame rate. Lower is easier on your device. Higher can look smoother but may speed up gameplay." = "Changes the game's frame rate. Lower is easier on your device. Higher can look smoother but may speed up gameplay.";
@@ -4162,7 +4145,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Motion Settings" = "Motion Settings";
 "Moves the IR pointer as your finger hovers/drags without needing a tap. Helps aiming in some games." = "Moves the IR pointer as your finger hovers/drags without needing a tap. Helps aiming in some games.";
 "Smooths jagged edges. Higher settings use more battery." = "Smooths jagged edges. Higher settings use more battery.";
-"Must match where the game thinks the sensor bar sits (Top/Bottom) or the pointer inverts. On iCube the pointer is touch-driven, so set it to the game's expectation." = "Must match where the game thinks the sensor bar sits (Top/Bottom) or the pointer inverts. On iCube the pointer is touch-driven, so set it to the game's expectation.";
 "NEON SIMD (default)" = "NEON SIMD (default)";
 "NEON Texture Decoder" = "NEON Texture Decoder";
 "Native" = "Native";
@@ -4219,7 +4201,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "No adjustable parameters in the current shader" = "No adjustable parameters in the current shader";
 "No controllers connected" = "No controllers connected";
 "No game in progress" = "No game in progress";
-"No games found. Add GameCube & Wii ROMs to your library to get started with iCube! 🎮" = "No games found. Add GameCube & Wii ROMs to your library to get started with iCube! 🎮";
 "No haptic feedback available" = "No haptic feedback available";
 "No paired devices yet." = "No paired devices yet.";
 "No physical effect on this device, but some games gate behavior on rumble being enabled." = "No physical effect on this device, but some games gate behavior on rumble being enabled.";
@@ -4236,7 +4217,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Not Available" = "Not Available";
 "Not Now" = "Not Now";
 "Not Running" = "Not Running";
-"Not compatible with this version of iCube" = "Not compatible with this version of iCube";
 "Some shaders are heavy and can slow games down." = "Some shaders are heavy and can slow games down.";
 "Nothing synced yet." = "Nothing synced yet.";
 "Nothing to decide." = "Nothing to decide.";
@@ -4257,7 +4237,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Speed options for the CPU engine. The ones marked Recommended are on by default and should stay on. The others are experimental." = "Speed options for the CPU engine. The ones marked Recommended are on by default and should stay on. The others are experimental.";
 "Optional: headless tooling can send `Authorization: Bearer <token>` to skip the on-device prompt. Requests over USB or from the device itself never need it." = "Optional: headless tooling can send `Authorization: Bearer <token>` to skip the on-device prompt. Requests over USB or from the device itself never need it.";
 "Uses HDR on screens that support it. The difference is small in most games." = "Uses HDR on screens that support it. The difference is small in most games.";
-"Outputs the XFB earlier in the pipeline.\n\nReduces display latency, but may cause jitter or timing issues in VI-sensitive titles.\n\niOS note: latency/pacing tweak; negligible framerate effect. Default ON.\n\nIf unsure, leave this enabled." = "Outputs the XFB earlier in the pipeline.\n\nReduces display latency, but may cause jitter or timing issues in VI-sensitive titles.\n\niOS note: latency/pacing tweak; negligible framerate effect. Default ON.\n\nIf unsure, leave this enabled.";
 "Shows each frame a little sooner for less lag. Turn off if a game glitches." = "Shows each frame a little sooner for less lag. Turn off if a game glitches.";
 "Overlay Stats" = "Overlay Stats";
 "Override Region Mismatch" = "Override Region Mismatch";
@@ -4321,11 +4300,9 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Relaxed Idle Loop Detection" = "Relaxed Idle Loop Detection";
 "Reload codes" = "Reload codes";
 "Remote Source Unavailable" = "Remote Source Unavailable";
-"Remove all iCube data from iCloud?" = "Remove all iCube data from iCloud?";
 "Remove from Cache" = "Remove from Cache";
 "Removed" = "Removed";
 "Removed from cache" = "Removed from cache";
-"Removes distance fog, making far objects more visible.\n\nDisabling fog breaks games that rely on proper fog emulation (pop-in, wrong visibility).\n\niOS note: tiny GPU saving; almost never helps on iCube because the CPU interpreter is the limit, and it can cause visual glitches. Leave OFF unless you are clearly GPU-bound.\n\nIf unsure, leave this unchecked." = "Removes distance fog, making far objects more visible.\n\nDisabling fog breaks games that rely on proper fog emulation (pop-in, wrong visibility).\n\niOS note: tiny GPU saving; almost never helps on iCube because the CPU interpreter is the limit, and it can cause visual glitches. Leave OFF unless you are clearly GPU-bound.\n\nIf unsure, leave this unchecked.";
 "Removes distance fog. You can see further, but some scenes won't look as intended." = "Removes distance fog. You can see further, but some scenes won't look as intended.";
 "Loads faster than a real disc. Breaks a few games that expect real loading times." = "Loads faster than a real disc. Breaks a few games that expect real loading times.";
 "Removes this app's data from iCloud. Files on this device are not touched." = "Removes this app's data from iCloud. Files on this device are not touched.";
@@ -4351,7 +4328,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Resume Points" = "Resume Points";
 "Resume Where I Left Off" = "Resume Where I Left Off";
 "RetroAchievements" = "RetroAchievements";
-"Retry JIT Authorization" = "Retry JIT Authorization";
 "Return to gameplay" = "Return to gameplay";
 "Return to library" = "Return to library";
 "Return to normal speed" = "Return to normal speed";
@@ -4359,7 +4335,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Roll (Tilt Left/Right)" = "Roll (Tilt Left/Right)";
 "Rotate device left/right to move cursor" = "Rotate device left/right to move cursor";
 "Fixes thin lines between tiles at higher resolutions. Does nothing at 1x." = "Fixes thin lines between tiles at higher resolutions. Does nothing at 1x.";
-"Rounds vertex positions to reduce subpixel jitter.\n\nStabilizes 2D elements and reduces shimmering; can slightly distort 3D geometry.\n\niOS note: minor cost; quality choice rather than a performance one.\n\nIf unsure, leave this enabled." = "Rounds vertex positions to reduce subpixel jitter.\n\nStabilizes 2D elements and reduces shimmering; can slightly distort 3D geometry.\n\niOS note: minor cost; quality choice rather than a performance one.\n\nIf unsure, leave this enabled.";
 "Experimental. May help 3D-heavy games. Takes effect the next time you start a game." = "Experimental. May help 3D-heavy games. Takes effect the next time you start a game.";
 "Experimental. May help 3D-heavy games. Takes effect the next time you start a game." = "Experimental. May help 3D-heavy games. Takes effect the next time you start a game.";
 "Faster handling of common instructions. Takes effect the next time you start a game." = "Faster handling of common instructions. Takes effect the next time you start a game.";
@@ -4405,7 +4380,7 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Search cheats" = "Search cheats";
 "Search games" = "Search games";
 "Search games (active query: %1$@)" = "Search games (active query: %1$@)";
-"Select Cached Interpreter or Cached Interpreter (IR) as the CPU engine above to configure optimizations. The plain Interpreter and JIT engines don't use these." = "Select Cached Interpreter or Cached Interpreter (IR) as the CPU engine above to configure optimizations. The plain Interpreter and JIT engines don't use these.";
+"Select Cached Interpreter or Cached Interpreter (IR) as the CPU engine above to configure optimizations. The plain Interpreter doesn't use these." = "Select Cached Interpreter or Cached Interpreter (IR) as the CPU engine above to configure optimizations. The plain Interpreter doesn't use these.";
 "Select Region" = "Select Region";
 "Select Save Slot" = "Select Save Slot";
 "Select Source" = "Select Source";
@@ -4481,7 +4456,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Sort By" = "Sort By";
 "Source Code" = "Source Code";
 "Specialized" = "Specialized";
-"Specialized (default) compiles each shader on first use — low GPU cost, may briefly stutter. Ubershader modes trade GPU power for fewer hitches. On the CPU-bound iCube path Specialized is recommended." = "Specialized (default) compiles each shader on first use — low GPU cost, may briefly stutter. Ubershader modes trade GPU power for fewer hitches. On the CPU-bound iCube path Specialized is recommended.";
 "Specialized Ops" = "Specialized Ops";
 "Specialized Ops: Validate" = "Specialized Ops: Validate";
 "Spectator Mode" = "Spectator Mode";
@@ -4514,7 +4488,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Matches frames to the screen's refresh to avoid tearing. Makes little difference on iOS." = "Matches frames to the screen's refresh to avoid tearing. Makes little difference on iOS.";
 "System Default" = "System Default";
 "System firmware is never uploaded" = "System firmware is never uploaded";
-"TXM JIT Region" = "TXM JIT Region";
 "Target" = "Target";
 "Target FPS" = "Target FPS";
 "Target: %@" = "Target: %@";
@@ -4541,11 +4514,9 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Thermal: Aggressive power saving" = "Thermal: Aggressive power saving";
 "Thermal: Reduced resolution/AF" = "Thermal: Reduced resolution/AF";
 "Thermal: Restored quality" = "Thermal: Restored quality";
-"These options control the PowerPC CPU emulation. On iCube the emulated CPU is almost always the performance bottleneck, so the CPU options below matter far more than any graphics setting." = "These options control the PowerPC CPU emulation. On iCube the emulated CPU is almost always the performance bottleneck, so the CPU options below matter far more than any graphics setting.";
 "These overlays can also be toggled in-game from the pause menu." = "These overlays can also be toggled in-game from the pause menu.";
 "These write to the emulated Wii's SYSCONF, so they affect Wii titles only and persist like a real Wii would." = "These write to the emulated Wii's SYSCONF, so they affect Wii titles only and persist like a real Wii would.";
 "This Device" = "This Device";
-"This build runs without JIT, so games always use the Cached Interpreter (the JIT engine choices are hidden). The emulated CPU is the performance bottleneck on iCube — these options matter far more than any graphics setting." = "This build runs without JIT, so games always use the Cached Interpreter (the JIT engine choices are hidden). The emulated CPU is the performance bottleneck on iCube — these options matter far more than any graphics setting.";
 "Iridia uses the Cached Interpreter, the fastest engine allowed on the App Store." = "Iridia uses the Cached Interpreter, the fastest engine allowed on the App Store.";
 "This device isn't offering a game right now." = "This device isn't offering a game right now.";
 "This device isn't sharing any games right now." = "This device isn't sharing any games right now.";
@@ -4592,13 +4563,10 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "Vertex positions at buffer index 0" = "Vertex positions at buffer index 0";
 "View Save States" = "View Save States";
 "View on Web" = "View on Web";
-"Visible to nearby devices. Open iCube on the other device and pick this one." = "Visible to nearby devices. Open iCube on the other device and pick this one.";
 "Waiting for client…" = "Waiting for client…";
 "Waiting for receiver…" = "Waiting for receiver…";
 "Web UI" = "Web UI";
-"Welcome to iCube" = "Welcome to iCube";
 "What Is Synced" = "What Is Synced";
-"What JIT does, why iOS 26 needs a debugger to switch it on, and what to expect without it." = "What JIT does, why iOS 26 needs a debugger to switch it on, and what to expect without it.";
 "When This Device Asks" = "When This Device Asks";
 "When approval is required, only allowed receivers will receive input. Version pings are still answered so clients can detect this server." = "When approval is required, only allowed receivers will receive input. Version pings are still answered so clients can detect this server.";
 "Keeps graphics in step when Iridia skips waiting loops. Turning it off is slightly faster but can cause glitches." = "Keeps graphics in step when Iridia skips waiting loops. Turning it off is slightly faster but can cause glitches.";
@@ -4623,8 +4591,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "found" = "found";
 "iCloud" = "iCloud";
 "iCloud Sync" = "iCloud Sync";
-"iCube is a fork of DolphiniOS, based on the Dolphin emulator." = "iCube is a fork of DolphiniOS, based on the Dolphin emulator.";
-"iCube is a fork of OatmealDome's DolphiniOS, based on the Dolphin emulator." = "iCube is a fork of OatmealDome's DolphiniOS, based on the Dolphin emulator.";
 "new" = "new";
 "unknown size" = "unknown size";
 "Experimental. May cause glitches in some games." = "Experimental. May cause glitches in some games.";
@@ -4926,7 +4892,6 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "%@ is in use. Change that player's device first." = "%@ is in use. Change that player's device first.";
 "Installed texture packs total %@, a large share of this device's memory. Prefetching them can crash the game; turn Prefetch off or remove packs you don't use." = "Installed texture packs total %@, a large share of this device's memory. Prefetching them can crash the game; turn Prefetch off or remove packs you don't use.";
 "Backend, aspect ratio, V-Sync, auto resolution and shader compilation." = "Backend, aspect ratio, V-Sync, auto resolution and shader compilation.";
-"CPU engine, optimisations, clock overrides. The CPU is the bottleneck on iCube." = "CPU engine, optimisations, clock overrides. The CPU is the bottleneck on iCube.";
 "Choose a page" = "Choose a page";
 "Clock overrides and other expert options." = "Clock overrides and other expert options.";
 "Continue a game from another device, and manage paired ones." = "Continue a game from another device, and manage paired ones.";
@@ -4960,16 +4925,10 @@ Further errors will be sent to the Video Backend log and Dolphin will now likely
 "(none)" = "(none)";
 "Every on-screen controller layout, for checking how each one looks." = "Every on-screen controller layout, for checking how each one looks.";
 "Gallery" = "Gallery";
-"How many times iCube has been launched." = "How many times iCube has been launched.";
 "Live gyro and accelerometer readings, for checking motion input." = "Live gyro and accelerometer readings, for checking motion input.";
 "Sets the launch counter back to zero." = "Sets the launch counter back to zero.";
-"The last error from trying to acquire JIT: %@" = "The last error from trying to acquire JIT: %@";
-"Where iCube keeps its settings, saves and game data." = "Where iCube keeps its settings, saves and game data.";
-"Where iCube keeps its settings, saves and game data: %@" = "Where iCube keeps its settings, saves and game data: %@";
-"Whether a debugger is attached; iOS 26 needs one to switch JIT on." = "Whether a debugger is attached; iOS 26 needs one to switch JIT on.";
 "Whether the emulator can generate native code on this device right now." = "Whether the emulator can generate native code on this device right now.";
 "Whether this device can provide the fast memory-access path." = "Whether this device can provide the fast memory-access path.";
-"Whether this device's JIT memory region has been authorized for iCube." = "Whether this device's JIT memory region has been authorized for iCube.";
 "Higher sounds smoother, but the sound lags further behind the picture." = "Higher sounds smoother, but the sound lags further behind the picture.";
 "CoreAudio (Speakers/HDMI)" = "CoreAudio (Speakers/HDMI)";
 "Follows the device's silent switch: game audio is muted while it is on." = "Follows the device's silent switch: game audio is muted while it is on.";

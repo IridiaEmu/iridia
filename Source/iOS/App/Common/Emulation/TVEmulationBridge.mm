@@ -114,8 +114,12 @@ static bool StateOperationAllowed(Core::System& system, const char* operation)
   // the user toggle; default off means this is a no-op. The auto-state lives in its
   // own "{GameID}.auto" file and never touches numbered save slots.
   // gc-emu: never during scripted benchmarks (-gcemuBench); they must start cold every run.
-  if ([[NSUserDefaults standardUserDefaults] boolForKey:@"resume_where_left_off"] &&
-      [[NSUserDefaults standardUserDefaults] doubleForKey:@"gcemuBench"] <= 0) {
+#if APPSTORE
+  const BOOL benchmarking = NO;
+#else
+  const BOOL benchmarking = [[NSUserDefaults standardUserDefaults] doubleForKey:@"gcemuBench"] > 0;
+#endif
+  if ([[NSUserDefaults standardUserDefaults] boolForKey:@"resume_where_left_off"] && !benchmarking) {
     NSString* autoPath = [self autoStateFilePath];
     if (autoPath.length > 0 && StateOperationAllowed(Core::System::GetInstance(), "auto-state save")) {
       [self writeAutoThumbnailForStateAtPath:autoPath];

@@ -7,14 +7,14 @@ import AppIntents
 /// guaranteed to run after the library UI has mounted.
 struct LaunchGameIntent: AppIntent {
     static var title: LocalizedStringResource = "Play Game"
-    static var description = IntentDescription("Launches a game in iCube.")
+    static var description = IntentDescription("Launches a game in Iridia.")
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Game")
     var game: iCubeGameEntity
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Play \(\.$game) in iCube")
+        Summary("Play \(\.$game) in Iridia")
     }
 
     func perform() async throws -> some IntentResult {

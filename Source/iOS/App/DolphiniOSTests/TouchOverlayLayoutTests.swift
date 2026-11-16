@@ -76,12 +76,8 @@ final class TouchOverlayLayoutTests: XCTestCase {
     XCTAssertEqual(fillInset.box(in: bounds), bounds.insetBy(dx: 20, dy: 20))
   }
 
-  // MARK: The sideways remote reproduces its xib frames at the design size (no safe area)
-  //
-  // GameCube, the upright remote and the Classic Controller are computed per screen instead;
-  // their invariants live in TouchOverlayDefaultLayoutTests.
+  // Per-screen invariants of the default layouts live in TouchOverlayDefaultLayoutTests.
 
-  /// Sizes the xibs were authored at (only the sideways remote still uses its xib).
   private static let wiiDesignSizes: [TouchOverlayPadKind: CGSize] = [
     .wiiRemote: CGSize(width: 375, height: 667),
     .wiiRemoteSideways: CGSize(width: 768, height: 1024),
@@ -114,17 +110,6 @@ final class TouchOverlayLayoutTests: XCTestCase {
     return c.frame.offsetBy(dx: b.minX, dy: b.minY)
   }
 
-  func testSidewaysDefaultsMoveInByTheSafeArea() {
-    let insets = UIEdgeInsets(top: 0, left: 62, bottom: 21, right: 62)
-    let bounds = designBounds(.wiiRemoteSideways)
-    let plain = defaultLayout(.wiiDpad, .wiiRemoteSideways)!.placement.box(in: bounds)
-    let shifted = defaultLayout(.wiiDpad, .wiiRemoteSideways, safeArea: insets)!.placement.box(in: bounds)
-    XCTAssertEqual(shifted, plain.offsetBy(dx: 62, dy: -21))
-    let face = defaultLayout(.sidewaysFaceCluster, .wiiRemoteSideways)!.placement.box(in: bounds)
-    let faceShifted = defaultLayout(.sidewaysFaceCluster, .wiiRemoteSideways, safeArea: insets)!.placement.box(in: bounds)
-    XCTAssertEqual(faceShifted, face.offsetBy(dx: -62, dy: -21))
-  }
-
   /// Phase 3 (task item 1): the IR pad's default rect is the whole pad minus a safe margin, not
   /// the phase-2 placeholder's literal full bounds, whatever the safe area.
   func testWiiIRPadCoversThePadMinusItsMargin() {
@@ -133,13 +118,6 @@ final class TouchOverlayLayoutTests: XCTestCase {
     XCTAssertEqual(box(.wiiIRPad, .wiiRemote), expected)
     let notched = defaultLayout(.wiiIRPad, .wiiRemote, safeArea: UIEdgeInsets(top: 62, left: 0, bottom: 34, right: 0))!
     XCTAssertEqual(notched.placement.box(in: bounds), expected)
-  }
-
-  func testSidewaysDefaultsMatchXib() {
-    XCTAssertEqual(box(.sidewaysB, .wiiRemoteSideways), CGRect(x: 25.5, y: 779, width: 77, height: 77))
-    XCTAssertEqual(controlFrame("wii.a", .sidewaysFaceCluster, .wiiRemoteSideways), CGRect(x: 705, y: 878, width: 43, height: 43))
-    XCTAssertEqual(controlFrame("wii.plus", .sidewaysFaceCluster, .wiiRemoteSideways), CGRect(x: 630.5, y: 886.5, width: 26, height: 26))
-    XCTAssertEqual(box(.sidewaysHome, .wiiRemoteSideways), CGRect(x: 368, y: 992, width: 32, height: 32))
   }
 
   func testEveryPadKindHasUniqueGroupsAndControlIds() {
@@ -285,12 +263,14 @@ final class TouchOverlayLayoutTests: XCTestCase {
     let store = TouchOverlayLayoutStore(fileURL: nil)
     let bounds = designBounds(.wiiRemoteSideways)
     let dpad = defaultLayout(.wiiDpad, .wiiRemoteSideways)!
-    XCTAssertEqual(store.resolvedBox(for: dpad, padKind: .wiiRemoteSideways, orientation: .portrait, in: bounds),
-                   CGRect(x: 0, y: 896, width: 128, height: 128))
+    let original = dpad.placement.box(in: bounds)
+    XCTAssertEqual(store.resolvedBox(for: dpad, padKind: .wiiRemoteSideways, orientation: .portrait, in: bounds), original)
 
     store.setCenter(CGPoint(x: 760, y: 10), in: bounds, for: .wiiDpad, padKind: .wiiRemoteSideways, orientation: .portrait)
     let moved = store.resolvedBox(for: dpad, padKind: .wiiRemoteSideways, orientation: .portrait, in: bounds)
-    XCTAssertEqual(moved, CGRect(x: 640, y: 0, width: 128, height: 128), "stored centre is re-clamped on-screen")
+    XCTAssertEqual(moved.maxX, bounds.maxX, accuracy: 1e-6, "stored centre is re-clamped on-screen")
+    XCTAssertEqual(moved.minY, 0, accuracy: 1e-6)
+    XCTAssertEqual(moved.size, original.size)
   }
 
   /// The editor and the game lay the overlay out on one canvas (`TouchOverlayCanvas`, the whole screen),
@@ -308,13 +288,14 @@ final class TouchOverlayLayoutTests: XCTestCase {
     XCTAssertEqual(gameplay, editor)
 
     let dpad = defaultLayout(.wiiDpad, .wiiRemoteSideways)!
+    let defaultWidth = dpad.placement.box(in: editor).width
     store.setCenter(CGPoint(x: 300, y: 700), in: editor, for: .wiiDpad, padKind: .wiiRemoteSideways, orientation: .portrait)
     store.setSizeScale(1.5, for: .wiiDpad, padKind: .wiiRemoteSideways, orientation: .portrait, in: editor)
     let dropped = store.resolvedBox(for: dpad, padKind: .wiiRemoteSideways, orientation: .portrait, in: editor)
     let played = store.resolvedBox(for: dpad, padKind: .wiiRemoteSideways, orientation: .portrait, in: gameplay)
     XCTAssertEqual(played.midX, 300, accuracy: 1e-6)
     XCTAssertEqual(played.midY, 700, accuracy: 1e-6)
-    XCTAssertEqual(played.width, 192, accuracy: 1e-6, "128 pt at 1.5x")
+    XCTAssertEqual(played.width, defaultWidth * 1.5, accuracy: 1e-6)
     XCTAssertEqual(played, dropped)
   }
 
@@ -772,5 +753,50 @@ final class TouchOverlayLayoutTests: XCTestCase {
     // the SAME group at once — the case list itself is the proof, not a runtime check.
     XCTAssertEqual(TouchOverlayEditMode.allCases, [.none, .layout, .irArea])
   }
+
+  @MainActor func testAGameKeepsItsOwnLayout() {
+    let store = TouchOverlayLayoutStore(fileURL: nil)
+    let bounds = CGRect(x: 0, y: 0, width: 400, height: 800)
+    store.setCenter(CGPoint(x: 100, y: 700), in: bounds, for: .wiiDpad, padKind: .wiiRemote, orientation: .portrait)
+
+    store.game = "RSPE01"
+    XCTAssertEqual(store.center(for: .wiiDpad, padKind: .wiiRemote, orientation: .portrait, in: bounds), CGPoint(x: 100, y: 700),
+                   "a game with no layout of its own uses the shared one")
+    XCTAssertFalse(store.gameHasOwnLayout(padKind: .wiiRemote))
+    store.setCenter(CGPoint(x: 300, y: 600), in: bounds, for: .wiiAB, padKind: .wiiRemote, orientation: .portrait)
+    XCTAssertTrue(store.gameHasOwnLayout(padKind: .wiiRemote))
+    XCTAssertEqual(store.center(for: .wiiDpad, padKind: .wiiRemote, orientation: .portrait, in: bounds), CGPoint(x: 100, y: 700),
+                   "the game's layout starts from the shared one")
+    XCTAssertEqual(store.center(for: .wiiAB, padKind: .wiiRemote, orientation: .portrait, in: bounds), CGPoint(x: 300, y: 600))
+
+    store.game = "RMCE01"
+    XCTAssertNil(store.center(for: .wiiAB, padKind: .wiiRemote, orientation: .portrait, in: bounds), "other games don't see it")
+    store.game = nil
+    XCTAssertNil(store.center(for: .wiiAB, padKind: .wiiRemote, orientation: .portrait, in: bounds), "nor does the shared layout")
+
+    store.game = "RSPE01"
+    store.reset(padKind: .wiiRemote)
+    XCTAssertFalse(store.gameHasOwnLayout(padKind: .wiiRemote))
+    store.game = nil
+    XCTAssertEqual(store.center(for: .wiiDpad, padKind: .wiiRemote, orientation: .portrait, in: bounds), CGPoint(x: 100, y: 700),
+                   "resetting a game's layout leaves the shared one")
+  }
+
+  @MainActor func testGameCubeGamesKeepTheirOwnLayoutAndOpacityStartsShared() {
+    let store = TouchOverlayLayoutStore(fileURL: nil)
+    let bounds = CGRect(x: 0, y: 0, width: 400, height: 800)
+    store.setSizeScale(1.5, for: .gcMainStick, padKind: .gameCube, orientation: .landscape, in: bounds)
+
+    store.game = "GALE01"
+    XCTAssertEqual(store.sizeScale(for: .gcMainStick, padKind: .gameCube, orientation: .landscape), 1.5)
+    store.setSizeScale(0.8, for: .gcMainStick, padKind: .gameCube, orientation: .landscape, in: bounds)
+    XCTAssertEqual(store.sizeScale(for: .gcMainStick, padKind: .gameCube, orientation: .landscape), 0.8)
+    XCTAssertFalse(store.gameHasOwnLayout(padKind: .wiiRemote), "the Wii pads of the same game are separate")
+
+    store.game = nil
+    XCTAssertEqual(store.sizeScale(for: .gcMainStick, padKind: .gameCube, orientation: .landscape), 1.5,
+                   "the shared layout existing players have stays as it was")
+  }
 }
 #endif
+

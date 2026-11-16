@@ -54,6 +54,9 @@ public final class TouchControllerView: UIView {
 
   // MARK: Internals
 
+  /// Where each control is drawn, in this view's coordinates.
+  public var controlFrames: [CGRect] { placed.map(\.rect) }
+
   private struct Placed {
     let item: SkinItem
     var rect: CGRect

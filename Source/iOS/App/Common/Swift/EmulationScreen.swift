@@ -274,6 +274,27 @@ struct EmulationScreen: View {
   @State var isTouchControlsActive = false
   @State var userOverrideTouchControls = false
 
+  /// Some active slot of the running system holds the on-screen Touchscreen. A Wii game also
+  /// counts GameCube port 1 (its controls switch can play as a GameCube controller).
+  var touchscreenBoundForSystem: Bool {
+    if controllerManager.touchscreenSlot(system: isWiiSystem ? .wii : .gamecube) != nil { return true }
+    return isWiiSystem && controllerManager.touchscreenSlot(system: .gamecube) != nil
+  }
+
+  /// gc-emu: a Wii game runs the motion sensors only for what uses them: aiming by pointing the phone
+  /// (while the touch controls are up), shake the phone, or tilt the phone (Wii Settings). GameCube never.
+  var wiiNeedsMotion: Bool {
+    isWiiSystem && ((isTouchControlsActive && irModeRaw == 0) || MotionSettings.enhancedShakeDetection() || MotionSettings.wiimoteIMU())
+  }
+
+  func updateWiiMotion() {
+    TCDeviceMotion.shared.setMotionEnabled(wiiNeedsMotion)
+    if wiiNeedsMotion {
+      syncMotionPortToTouchscreen()
+      TCDeviceMotion.shared.statusBarOrientationChanged()
+    }
+  }
+
   /// Show/auto-hide state of the top bar; see `TopBarVisibility`.
   @State var topBar = TopBarVisibility()
   /// The bar's measured height; the toast sits just under it.
@@ -315,12 +336,17 @@ struct EmulationScreen: View {
   // Used by both the iOS and tvOS bodies (Phase 3/4 disconnect-pause + pill),
   // so it must live outside the iOS-only block above.
   @ObservedObject private var controllerManager = ControllerManager.shared
+  @ObservedObject private var overlayCorner = TouchOverlayCorner.shared
   @State private var elapsedSeconds: Int = 0
   @State private var timer: Timer?
   // Drives the centered "Paused" HUD pill. Polled off the 1s timer and refreshed
   // on showPauseMenu changes; the pill is gated isPaused && !showPauseMenu.
   @State private var isPaused: Bool = false
   @State var isWiiSystem: Bool = false
+  /// What a game's own control layout is saved under: its game ID, or the file name for homebrew.
+  private var layoutGameKey: String {
+    game.gameID.isEmpty ? (game.filePath as NSString).lastPathComponent : game.gameID
+  }
 
   // Quick performance overlay
   @State private var showPerfOverlay: Bool = false
@@ -864,6 +890,23 @@ struct EmulationScreen: View {
       .padding(.leading, 12)
       .zIndex(3)
 
+      // gc-emu: Wii games: the controls switch, Shake and Recenter at the top right (gone while the top
+      // bar, the pause menu or the layout editor is up).
+      if isWiiSystem && WiiPointer.showPointer && !isEditingLayout && !showPauseMenu
+          && ![PlaysAs.gameCube, .wiiClassic].contains(WiiControls.choice(for: game.gameID)) {
+        WiiPointerDot(deviceId: ControllerManager.shared.touchscreenControllerId(isWii: true))
+          .zIndex(2.5)
+      }
+      if isWiiSystem && !showTopBar && !isEditingLayout && !showPauseMenu {
+        VStack {
+          HStack { Spacer(); WiiPlayButtons(gameID: game.gameID, pointerMode: irModeRaw) }
+          Spacer()
+        }
+        .padding(.top, 8)
+        .padding(.trailing, max(12, overlayCorner.trailingClearance))
+        .zIndex(3)
+      }
+
       // Semi-transparent overlay with quick performance controls (iOS)
       if showPerfOverlay {
         Color.black.opacity(0.35).ignoresSafeArea().zIndex(4)
@@ -1074,7 +1117,8 @@ struct EmulationScreen: View {
             // Ensure touch input is always a valid IR source (Wii only: the IR pointer and IMU
             // are Wii Remote features; gc-emu skips 200 Hz motion polling for GameCube games).
             guard isWiiSystem else { return }
-            TCDeviceMotion.shared.setMotionEnabled(true)
+            // gc-emu: only when something uses motion (see `wiiNeedsMotion`).
+            TCDeviceMotion.shared.setMotionEnabled(wiiNeedsMotion)
             syncMotionPortToTouchscreen()
             TCDeviceMotion.shared.statusBarOrientationChanged()
           }
@@ -1083,7 +1127,8 @@ struct EmulationScreen: View {
       // Edit Layout…: the editor lays out on the same canvas as the pads above (the whole screen), so
       // nothing moves when play resumes, and sits above the top bar and its reveal strip.
       if isEditingLayout {
-        TouchOverlayLayoutEditorView(padKind: layoutEditPadKind, overGame: true, onDone: endLayoutEdit)
+        TouchOverlayLayoutEditorView(padKind: layoutEditPadKind, overGame: true,
+                                     gameID: layoutGameKey, onDone: endLayoutEdit)
           .zIndex(7)
       }
     }
@@ -1097,6 +1142,7 @@ struct EmulationScreen: View {
     // This used to be toggled from four places (pad onAppear/onDisappear, TCWiiPad.setTouchIRMode,
     // the long-press handler, and setup).
     .onChange(of: isTouchControlsActive) { _ in
+      updateWiiMotion()   // gc-emu: Point the phone only aims while the touch controls are up
       // No touchscreen Wii Remote: the overlay drives no pointer, so there is nothing to keep from
       // fighting. `?? 0` used to flip Wii Remote 1's IMU pointer here even when a gyro pad owns it
       // (controller hub decision 12).
@@ -1182,8 +1228,6 @@ struct EmulationScreen: View {
       // Initialize expected system early from metadata to avoid startup races
       isWiiSystem = inferIsWii(from: game)
       irModeRaw = DOLConfigBridge.mainTouchPadIRMode()
-      let useIMU = (irModeRaw == 0)
-      let wantsMotionForShake = MotionSettings.enhancedShakeDetection() && isWiiSystem
       // The core's IMU pointer stays OFF while the on-screen pads own the pointer: the app
       // synthesizes IR itself (touch in drag/follow, device attitude in gyro mode) and shake
       // detection only needs the accelerometer. Enabling it here for gyro mode or shake made
@@ -1196,8 +1240,9 @@ struct EmulationScreen: View {
       if let imuTouchSlot = controllerManager.touchscreenSlot(system: .wii) {
         TVEmulationBridge.setWiiIMUPointEnabled(false, forWiimote: imuTouchSlot)
       }
-      // gc-emu: motion is a Wii Remote feature; never poll the IMU for GameCube games.
-      let wantsMotion = isWiiSystem && ((isTouchControlsActive && useIMU) || wantsMotionForShake)
+      // gc-emu: motion is a Wii Remote feature; never poll the IMU for GameCube games, and in a Wii
+      // game only for what uses it.
+      let wantsMotion = wiiNeedsMotion
       TCDeviceMotion.shared.setMotionEnabled(wantsMotion)
       if wantsMotion {
         syncMotionPortToTouchscreen()
@@ -1212,15 +1257,9 @@ struct EmulationScreen: View {
       // Listen for motion settings changes during gameplay
       obsMotionSettingsChanged = NotificationCenter.default.addObserver(forName: Notification.Name("DOLMotionSettingsChanged"), object: nil, queue: .main) { _ in
         restartMotionSystemForSettingsChange()
-        // Ensure motion stays on for shake even if touch overlay is hidden but an external controller is connected
-        let wantsMotionForShake2 = MotionSettings.enhancedShakeDetection() && isWiiSystem
-        if wantsMotionForShake2 {
-          Task { @MainActor in
-            TCDeviceMotion.shared.setMotionEnabled(true)
-            syncMotionPortToTouchscreen()
-            TCDeviceMotion.shared.statusBarOrientationChanged()
-          }
-        }
+        // gc-emu: shake or tilt the phone may have been turned on or off; motion follows (also with a
+        // game controller and the touch controls hidden).
+        Task { @MainActor in updateWiiMotion() }
       }
       // Ensure touch controls start visible
       isTouchControlsActive = controllerManager.overlayVisible
@@ -1232,6 +1271,11 @@ struct EmulationScreen: View {
       ControllerManager.shared.reconcile()
       // Configure Wiimote sources based on connected controllers
       ControllerManager.shared.updateWiimoteEmulationForExternalControllers()
+      // gc-emu: a Wii game starts with the controls it was last played with.
+      if isWiiSystem { WiiControls.applyForBoot(gameID: game.gameID) }
+      #if os(iOS)
+      TouchOverlayLayoutStore.shared.game = layoutGameKey
+      #endif
       // reconcile() may have moved the touchscreen to another slot; follow it.
       syncMotionPortToTouchscreen()
       #if os(iOS)
@@ -1253,7 +1297,7 @@ struct EmulationScreen: View {
       // NotificationCenter bridging for assignments remains
       obsAssignmentsChanged = NotificationCenter.default.addObserver(forName: ControllerManager.assignmentsChanged, object: nil, queue: .main) { _ in
         if !userOverrideTouchControls {
-          let visible = controllerManager.touchscreenSlot(system: isWiiSystem ? .wii : .gamecube) != nil
+          let visible = touchscreenBoundForSystem
           controllerManager.overlayVisible = visible
           isTouchControlsActive = visible
         }
@@ -1274,6 +1318,9 @@ struct EmulationScreen: View {
       // Re-infer system shortly after appear in case metadata was incomplete
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
         isWiiSystem = inferIsWii(from: game)
+        #if os(iOS)
+        TouchOverlayLayoutStore.shared.game = layoutGameKey
+        #endif
         touchPadsRefreshToken = UUID()
       }
       // Apply saved CoreAudio DSP defaults if CoreAudio backend is selected
@@ -1318,7 +1365,7 @@ struct EmulationScreen: View {
       // on-screen Touchscreen (only if not user-overridden). "Hidden whenever any controller is
       // connected" made an explicit Touchscreen assignment with a pad attached look dead.
       if !userOverrideTouchControls {
-        let visible = controllerManager.touchscreenSlot(system: isWiiSystem ? .wii : .gamecube) != nil
+        let visible = touchscreenBoundForSystem
         controllerManager.overlayVisible = visible
         isTouchControlsActive = visible
       }
@@ -1330,6 +1377,9 @@ struct EmulationScreen: View {
       refreshOverscanApplicable()
     }
     .onDisappear {
+      #if os(iOS)
+      TouchOverlayLayoutStore.shared.game = nil
+      #endif
       if let token = endObserver { NotificationCenter.default.removeObserver(token)
         endObserver = nil
       }
@@ -1368,6 +1418,9 @@ struct EmulationScreen: View {
       // overlay host's portrait/landscape layout callback does not see.
       Task { @MainActor in TCDeviceMotion.shared.statusBarOrientationChanged() }
     }
+    .onReceive(NotificationCenter.default.publisher(for: WiiControls.changed)) { _ in
+      touchPadsRefreshToken = UUID()   // gc-emu: the Wii controls switch picked another layout
+    }
     .onReceive(NotificationCenter.default.publisher(for: SkinLibrary.didChangeNotification)) { _ in
       // A skin was picked, imported or deleted (possibly the one on screen): rebuild the pads and the game placement.
       touchPadsRefreshToken = UUID()
@@ -1391,6 +1444,7 @@ struct EmulationScreen: View {
       touchPadsRefreshToken = UUID()
     }
     .onChange(of: isWiiSystem) { controllerManager.setSystem(isWii: $0) }
+    .onChange(of: irModeRaw) { _ in updateWiiMotion() }   // gc-emu: Point the phone needs motion
     .onReceive(controllerManager.$overlayVisible) { v in
       isTouchControlsActive = v
       touchPadsRefreshToken = UUID()

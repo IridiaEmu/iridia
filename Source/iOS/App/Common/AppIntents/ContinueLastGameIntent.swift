@@ -7,7 +7,7 @@ import PVLibrarySnapshot
 /// (`recentlyPlayed` is already newest-first per `LibrarySnapshot.build`).
 struct ContinueLastGameIntent: AppIntent {
     static var title: LocalizedStringResource = "Continue Last Game"
-    static var description = IntentDescription("Resumes the most recently played game in iCube.")
+    static var description = IntentDescription("Resumes the most recently played game in Iridia.")
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {

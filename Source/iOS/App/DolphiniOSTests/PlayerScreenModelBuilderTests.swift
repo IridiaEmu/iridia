@@ -280,7 +280,7 @@ final class PlayerScreenModelBuilderTests: XCTestCase {
   func test_pointerModes_inTheSpecsOrder() {
     XCTAssertEqual(
       optionTitles(make(state(.wiiRemote, device: Self.touch)).item(id: "pointer-mode")),
-      ["Touch – Follow", "Touch – Drag", "Gyro"])
+      ["Follow your finger", "Drag on the screen", "Point the phone"])
   }
 
   // MARK: Advanced

@@ -110,6 +110,8 @@ public:
 
   // ImGui Functions
   void DrawImGuiStats(const float backbuffer_scale);
+  // gc-emu: refreshes the fps/vps averages where DrawImGuiStats never runs (the headless test runner).
+  void UpdateCounterStats();
 
 private:
   struct FrameBufferSize
@@ -140,6 +142,7 @@ private:
 
   std::deque<PerfSample> m_samples;
   DT m_time_sleeping{};
+  u64 m_cpu_wait_base_ns = 0;
 
   // --- iCube StallMetrics window hook ---
   // The StallMetrics report rolls on the same cadence as the speed/maxSpeed sensors, but gated to a

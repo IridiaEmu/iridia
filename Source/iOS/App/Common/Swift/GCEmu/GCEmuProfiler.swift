@@ -11,7 +11,11 @@ import Foundation
 enum GCEmuProfiler {
   /// Starts sampling the thread named `threadName` (default Dolphin's emulated CPU thread).
   static func startIfRequested(label: String, threadName: String = "CPU thread") {
+    #if APPSTORE
+    let seconds = 0.0
+    #else
     let seconds = UserDefaults.standard.double(forKey: "gcemuProfile")
+    #endif
     guard seconds > 0 else { return }
     let thread = Thread {
       guard let target = findThread(named: threadName) else {

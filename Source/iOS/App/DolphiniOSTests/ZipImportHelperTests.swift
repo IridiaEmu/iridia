@@ -86,6 +86,12 @@ final class ZipImportHelperTests: XCTestCase {
   private static let sevenZipFixture = "N3q8ryccAARqxdxxBQAAAAAAAABSAAAAAAAAAEcJw1RnYW1lCgEEBgABCQUABwsBAAEBAAwFAAgKAani+tYAAAUBERkAbwBrAC8AZwBhAG0AZQAuAGkAcwBvAAAAGQIAABQKAQAAmOf7FlLdARUGAQAggKSBAAA="
   /// The same archive with the stored name `AA/escape.txt` rewritten to `../escape.txt` (header CRCs recomputed).
   private static let hostileSevenZipFixture = "N3q8ryccAARJoG80CAAAAAAAAABSAAAAAAAAAF59QUdlc2NhcGVkCgEEBgABCQgABwsBAAEBAAwIAAgKAeN2/M4AAAUBER0ALgAuAC8AZQBzAGMAYQBwAGUALgB0AHgAdAAAABQKAQAAmOf7FlLdARUGAQAggKSBAAA="
+  /// Python's `gzip.compress(b"game\n")`, the same in two gzip members, a tar.gz of `ok/game.iso`, and the first
+  /// with its CRC changed.
+  private static let gzipFixture = "H4sIAAAAAAAA/0tPzE3lAgCp4vrWBQAAAA=="
+  private static let twoMemberGzipFixture = "H4sIAAAAAAAA/0tPBABRvtBRAgAAAB+LCAAAAAAAAP/LTeUCAJ33EUcDAAAA"
+  private static let tarGzFixture = "H4sIAAAAAAAA/+3RPQqDQBAGUGtP4QmMhXHPYxFEJAia3D+7Vks6C3+K95pvmOYbmHl6DP37VY/rXBylibq23TL6z+iZzWkfQuiKqjnsosx3/fRLrDyj64bS88urjwAAAAAAAAAAAGC3H7CaPhYAKAAA"
+  private static let damagedGzipFixture = "H4sIAAAAAAAA/0tPzE3lAgCp4gXWBQAAAA=="
   /// `xz -k game.iso` (contents "game\n").
   private static let xzFixture = "/Td6WFoAAATm1rRGBMAJBSEBFgAAAAAAAAAAAL95JWcBAARnYW1lCgAAAADvE8hnXREDkAABJQVDkR+4H7bzfQEAAAAABFla"
 
@@ -141,6 +147,62 @@ final class ZipImportHelperTests: XCTestCase {
     try extract(archive, as: "game.zip")
     XCTAssertEqual(contents(of: "Game/disc.iso"), "disc")
     XCTAssertEqual(stagingDirectories(), staleDirectoriesBefore)
+  }
+
+  func testRejectsAZipWhoseDataDoesNotMatchItsChecksum() throws {
+    var archive = TestZipBuilder.build([.init(name: "disc.iso", contents: Data("payload".utf8))])
+    let range = try XCTUnwrap(archive.range(of: Data("payload".utf8)))
+    archive[range.upperBound - 1] = UInt8(ascii: "k")
+    XCTAssertThrowsError(try extract(archive, as: "damaged.zip")) {
+      guard case UnpackError.damaged = $0 else { return XCTFail("expected damaged, got \($0)") }
+    }
+    XCTAssertEqual(stagingDirectories(), staleDirectoriesBefore)
+  }
+
+  func testACancelledUnpackStops() throws {
+    let url = try write(TestZipBuilder.build([.init(name: "disc.iso", contents: Data("disc".utf8))]), as: "game.zip")
+    let progress = UnpackProgress()
+    progress.cancel()
+    XCTAssertThrowsError(try ZipImportHelper.extractArchive(at: url, to: destination, progress: progress)) {
+      guard case UnpackError.cancelled = $0 else { return XCTFail("expected cancelled, got \($0)") }
+    }
+  }
+
+  func testReportsProgressInBytes() throws {
+    let url = try write(TestZipBuilder.build([.init(name: "a.iso", contents: Data("disc".utf8)),
+                                              .init(name: "b.iso", contents: Data("second".utf8))]), as: "game.zip")
+    let progress = UnpackProgress()
+    try ZipImportHelper.extractArchive(at: url, to: destination, progress: progress)
+    XCTAssertEqual(progress.total, 10)
+    XCTAssertEqual(progress.done, 10)
+  }
+
+  func testUnpacksAGzipFile() throws {
+    try extract(Data(base64Encoded: Self.gzipFixture)!, as: "game.iso.gz")
+    XCTAssertEqual(contents(of: "game.iso"), "game\n")
+  }
+
+  func testJoinsTheMembersOfAGzipFile() throws {
+    try extract(Data(base64Encoded: Self.twoMemberGzipFixture)!, as: "game.iso.gz")
+    XCTAssertEqual(contents(of: "game.iso"), "game\n")
+  }
+
+  func testUnpacksATarGz() throws {
+    try extract(Data(base64Encoded: Self.tarGzFixture)!, as: "game.tar.gz")
+    XCTAssertEqual(destinationContents(), ["ok", "ok/game.iso"])
+    XCTAssertEqual(contents(of: "ok/game.iso"), "game\n")
+    XCTAssertEqual(stagingDirectories(), staleDirectoriesBefore)
+  }
+
+  func testRejectsADamagedGzipFile() {
+    XCTAssertThrowsError(try extract(Data(base64Encoded: Self.damagedGzipFixture)!, as: "game.iso.gz"))
+  }
+
+  func testKnowsHowBigAZipIsUnpacked() throws {
+    let url = try write(TestZipBuilder.build([.init(name: "a.iso", contents: Data("disc".utf8)),
+                                              .init(name: "b.iso", contents: Data("second".utf8))]), as: "game.zip")
+    XCTAssertEqual(ZipImportHelper.unpackedSize(of: url), 10)
+    XCTAssertEqual(try ZipImportHelper.unpackedSize(of: write(Data(base64Encoded: Self.sevenZipFixture)!, as: "game.7z")), 5)
   }
 
   func testRejectsAZipEntryThatEscapesTheDestination() {

@@ -30,6 +30,18 @@ enum LibraryAddedDateStore {
     return nil
   }
 
+  /// Games that moved to another folder keep the date they were first added.
+  static func moveDates(from oldFolder: String, to newFolder: String) {
+    let old = normalize(oldFolder) + "/", new = normalize(newFolder) + "/"
+    var map = load()
+    for (path, time) in map where path.hasPrefix(old) {
+      let moved = new + path.dropFirst(old.count)
+      if map[moved] == nil { map[moved] = time }
+      map.removeValue(forKey: path)
+    }
+    save(map)
+  }
+
   /// File creation in the sandbox (import time on iOS) when no explicit record exists.
   /// Never uses modification date — ROM copies preserve the source mtime from the PC.
   static func filesystemAddedDate(forPath path: String) -> Date? {

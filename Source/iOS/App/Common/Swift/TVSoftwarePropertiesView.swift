@@ -165,10 +165,7 @@ struct TVSoftwarePropertiesView: View, Identifiable {
       }
       .onReceive(NotificationCenter.default.publisher(for: IridiaCovers.changed)) { _ in coverVersion &+= 1 }
       .navigationTitle(L("Game Info"))
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .navigationBarTrailing) { Button(L("Done")) { dismiss() } }
-      }
+      .menuClose { dismiss() }
     }
     .preferredColorScheme(.dark)
   }

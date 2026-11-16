@@ -159,6 +159,10 @@ NetKDRequestDevice::NetKDRequestDevice(EmulationKernel& ios, const std::string& 
   // Enable all NWC24 permissions
   m_scheduler_buffer[1] = Common::swap32(-1);
 
+  // gc-emu: offline, so no WiiConnect24 workers or scheduler thread
+  if constexpr (WII_ONLINE_OFF)
+    return;
+
   m_work_queue.Reset("WiiConnect24 Worker", [this](const AsyncTask& task) {
     const IPCReply reply = task.handler();
     {
@@ -190,6 +194,12 @@ NetKDRequestDevice::~NetKDRequestDevice()
   m_scheduler_timer_thread.join();
   m_scheduler_work_queue.Shutdown();
   m_work_queue.Shutdown();
+}
+
+IPCReply NetKDRequestDevice::ReplyOffline(const IOCtlRequest& request)
+{
+  WriteReturnValue(GetSystem().GetMemory(), NWC24::WC24_ERR_NETWORK, request.buffer_out);
+  return IPCReply(IPC_SUCCESS);
 }
 
 void NetKDRequestDevice::Update()

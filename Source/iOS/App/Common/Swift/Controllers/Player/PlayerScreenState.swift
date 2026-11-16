@@ -68,7 +68,7 @@ struct PointerMotionState: Equatable {
   var usesProgrammaticOverlay: Bool
 
   /// Steps across `TouchOverlayIRGeometry.dragGainRange` (0.25...4).
-  static let dragGainChoices: [Double] = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
+  static let dragGainChoices: [Double] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
   /// Multipliers on the gyro pointer's fixed constants; 1 is the behaviour before the setting.
   static let gyroSensitivityChoices: [Double] = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 

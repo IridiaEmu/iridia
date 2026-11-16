@@ -89,6 +89,7 @@ extension EmulationScreen {
 
   /// Heuristic: infer Wii vs GC from game metadata (gameID prefix, file extension)
   func inferIsWii(from item: TVGameItem) -> Bool {
+    if item.isWiiTitle { return true }   // gc-emu: Wii discs, WADs and Wii homebrew (TVGameItem reads the file)
     let id = item.gameID.uppercased()
     if let first = id.first {
       if first == "R" || first == "S" { return true }
@@ -116,7 +117,7 @@ extension EmulationScreen {
     /// every other path in this file (opacity, IR-mode passthrough, port resolution) is untouched.
     /// A chosen skin also mounts the hosted overlay, whatever the flag says.
     private static var useProgrammaticOverlay: Bool {
-      TouchOverlayFlag.isProgrammatic
+      true   // gc-emu: always the drawn overlay, never the old image pads (their Wii Remote pictures aren't ours)
     }
 
     /// Holds the hosting controller across `updateUIView` calls so a live setting change (pad
@@ -199,7 +200,7 @@ extension EmulationScreen {
     func programmaticPadKind() -> TouchOverlayPadKind? {
       if shouldShowWiiPad() {
         let slot = ControllerManager.shared.touchscreenSlot(system: .wii) ?? 0
-        return .wii(classicActive: DOLWiimoteBridge.isClassicActive(forWiimote: slot),
+        return .wii(classicActive: Self.classicSelected(slot),
                     sideways: DOLWiimoteBridge.isSideways(forWiimote: slot))
       } else if shouldShowGameCubePad() {
         return .gameCube
@@ -401,10 +402,23 @@ extension EmulationScreen {
 
     // MARK: - Decision Logic via ControllerManager
 
+    /// gc-emu: the Classic Controller is the selected extension. The game's active extension
+    /// (`isClassicActive`) catches up a few frames later, after the pad was already rebuilt.
+    static func classicSelected(_ slot: Int) -> Bool {
+      DOLWiimoteBridge.selectedExtension(forWiimote: slot) == 2
+    }
+
+    /// gc-emu: in a Wii game the touchscreen can play as a Wii Remote or as GameCube controller 1
+    /// (the Wii controls switch). Wii Remote unless only a GameCube port holds the touchscreen.
+    static var touchscreenOnWiiRemote: Bool {
+      let manager = ControllerManager.shared
+      return manager.touchscreenSlot(system: .wii) != nil || manager.touchscreenSlot(system: .gamecube) == nil
+    }
+
     private func shouldShowGameCubePad() -> Bool {
       let hasExternal = !GCController.controllers().isEmpty
       if hasExternal && !forceVisible { return false }
-      let show = ControllerManager.shared.shouldShowGCPad(wiiSystem: isWii, wiiPadAttached: true, gcPadAttached: true)
+      let show = ControllerManager.shared.shouldShowGCPad(wiiSystem: isWii, wiiPadAttached: Self.touchscreenOnWiiRemote, gcPadAttached: true)
       if TCManagerInterface.inputDebugEnabled { NSLog("%@", "[TOUCH] GameCube pad decision: isWiiState=\(isWii) shouldShow=\(show)") }
       return show
     }
@@ -412,7 +426,7 @@ extension EmulationScreen {
     private func shouldShowWiiPad() -> Bool {
       let hasExternal = !GCController.controllers().isEmpty
       if hasExternal && !forceVisible { return false }
-      let show = ControllerManager.shared.shouldShowWiiOverlay(wiiSystem: isWii, wiiPadAttached: true, gcPadAttached: true)
+      let show = ControllerManager.shared.shouldShowWiiOverlay(wiiSystem: isWii, wiiPadAttached: Self.touchscreenOnWiiRemote, gcPadAttached: true)
       if TCManagerInterface.inputDebugEnabled { NSLog("%@", "[TOUCH] Wii pad decision: isWiiState=\(isWii) shouldShow=\(show)") }
       return show
     }
@@ -423,7 +437,7 @@ extension EmulationScreen {
       // Layout (classic / sideways) and the input port both follow the Wii Remote slot the
       // touchscreen is actually bound to, not slot 1.
       let slot = ControllerManager.shared.touchscreenSlot(system: .wii) ?? 0
-      let classic = DOLWiimoteBridge.isClassicActive(forWiimote: slot)
+      let classic = Self.classicSelected(slot)
       let sideways = DOLWiimoteBridge.isSideways(forWiimote: slot)
       let view: TCWiiPad
       if classic {

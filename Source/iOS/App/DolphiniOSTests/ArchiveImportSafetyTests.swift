@@ -30,6 +30,23 @@ final class ArchiveImportSafetyTests: XCTestCase {
         try? FileManager.default.removeItem(at: root)
     }
 
+    func testTarAndBzip2OverTheLimitAreRefused() throws {
+        for (name, limit) in [("Big.tar", ZipImportHelper.tarLimit), ("Big.bz2", ZipImportHelper.bzip2Limit),
+                              ("Big.tar.bz2", ZipImportHelper.bzip2Limit)] {
+            let archive = external.appendingPathComponent(name)
+            XCTAssertTrue(FileManager.default.createFile(atPath: archive.path, contents: nil))
+            let handle = try FileHandle(forWritingTo: archive)
+            try handle.truncate(atOffset: UInt64(limit + 1))
+            try handle.close()
+            let out = root.appendingPathComponent("out-\(name)")
+            XCTAssertThrowsError(try ZipImportHelper.extractArchive(at: archive, to: out)) { error in
+                guard case UnpackError.tooBig(_, let reported)? = error as? UnpackError else { return XCTFail("\(name): \(error)") }
+                XCTAssertEqual(reported, limit)
+                XCTAssertTrue(error.localizedDescription.contains("ZIP or 7Z"))
+            }
+        }
+    }
+
     // MARK: - Picked archives (document picker, asCopy: false)
 
     func testPickedArchiveImportsIntoLibraryAndLeavesTheOriginalUntouched() throws {

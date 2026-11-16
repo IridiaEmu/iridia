@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/IOS/Network/IP/Top.h"
+#include "Core/IOS/Network/IridiaOffline.h"
 
 #include <algorithm>
 #include <array>
@@ -90,6 +91,10 @@ const char* GaiStrError(s32 error)
 NetIPTopDevice::NetIPTopDevice(EmulationKernel& ios, const std::string& device_name)
     : EmulationDevice(ios, device_name)
 {
+  // gc-emu: offline, every request that would use the worker is refused
+  if constexpr (WII_ONLINE_OFF)
+    return;
+
   m_work_queue.Reset("Network Worker", [this](const AsyncTask& task) {
     const IPCReply reply = task.handler();
     {
@@ -477,7 +482,7 @@ static DefaultInterface GetSystemDefaultInterfaceOrFallback()
 
 std::optional<IPCReply> NetIPTopDevice::IOCtl(const IOCtlRequest& request)
 {
-  if (Core::WantsDeterminism())
+  if (Core::WantsDeterminism() || WII_ONLINE_OFF)
   {
     return IPCReply(IPC_EACCES);
   }
@@ -534,6 +539,9 @@ std::optional<IPCReply> NetIPTopDevice::IOCtl(const IOCtlRequest& request)
 
 std::optional<IPCReply> NetIPTopDevice::IOCtlV(const IOCtlVRequest& request)
 {
+  if (WII_ONLINE_OFF && request.request != IOCTLV_SO_GETINTERFACEOPT)
+    return IPCReply(IPC_EACCES);
+
   switch (request.request)
   {
   case IOCTLV_SO_GETINTERFACEOPT:

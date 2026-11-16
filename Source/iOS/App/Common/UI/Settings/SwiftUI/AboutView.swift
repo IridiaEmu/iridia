@@ -114,9 +114,6 @@ struct AboutView: View {
             Button("dolphin-emu.org") {
               if let url = URL(string: "https://dolphin-emu.org") { openURL(url) }
             }
-            Button("icube-emu.com") {
-              if let url = URL(string: "https://icube-emu.com") { openURL(url) }
-            }
           }
           .font(.callout)
         }

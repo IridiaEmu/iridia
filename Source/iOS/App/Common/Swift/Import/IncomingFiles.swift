@@ -1,38 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// gc-emu: files opened into Iridia from another app (share sheet, AirDrop, "Open in"). iOS hands over a copy in
-// Documents/Inbox, which no library scans, so each file is sent to the tab its game belongs on.
+// gc-emu: files opened into Iridia from another app (share sheet, AirDrop, "Open in", Files). GameImport sends
+// each to the tab its game belongs on. A copy iOS made in Documents/Inbox is moved in; the player's own file,
+// opened in place from Files, stays where it is unless they choose Move.
 
 #if os(iOS)
 import UIKit
 
 enum IncomingFiles {
-  @MainActor static func open(_ url: URL) {
+  @MainActor static func open(_ url: URL, inPlace: Bool) {
     // On a cold launch the library needs a moment to come up, so the import's alerts have somewhere to show.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { route(url) }
-  }
-
-  @MainActor private static func route(_ url: URL) {
-    #if canImport(IridiaCafeCore)
-    if WiiUModel.canRunGames {
-      let scoped = url.startAccessingSecurityScopedResource()
-      let kind = WiiUImport.classify(url)
-      if scoped { url.stopAccessingSecurityScopedResource() }
-      switch kind {
-      case .wiiU, .keys:
-        NotificationCenter.default.post(name: WiiUImport.showTabNotification, object: nil)
-        WiiUModel.shared.addIncoming([url])
-        return
-      case .archive:
-        // Could hold either system's game: the Wii U import unpacks it and passes GameCube ones on.
-        WiiUModel.shared.addIncoming([url])
-        return
-      default:
-        break
-      }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+      GameImport.add([url], from: .current, incoming: !inPlace)
     }
-    #endif
-    ImportFileManager.shared().importFiles(at: [url as NSURL])
   }
 }
 #endif

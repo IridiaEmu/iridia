@@ -6,7 +6,7 @@
 #ifdef ANDROID
 #define GCADAPTER_USE_LIBUSB_IMPLEMENTATION false
 #define GCADAPTER_USE_ANDROID_IMPLEMENTATION true
-#elif defined(IPHONEOS)
+#elif defined(IPHONEOS) || !defined(__LIBUSB__)  // gc-emu: also the Mac test runner without libusb
 #define GCADAPTER_USE_LIBUSB_IMPLEMENTATION false
 #define GCADAPTER_USE_ANDROID_IMPLEMENTATION false
 #else

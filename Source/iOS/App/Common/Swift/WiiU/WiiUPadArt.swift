@@ -6,7 +6,7 @@
 //   gameplay only swaps images.
 import UIKit
 
-#if os(iOS) && canImport(IridiaCafeCore)
+#if os(iOS)
 
 enum PadPalette {
   static let shellTop = UIColor(red: 0.97, green: 0.98, blue: 0.99, alpha: 1)
@@ -17,7 +17,7 @@ enum PadPalette {
   static let blue = UIColor(red: 0.0, green: 0.60, blue: 0.86, alpha: 1)
 }
 
-enum PadShape { case circle, tab, dpad }
+enum PadShape { case circle, tab, dpad, capsule, trapezoid }
 
 @MainActor
 final class PadArt {
@@ -55,8 +55,12 @@ final class PadArt {
           ctx.addLine(to: CGPoint(x: b.maxX - b.width * 0.14, y: b.minY + b.height * 0.28))
           ctx.strokePath()
         }
-        let lb = shape == .tab ? b.offsetBy(dx: 0, dy: b.height * 0.06) : b
-        if let text { self.deboss(text, in: lb, size: min(b.width, b.height) * (shape == .tab ? 0.44 : 0.42), on: base, ctx: ctx) }
+        let lb = shape == .tab || shape == .trapezoid ? b.offsetBy(dx: 0, dy: b.height * 0.06) : b
+        if let text {
+          var size = min(b.width, b.height) * (shape == .tab || shape == .trapezoid ? 0.44 : 0.42)
+          if shape == .capsule { size = min(b.height * 0.42, b.width * 0.78 / (CGFloat(text.count) * 0.66)) }
+          self.deboss(text, in: lb, size: size, on: base, ctx: ctx)
+        }
         if let symbol { self.debossSymbol(symbol, in: lb, size: min(b.width, b.height) * 0.40, on: base, ctx: ctx) }
       }
     }
@@ -95,11 +99,11 @@ final class PadArt {
   }
 
   /// Stick housing: concave bowl and gate ring (unpadded size).
-  func stickWell(size: CGSize) -> UIImage {
-    cached("w|\(Int(size.width))", size) { ctx in
+  func stickWell(size: CGSize, base: UIColor = PadPalette.stickBase) -> UIImage {
+    cached("w|\(Int(size.width))|\(base.hashValue)", size) { ctx in
       let r = CGRect(origin: .zero, size: size)
       let well = r.insetBy(dx: r.width * 0.02, dy: r.height * 0.02)
-      let dark = PadPalette.stickBase
+      let dark = base
       ctx.saveGState()
       ctx.addEllipse(in: well)
       ctx.clip()
@@ -226,7 +230,21 @@ final class PadArt {
     case .circle: UIBezierPath(ovalIn: r)
     case .tab: UIBezierPath(roundedRect: r, cornerRadius: r.height * 0.42)
     case .dpad: dpadPath(in: r)
+    case .capsule: UIBezierPath(roundedRect: r, cornerRadius: r.height / 2)
+    case .trapezoid: trapezoidPath(in: r)
     }
+  }
+
+  /// A shoulder button, narrower at the bottom, with rounded corners.
+  private func trapezoidPath(in r: CGRect) -> UIBezierPath {
+    let inset = r.width * 0.14, radius = min(r.width, r.height) * 0.22
+    let pts = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
+               CGPoint(x: r.maxX - inset, y: r.maxY), CGPoint(x: r.minX + inset, y: r.maxY)]
+    let p = CGMutablePath()
+    p.move(to: CGPoint(x: r.midX, y: r.minY))
+    for i in 1...pts.count { p.addArc(tangent1End: pts[i % pts.count], tangent2End: pts[(i + 1) % pts.count], radius: radius) }
+    p.closeSubpath()
+    return UIBezierPath(cgPath: p)
   }
 
   /// One continuous cross outline (12 corners) so fill, shading and bevel have no seams.

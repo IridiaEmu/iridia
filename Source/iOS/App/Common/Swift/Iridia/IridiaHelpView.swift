@@ -9,6 +9,8 @@ import SwiftUI
 struct IridiaHelpView: View {
   enum Topic: String { case all, saveStates }
 
+  @Environment(\.dismiss) private var dismiss
+
   var topic: Topic = .all
   @State private var showFilesGuide = false
 
@@ -20,7 +22,7 @@ struct IridiaHelpView: View {
         } else {
           section(L("Adding games"), [
             L("Iridia doesn't come with any games. Use your own game files."),
-            L("Tap + at the top of your library, then Choose a Game File. Or move files into Iridia's Games folder with the Files app."),
+            L("Tap + at the top of your library, then Choose a Game File. Or move files into Iridia's GameCube, Wii or Wii U folder with the Files app."),
             L("ISO, RVZ, GCM and CISO files work. ZIP and 7Z files are unpacked for you."),
           ])
           Button { showFilesGuide = true } label: {
@@ -55,7 +57,7 @@ struct IridiaHelpView: View {
     }
     .iridiaScreen()
     .navigationTitle(topic == .saveStates ? L("Save States") : L("Help"))
-    .navigationBarTitleDisplayMode(.inline)
+    .menuClose { dismiss() }
     .sheet(isPresented: $showFilesGuide) { FilesAppGuideView() }
   }
 

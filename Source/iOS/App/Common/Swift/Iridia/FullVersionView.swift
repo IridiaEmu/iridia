@@ -29,8 +29,8 @@ struct FullVersionView: View {
         }
       } footer: {
         Text(restoreMessage ?? (IridiaUnlock.isUnlocked
-          ? L("Unlimited play in every GameCube and Wii U game. Thank you for your support.")
-          : L("One purchase unlocks GameCube and Wii U games. Without it, each game plays in free play sessions: 10 minutes for GameCube, 20 for Wii U.")))
+          ? L("Unlimited play in every GameCube, Wii and Wii U game. Thank you for your support.")
+          : L("One purchase unlocks GameCube, Wii and Wii U games. Without it, each game plays in free play sessions: 10 minutes for GameCube and Wii, 20 for Wii U.")))
       }
     }
     .navigationTitle(L("Full Version"))

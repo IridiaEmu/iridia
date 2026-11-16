@@ -28,6 +28,12 @@ enum ControllerHubModelBuilder {
 
   // MARK: Players: a group per port (spec 7.1, deviation: rows, not pills)
 
+  /// Choosing `target` would move `player` onto a port that has its own device: `setPlaysAs` refuses it.
+  static func isOccupied(_ target: PlaysAs, for player: PlayerState, in state: ControllerHubState) -> Bool {
+    guard target.kind != player.kind else { return false }
+    return state.players.contains { $0.kind == target.kind && $0.port == player.port && $0.isBound }
+  }
+
   private static func playersSection(state: ControllerHubState, actions: ControllerHubActions, platform: PlatformKind) -> MenuSection {
     let bound = state.players.filter(\.isBound)
     let shown = state.showAllPorts ? state.players : bound
@@ -44,12 +50,17 @@ enum ControllerHubModelBuilder {
       guard player.isBound else { continue }
       let options = PlaysAs.options(for: state.system)
       if options.count > 1 {
+        let selection = Binding<AnyHashable>(
+          get: { AnyHashable(playsAs) },
+          set: { if let value = $0.base as? PlaysAs { actions.setPlaysAs(player, value) } })
+        // Tapping skips a choice whose port another device holds; holding still lists it, and
+        // picking it says why it can't be used.
+        let tappable = options.filter { !isOccupied($0, for: player, in: state) }
         items.append(MenuItem(
           id: "\(player.id)-plays-as", title: L("Plays as"), icon: "person.crop.rectangle",
-          role: .cycle(options: options.map { ($0.title, AnyHashable($0)) }, selection: Binding(
-            get: { AnyHashable(playsAs) },
-            set: { if let value = $0.base as? PlaysAs { actions.setPlaysAs(player, value) } })),
-          description: L("The controller the game sees. Wii Remote choices move this player to a Wii Remote slot; GameCube Controller moves it to a GameCube port.")))
+          role: .cycle(options: tappable.map { ($0.title, AnyHashable($0)) }, selection: selection),
+          description: L("The controller the game sees. Wii Remote choices move this player to a Wii Remote slot; GameCube Controller moves it to a GameCube port."),
+          longPress: .options(title: L("Plays as"), options: options.map { ($0.title, AnyHashable($0)) }, selection: selection)))
       }
       if let pointer = pointerRow(for: player, state: state, actions: actions, platform: platform) {
         items.append(pointer)

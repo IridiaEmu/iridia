@@ -8,6 +8,11 @@
 /* #include "CpuArch.h" */
 #include "LzmaDec.h"
 
+// gc-emu: use the SDK's arm64 assembly decoder (Asm/arm64/LzmaDecOpt.S, built for arm64 only).
+#if defined(__aarch64__) && !defined(Z7_LZMA_DEC_OPT)
+#define Z7_LZMA_DEC_OPT
+#endif
+
 // #define kNumTopBits 24
 #define kTopValue ((UInt32)1 << 24)
 

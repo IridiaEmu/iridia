@@ -144,6 +144,9 @@ void HiresTexture::Update()
       SConfig::GetInstance().GetGameIDsForTextures();
   const std::string game_id_display = fmt::format("{}", fmt::join(game_ids_for_textures, "' or '"));
 
+  if (s_hires_texture_id_to_arbmipmap.empty())
+    return;
+
   std::string message;
   if (g_ActiveConfig.bCacheHiresTextures)
   {

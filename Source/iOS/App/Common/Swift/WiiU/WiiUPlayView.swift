@@ -474,14 +474,18 @@ struct WiiUPauseSheet: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
-        Text(game.name).font(.title3.weight(.semibold)).foregroundStyle(WiiUTheme.ink)
-        Text(L("The game is paused."))
-          .font(.footnote).foregroundStyle(WiiUTheme.dim)
+        HStack(spacing: 12) {
+          WiiUMark(size: 48).frame(width: 52, height: 52).accessibilityHidden(true)
+          VStack(alignment: .leading, spacing: 2) {
+            Text(L("Paused")).font(.system(size: 22, weight: .bold)).foregroundStyle(WiiUTheme.ink)
+            Text(game.name).font(.system(size: 13)).foregroundStyle(WiiUTheme.soft).lineLimit(1)
+          }
+        }
         Button(action: onResume) {
           Label(L("Resume"), systemImage: "play.fill")
-            .font(.body.weight(.semibold)).foregroundStyle(WiiUTheme.onAccent)
-            .frame(maxWidth: .infinity).frame(minHeight: 50)
-            .wiiUSurface(radius: 25, prominent: true)
+            .font(.system(size: 19, weight: .bold)).foregroundStyle(WiiUTheme.onAccent)
+            .frame(maxWidth: .infinity).frame(minHeight: 60)
+            .wiiUSurface(radius: 30, prominent: true)
         }
         .buttonStyle(WiiUPress())
         VStack(alignment: .leading, spacing: 12) {
@@ -498,11 +502,14 @@ struct WiiUPauseSheet: View {
           .foregroundStyle(WiiUTheme.ink)
           .padding(16)
           .wiiUSurface(radius: 18)
-        Button(role: .destructive, action: onQuit) {
-          Label(L("Quit Game"), systemImage: "xmark")
-            .font(.body.weight(.semibold))
-            .frame(maxWidth: .infinity).frame(minHeight: 46)
+        Button(action: onQuit) {
+          Text(L("Quit Game"))
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.red)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .wiiUSurface(radius: 25)
         }
+        .buttonStyle(WiiUPress())
         Text(L("Save in the game before you quit. Quitting keeps everything the game has saved."))
           .font(.caption).foregroundStyle(WiiUTheme.dim)
       }

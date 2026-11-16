@@ -401,6 +401,7 @@ final class ControllerHubViewModelTests: XCTestCase {
     XCTAssertEqual(writer.log, [], "moving would overwrite Player 1's device")
     XCTAssertEqual(seen, ["Player 1 is in use. Change that player's device first."])
     XCTAssertEqual(model.state.players.first { $0.id == "gc-1" }?.deviceQualifier, "MFi/1/DualSense Wireless Controller")
+    XCTAssertEqual(model.notice, "Player 1 is in use. Change that player's device first.", "said on the screen too, not only over a game")
   }
 
   @MainActor

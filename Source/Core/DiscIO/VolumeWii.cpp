@@ -243,6 +243,24 @@ bool VolumeWii::HasWiiHashes() const
   return m_has_hashes;
 }
 
+bool VolumeWii::IsMissingWiiKey() const
+{
+  if (!m_has_encryption)
+    return false;
+  const Partition partition = GetGamePartition();
+  const auto it = m_partitions.find(partition);
+  if (it == m_partitions.end())
+    return false;
+  // RVZ and WIA store the partition decrypted: no key needed to read it.
+  const u64 data_offset = partition.offset + *it->second.data_offset;
+  if (m_has_hashes && m_reader->SupportsReadWiiDecrypted(0, 1, data_offset))
+    return false;
+  const IOS::ES::TicketReader& ticket = *it->second.ticket;
+  if (!ticket.IsValid())
+    return false;
+  return !IOS::HLE::IOSC::HasCommonKey(ticket.GetConsoleType(), ticket.GetCommonKeyIndex());
+}
+
 bool VolumeWii::HasWiiEncryption() const
 {
   return m_has_encryption;

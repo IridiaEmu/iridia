@@ -3,33 +3,69 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Iridia: GameCube and Wii U emulator for iPhone and iPad</title>
-<meta name="description" content="Iridia is a GameCube emulator on the App Store for iPhone and iPad, now with experimental Wii U support. No JIT, no sideloading, Metal graphics. Plays the games you own. Free to try.">
+<title>Iridia: GameCube, Wii and Wii U emulator for iPhone and iPad</title>
+<meta name="description" content="Iridia is a GameCube, Wii and Wii U emulator on the App Store for iPhone and iPad. No JIT, no sideloading, Metal graphics. Plays the games you own. Free to try.">
 <link rel="canonical" href="https://iridiaemu.github.io/iridia/">
 <link rel="icon" href="img/icon.png">
 <link rel="apple-touch-icon" href="img/icon.png">
 <meta name="apple-itunes-app" content="app-id=6825803351">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Iridia: GameCube and Wii U emulator for iPhone and iPad">
-<meta property="og:description" content="A GameCube emulator on the App Store, now with experimental Wii U support. No JIT, Metal graphics, free to try.">
+<meta property="og:site_name" content="Iridia">
+<meta property="og:title" content="Iridia: GameCube, Wii and Wii U emulator for iPhone and iPad">
+<meta property="og:description" content="A GameCube, Wii and Wii U emulator on the App Store. No JIT, no sideloading, free to try. Plays the games you own.">
 <meta property="og:url" content="https://iridiaemu.github.io/iridia/">
 <meta property="og:image" content="https://iridiaemu.github.io/iridia/img/library.jpg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Iridia: GameCube, Wii and Wii U emulator for iPhone and iPad">
+<meta name="twitter:description" content="A GameCube, Wii and Wii U emulator on the App Store. No JIT, no sideloading, free to try. Plays the games you own.">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "MobileApplication",
+  "@type": "SoftwareApplication",
   "name": "Iridia",
-  "alternateName": "IridiaEmu",
+  "alternateName": [
+    "Iridia: Game Emulator",
+    "IridiaEmu"
+  ],
   "operatingSystem": "iOS, iPadOS",
-  "applicationCategory": "EntertainmentApplication",
-  "description": "A GameCube emulator for iPhone and iPad that runs without JIT, with experimental Wii U support. Plays the game files you own.",
-  "featureList": "GameCube emulation, experimental Wii U emulation, no JIT, Metal graphics, touch controls, MFi Xbox PlayStation and Switch controllers, save states, TV and GamePad screen layouts",
+  "applicationCategory": "GameApplication",
+  "applicationSubCategory": "Emulator",
+  "description": "A GameCube, Wii and Wii U emulator for iPhone and iPad that runs without JIT. Plays the game files you own.",
+  "featureList": "GameCube emulation, Wii emulation, experimental Wii U emulation, no JIT, Metal graphics, touch controls, Wii Remote Nunchuk and Classic Controller touch controls, MFi Xbox PlayStation and Switch controllers, save states, TV and GamePad screen layouts",
+  "softwareVersion": "1.2",
   "url": "https://iridiaemu.github.io/iridia/",
-  "downloadUrl": "https://apps.apple.com/app/id6825803351",
-  "installUrl": "https://apps.apple.com/app/id6825803351",
+  "downloadUrl": "https://apps.apple.com/app/iridia/id6825803351",
+  "installUrl": "https://apps.apple.com/app/iridia/id6825803351",
+  "sameAs": [
+    "https://apps.apple.com/app/iridia/id6825803351",
+    "https://github.com/IridiaEmu/iridia"
+  ],
   "image": "https://iridiaemu.github.io/iridia/img/icon.png",
-  "screenshot": ["https://iridiaemu.github.io/iridia/img/library.jpg", "https://iridiaemu.github.io/iridia/img/controls.jpg"],
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  "screenshot": [
+    "https://iridiaemu.github.io/iridia/img/library.jpg",
+    "https://iridiaemu.github.io/iridia/img/wii.jpg",
+    "https://iridiaemu.github.io/iridia/img/controls.jpg"
+  ],
+  "isAccessibleForFree": true,
+  "offers": [
+    {
+      "@type": "Offer",
+      "name": "Iridia",
+      "price": "0",
+      "priceCurrency": "USD",
+      "url": "https://apps.apple.com/app/iridia/id6825803351",
+      "category": "Free"
+    },
+    {
+      "@type": "Offer",
+      "name": "Unlock Full Version",
+      "description": "In-app purchase. Removes the time limit on play sessions for GameCube, Wii and Wii U.",
+      "price": "2.99",
+      "priceCurrency": "USD",
+      "url": "https://apps.apple.com/app/iridia/id6825803351",
+      "category": "In-app purchase"
+    }
+  ]
 }
 </script>
 <script type="application/ld+json">
@@ -37,20 +73,94 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    { "@type": "Question", "name": "Is there a GameCube emulator on the App Store?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Iridia is a GameCube emulator available on the App Store for iPhone and iPad. Download it free, add your own game files, and play." } },
-    { "@type": "Question", "name": "Is there a Wii U emulator for iPhone?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Iridia on the App Store has experimental Wii U support next to its GameCube library. It needs a device with 8 GB of memory, such as iPhone 15 Pro, any iPhone 16 or newer, or an iPad with M1 or later. Games may run slowly or show glitches." } },
-    { "@type": "Question", "name": "How do I play GameCube games on my iPhone?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Install Iridia from the App Store, then add your own game files (disc backups or homebrew) with Choose a Game File in Iridia or by copying them to On My iPhone, Iridia, Games in the Files app." } },
-    { "@type": "Question", "name": "How do I play Wii U games on my iPhone?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Install Iridia from the App Store and tap Wii U in the tab bar. In the Files app, copy your own Wii U game files and your keys.txt to On My iPhone, Iridia, Wii U. Disc images (WUD, WUX), installed title folders and homebrew (RPX) work." } },
-    { "@type": "Question", "name": "Does Iridia need JIT or sideloading?",
-      "acceptedAnswer": { "@type": "Answer", "text": "No. Iridia runs without JIT, for GameCube and Wii U, so it works straight from the App Store with no sideloading, no AltStore and no debugger." } },
-    { "@type": "Question", "name": "Does Iridia come with games?",
-      "acceptedAnswer": { "@type": "Answer", "text": "No. Iridia doesn't include any games, keys, BIOS or firmware. You play game files you own." } },
-    { "@type": "Question", "name": "Is Iridia free?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Iridia is free to download. Every GameCube game launch gives you 10 minutes of free play, and every Wii U game launch 20 minutes. One one-time purchase unlocks unlimited play for both. No subscription, no ads, no tracking." } }
+    {
+      "@type": "Question",
+      "name": "Is there a GameCube emulator on the App Store?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Iridia is a GameCube, Wii and Wii U emulator available on the App Store for iPhone and iPad. Download it free, add your own game files, and play."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I play Wii games on iPhone?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Iridia 1.2 adds a Wii shelf next to GameCube and Wii U. It has touch controls for the Wii Remote, Nunchuk and Classic Controller, the pointer is aimed by touch or by tilting your device, and game controllers work too. Real Wii Remotes can't connect, because iOS doesn't allow it."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I play Wii games on my iPhone?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Install Iridia from the App Store and tap Wii in the tab bar. Tap +, then Choose a Game File, or copy your own game files to On My iPhone, Iridia, Wii in the Files app. RVZ, WIA, ISO, WBFS, GCZ and CISO disc images and homebrew work, and RVZ is the best choice. ZIP and 7Z files are unpacked for you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a Wii U emulator for iPhone?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Iridia has experimental Wii U support next to its GameCube and Wii shelves. It needs a device with 8 GB of memory, such as iPhone 15 Pro or later, an iPad with M1 or later, or iPad mini with A17 Pro. Games may run slowly or show glitches."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I play GameCube games on my iPhone?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Install Iridia from the App Store, then tap +, then Choose a Game File, or copy your own game files to On My iPhone, Iridia, GameCube in the Files app (the folder was named Games before version 1.2). ISO, RVZ, GCM and CISO files work, and ZIP and 7Z files are unpacked for you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I play Wii U games on my iPhone?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Install Iridia and tap Wii U in the tab bar. Tap +, then Choose a Game File, or copy your own game files to On My iPhone, Iridia, Wii U in the Files app. WUA files, title folders and homebrew (RPX) work."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Iridia need JIT or sideloading?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Iridia runs without JIT for GameCube, Wii and Wii U, so it works straight from the App Store with no sideloading, no AltStore and no debugger."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Iridia come with games?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Iridia includes no games, keys, BIOS or firmware. You play game files you own: your disc backups or homebrew."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which iPhones work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Iridia needs iOS 26 or later. GameCube plays best on newer phones, and Wii games run best on recent iPhones and iPads. Wii U needs a device with 8 GB of memory: iPhone 15 Pro or later, an iPad with M1 or later, or iPad mini with A17 Pro. How well a game runs depends on the game and on your device, so use the free play time to check your games before you buy the unlock."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Iridia free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Iridia is free to download. Every time you start a game you get a free play session: 10 minutes for GameCube and Wii, 20 minutes for Wii U, as often as you like. One purchase unlocks unlimited play on all three. No subscription, no ads, no tracking."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Iridia open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Iridia is free software based on the Dolphin and Cemu emulators. The source is at github.com/IridiaEmu/iridia."
+      }
+    }
   ]
 }
 </script>
@@ -67,7 +177,7 @@ a{color:var(--link)}hr{border:0;border-top:1px solid var(--line);margin:40px 0 2
 .lead{font-size:20px;margin:16px 0 24px}
 .store{display:inline-block;background:var(--btn);color:var(--btnfg);text-decoration:none;font-weight:600;padding:14px 26px;border-radius:14px;font-size:18px}
 .shots{display:flex;gap:16px;margin:32px 0 0;overflow-x:auto}
-.shots img{width:calc(50% - 8px);max-width:300px;border-radius:22px;border:1px solid var(--line)}
+.shots img{width:calc(33.3% - 11px);min-width:150px;max-width:230px;border-radius:22px;border:1px solid var(--line)}
 nav a{margin-right:16px;font-size:15px}
 </style>
 </head>
@@ -77,59 +187,70 @@ nav a{margin-right:16px;font-size:15px}
 <img src="img/icon.png" alt="Iridia app icon">
 <h1>Iridia</h1>
 </header>
-<p class="lead">Play the GameCube games you own on iPhone and iPad, and now Wii U games too (experimental). Iridia is an emulator on the App Store: no JIT, no sideloading, made for Apple devices.</p>
-<p><a class="store" href="https://apps.apple.com/app/id6825803351">Download on the App Store</a></p>
-<p class="muted">Free to download. Every game launch includes free play time (10 minutes for GameCube, 20 for Wii U), and one one-time purchase unlocks unlimited play for both.</p>
+<p class="lead"><strong>Iridia: GameCube, Wii and Wii U emulator for iPhone and iPad.</strong> Play the games you own, straight from the App Store: no JIT, no sideloading, made for Apple devices.</p>
+<p><a class="store" href="https://apps.apple.com/app/iridia/id6825803351">Download on the App Store</a></p>
+<p class="muted">Free to download. Every time you start a game you get free play time (10 minutes for GameCube and Wii, 20 for Wii U), and one purchase unlocks unlimited play on all three. Open source: <a href="https://github.com/IridiaEmu/iridia">github.com/IridiaEmu/iridia</a>.</p>
 
 <div class="shots">
-<img src="img/library.jpg" alt="Iridia's GameCube game library on iPhone">
+<img src="img/library.jpg" alt="Iridia's GameCube shelf on iPhone, with tabs for GameCube, Wii and Wii U">
+<img src="img/wii.jpg" alt="Iridia's Wii shelf on iPhone">
 <img src="img/controls.jpg" alt="Iridia's touch controls on iPhone">
 </div>
 
 <h2>Why Iridia</h2>
 <ul>
 <li><strong>Straight from the App Store.</strong> Iridia runs without JIT, so there's nothing to sideload and no extra steps.</li>
-<li><strong>GameCube and Wii U in one app.</strong> Your GameCube shelf, plus a Wii U section with its own controls.</li>
-<li><strong>Fast on iPhone.</strong> A tuned interpreter and Metal graphics, with up to 8x internal resolution for GameCube on recent iPhones.</li>
-<li><strong>Touch or controller.</strong> Touch controls that look and feel like the real pad, or use any MFi, Xbox, PlayStation or Switch controller.</li>
-<li><strong>Pick up where you left off.</strong> Save states, memory cards and per-game settings.</li>
+<li><strong>One library for GameCube, Wii and Wii U.</strong> Each system has its own shelf, and you switch between them in the tab bar.</li>
+<li><strong>Fast on iPhone.</strong> A tuned interpreter and Metal graphics, with up to 8x internal resolution for GameCube on newer devices.</li>
+<li><strong>Touch or controller.</strong> Touch controls you can move and resize, or use any MFi, Xbox, PlayStation or Switch controller.</li>
+<li><strong>Pick up where you left off.</strong> Save states, memory cards and settings for each game.</li>
 <li><strong>Private.</strong> No ads, no tracking, no account.</li>
+</ul>
+
+<h2>Wii (new in 1.2)</h2>
+<ul>
+<li><strong>Wii controls on screen.</strong> Touch controls for the Wii Remote, Nunchuk, sideways Wii Remote and Classic Controller. Each game remembers which one it uses.</li>
+<li><strong>Aim the pointer by touch or tilt.</strong> Drag on the picture, or tilt your iPhone or iPad. Shake and recenter are on screen too.</li>
+<li><strong>Game controllers.</strong> MFi, Xbox, PlayStation and Switch controllers work. Real Wii Remotes can't connect, because iOS doesn't allow it.</li>
+<li><strong>Files that work:</strong> RVZ, WIA, ISO, WBFS, GCZ and CISO disc images, plus homebrew. RVZ is the best choice.</li>
+<li>Wii games need more power than GameCube games, and run best on recent iPhones and iPads.</li>
 </ul>
 
 <h2>Wii U (experimental)</h2>
 <ul>
-<li><strong>Both screens, your way.</strong> TV only, TV with the GamePad in a small window, GamePad full screen, or both stacked on iPad and iPhone in portrait. Swap the two screens any time, and each game remembers its layout.</li>
+<li><strong>Both screens, your way.</strong> TV only, TV with the GamePad in a small window, GamePad full screen, or both stacked (on iPad, and on iPhone in portrait). Swap the two screens any time, and each game remembers its layout.</li>
 <li><strong>Touch the GamePad screen.</strong> Tap and draw right on the GamePad picture, with your finger or Apple Pencil.</li>
 <li><strong>Motion controls.</strong> Tilt your iPhone or iPad to aim, like the GamePad.</li>
-<li><strong>Needs 8 GB of memory:</strong> iPhone 15 Pro, any iPhone 16 or newer, iPad with M1 or later, or iPad mini with A17 Pro. Games may run slowly or show glitches.</li>
+<li><strong>Needs 8 GB of memory:</strong> iPhone 15 Pro or later, iPad with M1 or later, or iPad mini with A17 Pro. Games may run slowly or show glitches.</li>
 </ul>
 
 <h2>Questions</h2>
 <h3>Is there a GameCube emulator on the App Store?</h3>
-<p>Yes. Iridia is a GameCube emulator available on the App Store for iPhone and iPad. Download it free, add your own game files, and play.</p>
+<p>Yes. Iridia is a GameCube, Wii and Wii U emulator available on the App Store for iPhone and iPad. Download it free, add your own game files, and play.</p>
+<h3>Can I play Wii games on iPhone?</h3>
+<p>Yes. Iridia 1.2 adds a Wii shelf next to GameCube and Wii U. It has touch controls for the Wii Remote, Nunchuk and Classic Controller, the pointer is aimed by touch or by tilting your device, and game controllers work too. Real Wii Remotes can&#x27;t connect, because iOS doesn&#x27;t allow it.</p>
+<h3>How do I play Wii games on my iPhone?</h3>
+<p>Install Iridia from the App Store and tap Wii in the tab bar. Tap +, then Choose a Game File, or copy your own game files to On My iPhone, Iridia, Wii in the Files app. RVZ, WIA, ISO, WBFS, GCZ and CISO disc images and homebrew work, and RVZ is the best choice. ZIP and 7Z files are unpacked for you.</p>
 <h3>Is there a Wii U emulator for iPhone?</h3>
-<p>Yes. Iridia on the App Store has experimental Wii U support next to its GameCube library. It needs a device with 8 GB of memory (see above). Wii U support is new: games may run slowly or show glitches, so use the free play time to check your games first.</p>
+<p>Yes. Iridia has experimental Wii U support next to its GameCube and Wii shelves. It needs a device with 8 GB of memory, such as iPhone 15 Pro or later, an iPad with M1 or later, or iPad mini with A17 Pro. Games may run slowly or show glitches.</p>
 <h3>How do I play GameCube games on my iPhone?</h3>
-<p>Install Iridia from the App Store, then add your game files:</p>
-<ul>
-<li>In Iridia, tap Choose a Game File, or</li>
-<li>In the Files app, copy them to On My iPhone &rarr; Iridia &rarr; Games.</li>
-</ul>
-<p>ISO, RVZ, GCM and CISO files work. ZIP and 7Z archives are unpacked for you.</p>
+<p>Install Iridia from the App Store, then tap +, then Choose a Game File, or copy your own game files to On My iPhone, Iridia, GameCube in the Files app (the folder was named Games before version 1.2). ISO, RVZ, GCM and CISO files work, and ZIP and 7Z files are unpacked for you.</p>
 <h3>How do I play Wii U games on my iPhone?</h3>
-<p>Install Iridia and tap Wii U in the tab bar. In the Files app, copy your own game files and your keys.txt to On My iPhone &rarr; Iridia &rarr; Wii U. Disc images (WUD, WUX), installed title folders and homebrew (RPX) work.</p>
+<p>Install Iridia and tap Wii U in the tab bar. Tap +, then Choose a Game File, or copy your own game files to On My iPhone, Iridia, Wii U in the Files app. WUA files, title folders and homebrew (RPX) work.</p>
 <h3>Does Iridia need JIT or sideloading?</h3>
-<p>No. Iridia runs without JIT, for GameCube and Wii U, so it works straight from the App Store with no sideloading, no AltStore and no debugger.</p>
+<p>No. Iridia runs without JIT for GameCube, Wii and Wii U, so it works straight from the App Store with no sideloading, no AltStore and no debugger.</p>
 <h3>Does Iridia come with games?</h3>
-<p>No. Iridia doesn't include any games, keys, BIOS or firmware. You play game files you own: your disc backups or homebrew.</p>
+<p>No. Iridia includes no games, keys, BIOS or firmware. You play game files you own: your disc backups or homebrew.</p>
 <h3>Which iPhones work?</h3>
-<p>GameCube needs an iPhone 12 or newer. Wii U needs a device with 8 GB of memory. How well a game runs depends on the game and on your device, so use the free play time to check your games before you buy the unlock.</p>
+<p>Iridia needs iOS 26 or later. GameCube plays best on newer phones, and Wii games run best on recent iPhones and iPads. Wii U needs a device with 8 GB of memory: iPhone 15 Pro or later, an iPad with M1 or later, or iPad mini with A17 Pro. How well a game runs depends on the game and on your device, so use the free play time to check your games before you buy the unlock.</p>
 <h3>Is Iridia free?</h3>
-<p>Iridia is free to download. Every GameCube game launch gives you 10 minutes of free play and every Wii U game launch 20 minutes, as often as you like. One one-time purchase unlocks unlimited play for both. No subscription.</p>
+<p>Iridia is free to download. Every time you start a game you get a free play session: 10 minutes for GameCube and Wii, 20 minutes for Wii U, as often as you like. One purchase unlocks unlimited play on all three. No subscription, no ads, no tracking.</p>
+<h3>Is Iridia open source?</h3>
+<p>Yes. Iridia is free software based on the Dolphin and Cemu emulators. The source is at <a href="https://github.com/IridiaEmu/iridia">github.com/IridiaEmu/iridia</a>.</p>
 
 <hr>
-<nav><a href="support/">Support</a><a href="privacy/">Privacy Policy</a></nav>
-<p class="muted">GameCube and Wii U are trademarks of Nintendo. Iridia is not affiliated with or endorsed by Nintendo.</p>
+<nav><a href="https://apps.apple.com/app/iridia/id6825803351">App Store</a><a href="https://github.com/IridiaEmu/iridia">Source on GitHub</a><a href="support/">Support</a><a href="privacy/">Privacy Policy</a></nav>
+<p class="muted">GameCube, Wii and Wii U are Nintendo trademarks. Iridia is not affiliated with or endorsed by Nintendo.</p>
 </main>
 </body>
 </html>
